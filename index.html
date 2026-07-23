@@ -755,6 +755,32 @@
   .roomPortal b { display:block; font-size:clamp(21px,2.2vw,30px); }
   .roomPortal small { display:block; margin-top:5px; font-size:12px; font-weight:800; line-height:1.4; }
   .roomPortal i { font-size:46px; font-style:normal; font-weight:1000; }
+  .publicMatchCard {
+    min-height:74px; display:grid; grid-template-columns:52px minmax(0,1fr) auto 34px; gap:10px; align-items:center;
+    padding:9px 11px; border:2px solid rgba(117,255,173,.26); border-radius:19px;
+    color:#fff; background:linear-gradient(110deg,rgba(13,61,51,.96),rgba(15,31,40,.96));
+    box-shadow:inset 0 2px 0 rgba(255,255,255,.08),0 6px 0 rgba(0,0,0,.35);
+  }
+  .publicMatchIcon {
+    width:45px; height:45px; display:grid; place-items:center; border-radius:50%;
+    color:#10291e; background:linear-gradient(#8bffc0,#37d47f); font-size:23px; font-weight:1000;
+    box-shadow:0 0 20px rgba(68,226,137,.28);
+  }
+  .publicMatchCopy { min-width:0; }
+  .publicMatchCopy b { display:block; color:#8bffc0; font-size:14px; }
+  .publicMatchCopy small { display:block; margin-top:3px; overflow:hidden; color:#c6d9d1; font-size:9px; white-space:nowrap; text-overflow:ellipsis; }
+  .publicJoinButton {
+    min-width:112px; min-height:38px; padding:7px 12px; border:0; border-radius:18px;
+    color:#123024; background:linear-gradient(#a2ffca,#4de38e); font-size:11px; font-weight:1000;
+    box-shadow:inset 0 2px 0 rgba(255,255,255,.45),0 4px 0 #17663d;
+  }
+  .publicJoinButton:disabled { color:#81958b; background:#293832; box-shadow:none; cursor:not-allowed; }
+  .publicRefreshButton {
+    width:32px; height:32px; border:1px solid rgba(255,255,255,.16); border-radius:50%;
+    color:#d9f9e7; background:#1b3028; font-size:17px; font-weight:1000;
+  }
+  .publicMatchCard.loading .publicRefreshButton { animation:spin .8s linear infinite; }
+  @keyframes spin { to { transform:rotate(360deg); } }
   .roomHowCard,.onlineSideCard,.createSetupCard,.setupInfoCard,.joinCodeCard,.joinCreateCard,.joinInfo {
     border:2px solid rgba(255,255,255,.1); background:rgba(13,17,28,.86);
     box-shadow:0 16px 48px rgba(0,0,0,.34),inset 0 2px 0 rgba(255,255,255,.07); backdrop-filter:blur(12px);
@@ -844,6 +870,9 @@
     .roomChoiceColumn { gap:7px; } .onlineLead { margin:0 0 2px 9px!important; font-size:15px!important; }
     .roomPortal { min-height:70px; grid-template-columns:53px 1fr 20px; gap:8px; padding:7px 10px 7px 5px; border-radius:15px; }
     .portalIcon { min-height:53px; font-size:21px; } .roomPortal b { font-size:17px; } .roomPortal small { margin-top:2px; font-size:8px; } .roomPortal i { font-size:30px; }
+    .publicMatchCard { min-height:48px; grid-template-columns:34px minmax(0,1fr) auto 27px; gap:6px; padding:5px 7px; border-radius:13px; }
+    .publicMatchIcon { width:31px; height:31px; font-size:16px; } .publicMatchCopy b { font-size:9px; } .publicMatchCopy small { font-size:6px; }
+    .publicJoinButton { min-width:83px; min-height:27px; padding:4px 7px; font-size:7px; } .publicRefreshButton { width:25px; height:25px; font-size:12px; }
     .roomHowCard { padding:12px; border-radius:18px; } .howSteps { margin-top:9px; } .howSteps span { width:42px; height:42px; font-size:20px; } .howSteps b { margin-top:4px; font-size:8px; }
     .onlineTip { margin-top:8px; padding:7px 9px; grid-template-columns:65px 1fr; font-size:7px; } .onlineTip b { font-size:9px; }
     .onlineSideCard { min-height:220px; padding:11px 8px; gap:6px; border-radius:18px; }
@@ -1041,6 +1070,15 @@
             <span><b>ルームに参加</b><small>6桁のルームコードを入力して参加！</small></span>
             <i>›</i>
           </button>
+          <div class="publicMatchCard" id="publicMatchCard">
+            <span class="publicMatchIcon">◉</span>
+            <span class="publicMatchCopy">
+              <b>誰でも参加OK</b>
+              <small id="publicRoomStatus">公開ルームを探しています…</small>
+            </span>
+            <button class="publicJoinButton" id="publicRoomJoin" disabled>確認中</button>
+            <button class="publicRefreshButton" id="publicRoomRefresh" aria-label="公開ルームを更新">↻</button>
+          </div>
         </div>
 
         <div class="roomHowCard">
@@ -1076,6 +1114,7 @@
             <div class="roomField"><label>対戦人数</label><select id="createTeamSize"><option value="1">1対1</option><option value="2">2対2</option><option value="3">3対3</option><option value="4" selected>4対4</option></select></div>
             <div class="roomField"><label>BOT補充</label><select id="createBotFill"><option value="true" selected>ON</option><option value="false">OFF</option></select></div>
             <div class="roomField"><label>BOT難易度</label><select id="createBotDifficulty"><option value="easy">やさしい</option><option value="normal" selected>ふつう</option><option value="hard">つよい</option></select></div>
+            <div class="roomField"><label>公開範囲</label><select id="createVisibility"><option value="public" selected>誰でも参加OK</option><option value="friends">フレンドのみ</option></select></div>
             <div class="roomField"><label>開始方法</label><select id="createStartMode"><option value="host" selected>ホストが開始</option><option value="auto" disabled>人数が揃ったら自動開始（v2）</option><option value="timed" disabled>30秒後にbot補充（v2）</option></select></div>
           </div>
           <button class="roomPrimary create" id="roomCreateConfirm">ルームを作成</button>
@@ -1085,7 +1124,7 @@
           <p>👥 人間2人からバトル開始！</p>
           <p>🤖 足りない枠はBOTが補充します</p>
           <h3>おすすめ設定</h3>
-          <p>✓ 4対4</p><p>✓ BOT補充：ON</p><p>✓ ホストが開始</p>
+          <p>✓ 誰でも参加OK</p><p>✓ 4対4</p><p>✓ BOT補充：ON</p><p>✓ ホストが開始</p>
           <button class="roomSecondary" id="roomCreateCancel">選び直す</button>
         </aside>
       </div>
@@ -3589,7 +3628,7 @@ const roomOnlineEl=document.getElementById('roomOnline');
 const roomPanels=['roomHome','roomCreatePanel','roomJoinPanel','roomLobby'];
 const roomSession={
   code:'', playerId:'', hostId:'', room:null, poll:0, peerStarted:false,
-  answerApplied:false, started:false, inviteCode:'', leaving:false
+  answerApplied:false, started:false, inviteCode:'', leaving:false, publicRooms:[]
 };
 
 function gasEndpoint(){
@@ -3631,6 +3670,38 @@ function roomPlayerName(){
   try{ localStorage.setItem('ink-player-name',name); }catch(e){}
   return name;
 }
+async function refreshPublicRooms(){
+  const card=document.getElementById('publicMatchCard');
+  const status=document.getElementById('publicRoomStatus');
+  const joinButton=document.getElementById('publicRoomJoin');
+  card.classList.add('loading');
+  joinButton.disabled=true;
+  joinButton.textContent='確認中';
+  status.textContent='公開ルームを探しています…';
+  try{
+    const rooms=await fbGet('publicRooms');
+    roomSession.publicRooms=(Array.isArray(rooms)?rooms:[]).filter(room=>
+      room&&/^\d{6}$/.test(String(room.code||''))&&Number(room.humanPlayers||0)<Number(room.capacity||2)
+    );
+    if(roomSession.publicRooms.length){
+      const room=roomSession.publicRooms[0];
+      const others=roomSession.publicRooms.length-1;
+      status.textContent=`${room.hostName||'Player'} の部屋が募集中${others?`（ほか${others}件）`:''}`;
+      joinButton.textContent='参加する';
+      joinButton.disabled=false;
+    }else{
+      status.textContent='現在、参加できる公開ルームはありません';
+      joinButton.textContent='空きなし';
+    }
+  }catch(e){
+    roomSession.publicRooms=[];
+    status.textContent='公開ルームを取得できませんでした';
+    joinButton.textContent='再読込';
+    joinButton.disabled=false;
+  }finally{
+    card.classList.remove('loading');
+  }
+}
 function setRoomPanel(id){
   for(const panel of roomPanels) document.getElementById(panel).style.display=panel===id?'block':'none';
 }
@@ -3651,7 +3722,10 @@ function openRoomOnline(inviteCode=''){
   if(inviteCode){
     document.getElementById('joinRoomCode').value=inviteCode;
     setRoomPanel('roomJoinPanel');
-  }else setRoomPanel('roomHome');
+  }else{
+    setRoomPanel('roomHome');
+    refreshPublicRooms();
+  }
 }
 function hideRoomOnlineForMatch(){
   roomOnlineEl.style.display='none';
@@ -3695,6 +3769,7 @@ function roomSettingsFromForm(){
     minHumanPlayers:2,
     botFill:document.getElementById('createBotFill').value==='true',
     botDifficulty:document.getElementById('createBotDifficulty').value,
+    visibility:document.getElementById('createVisibility').value,
     startMode:document.getElementById('createStartMode').value
   };
 }
@@ -3719,8 +3794,8 @@ async function createGasRoom(){
   roomSession.code=code; roomSession.playerId=id; roomSession.hostId=id; roomSession.room=room;
   showWaitingLobby(); startRoomPolling();
 }
-async function joinGasRoom(){
-  const code=document.getElementById('joinRoomCode').value.replace(/\D/g,'').slice(0,6);
+async function joinGasRoom(roomCode=''){
+  const code=String(roomCode||document.getElementById('joinRoomCode').value).replace(/\D/g,'').slice(0,6);
   if(code.length!==6) throw new Error('6桁のルームコードを入力してください');
   const room=await fbGet(`rooms/${code}`);
   if(!room) throw new Error('ルームが見つかりません');
@@ -3736,6 +3811,23 @@ async function joinGasRoom(){
   room.players=room.players||{}; room.players[id]=data;
   roomSession.code=code; roomSession.playerId=id; roomSession.hostId=room.hostId; roomSession.room=room;
   showWaitingLobby(); startRoomPolling();
+}
+async function joinPublicRoom(){
+  const button=document.getElementById('publicRoomJoin');
+  if(!roomSession.publicRooms.length){
+    await refreshPublicRooms();
+    return;
+  }
+  const room=roomSession.publicRooms[0];
+  button.disabled=true;
+  button.textContent='参加中…';
+  try{
+    await joinGasRoom(room.code);
+  }catch(e){
+    await refreshPublicRooms();
+    setRoomStatus(e.message,'error');
+    alert(e.message);
+  }
 }
 
 function showWaitingLobby(){
@@ -3943,8 +4035,10 @@ document.getElementById('roomTopBack').addEventListener('click',()=>leaveRoom(tr
 document.getElementById('roomCreateOpen').addEventListener('click',()=>setRoomPanel('roomCreatePanel'));
 document.getElementById('roomJoinOpen').addEventListener('click',()=>setRoomPanel('roomJoinPanel'));
 document.getElementById('roomJoinToCreate').addEventListener('click',()=>setRoomPanel('roomCreatePanel'));
-document.getElementById('roomCreateCancel').addEventListener('click',()=>setRoomPanel('roomHome'));
-document.getElementById('roomJoinCancel').addEventListener('click',()=>setRoomPanel('roomHome'));
+document.getElementById('roomCreateCancel').addEventListener('click',()=>{ setRoomPanel('roomHome'); refreshPublicRooms(); });
+document.getElementById('roomJoinCancel').addEventListener('click',()=>{ setRoomPanel('roomHome'); refreshPublicRooms(); });
+document.getElementById('publicRoomRefresh').addEventListener('click',refreshPublicRooms);
+document.getElementById('publicRoomJoin').addEventListener('click',joinPublicRoom);
 document.getElementById('roomCreateConfirm').addEventListener('click',async()=>{
   try{ await createGasRoom(); }catch(e){ setRoomPanel('roomHome'); setRoomStatus(e.message,'error'); alert(e.message); }
 });
