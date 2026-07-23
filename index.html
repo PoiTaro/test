@@ -1,0 +1,3501 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>INK CLASH — 3D インクバトル</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body { width:100%; height:100%; overflow:hidden; background:#0b0e1a; font-family:'Hiragino Kaku Gothic ProN','Noto Sans JP',system-ui,sans-serif; touch-action:none; }
+  #game { position:fixed; inset:0; }
+  canvas { display:block; }
+
+  /* ---------- landscape first ---------- */
+  #rotatePrompt {
+    position:fixed; inset:0; z-index:1000; display:none; align-items:center; justify-content:center;
+    padding:max(28px, env(safe-area-inset-top)) max(28px, env(safe-area-inset-right))
+            max(28px, env(safe-area-inset-bottom)) max(28px, env(safe-area-inset-left));
+    color:#fff; text-align:center;
+    background:
+      radial-gradient(circle at 22% 18%, rgba(255,122,0,.42), transparent 42%),
+      radial-gradient(circle at 78% 82%, rgba(106,31,255,.48), transparent 44%),
+      #090b18;
+  }
+  #rotatePrompt .rotateCard {
+    width:min(88vw,420px); padding:30px 24px; border-radius:28px;
+    background:rgba(255,255,255,.09); box-shadow:inset 0 0 0 2px rgba(255,255,255,.14), 0 18px 50px rgba(0,0,0,.42);
+  }
+  #rotatePrompt .rotateIcon {
+    display:block; margin:auto; font-size:64px; line-height:1; transform:rotate(-90deg);
+    filter:drop-shadow(0 5px 8px rgba(0,0,0,.35));
+  }
+  #rotatePrompt h2 { margin-top:18px; font-size:clamp(24px,7vw,34px); font-weight:900; }
+  #rotatePrompt p { margin-top:10px; font-size:14px; line-height:1.7; opacity:.78; }
+  @media (orientation: portrait) {
+    body.touch #rotatePrompt { display:flex; }
+  }
+
+  /* ---------- HUD ---------- */
+  #hud { position:fixed; inset:0; pointer-events:none; z-index:10; }
+  #timer {
+    position:absolute; top:max(14px, env(safe-area-inset-top)); left:50%; transform:translateX(-50%);
+    font-size:34px; font-weight:900; color:#fff; letter-spacing:2px;
+    text-shadow:0 3px 0 rgba(0,0,0,.45), 0 0 18px rgba(255,255,255,.25);
+    font-variant-numeric:tabular-nums;
+  }
+  #coverage {
+    position:absolute; top:62px; left:50%; transform:translateX(-50%);
+    width:min(420px,72vw); height:20px; border-radius:12px; overflow:hidden;
+    background:rgba(255,255,255,.14); box-shadow:0 2px 10px rgba(0,0,0,.4), inset 0 0 0 2px rgba(255,255,255,.25);
+    display:flex;
+  }
+  #covA { background:linear-gradient(180deg,#ffb14e,#ff7a00); width:50%; transition:width .4s; }
+  #covN { background:transparent; flex:1; }
+  #covB { background:linear-gradient(180deg,#9d6bff,#6a1fff); width:50%; transition:width .4s; }
+  .covlabel { position:absolute; top:60px; font-weight:900; font-size:15px; color:#fff; text-shadow:0 2px 3px rgba(0,0,0,.6); }
+  #covAt { left:calc(50% - min(210px,36vw) - 8px); transform:translateX(-100%); color:#ffb14e; }
+  #covBt { left:calc(50% + min(210px,36vw) + 8px); color:#b48bff; }
+
+  #inkbar {
+    position:absolute; bottom:max(26px, env(safe-area-inset-bottom)); left:max(26px, env(safe-area-inset-left)); width:150px; height:14px; border-radius:8px;
+    background:rgba(255,255,255,.15); box-shadow:inset 0 0 0 2px rgba(255,255,255,.3);
+    overflow:hidden;
+  }
+  #inkfill { height:100%; width:100%; background:linear-gradient(90deg,#ff9a3d,#ff7a00); border-radius:8px; transition:width .08s linear; }
+  #inklabel { position:absolute; bottom:max(44px, calc(env(safe-area-inset-bottom) + 18px)); left:max(26px, env(safe-area-inset-left)); color:#fff; font-size:12px; font-weight:700; text-shadow:0 1px 3px rgba(0,0,0,.6); opacity:.85; }
+
+  #hpbar {
+    position:absolute; bottom:max(78px, calc(env(safe-area-inset-bottom) + 52px)); left:max(26px, env(safe-area-inset-left)); width:150px; height:10px; border-radius:6px;
+    background:rgba(255,255,255,.15); box-shadow:inset 0 0 0 2px rgba(255,255,255,.3); overflow:hidden;
+  }
+  #hpfill { height:100%; width:100%; background:linear-gradient(90deg,#8dff96,#27c94a); border-radius:6px; transition:width .1s linear; }
+  #hplabel { position:absolute; bottom:max(92px, calc(env(safe-area-inset-bottom) + 66px)); left:max(26px, env(safe-area-inset-left)); color:#fff; font-size:11px; font-weight:700; text-shadow:0 1px 3px rgba(0,0,0,.6); opacity:.85; }
+  #kills {
+    position:absolute; top:max(16px, env(safe-area-inset-top)); left:max(16px, env(safe-area-inset-left)); color:#fff; font-weight:900; font-size:16px;
+    text-shadow:0 2px 4px rgba(0,0,0,.6); background:rgba(0,0,0,.28); padding:6px 14px; border-radius:20px;
+  }
+  #inkStatus {
+    position:absolute; left:50%; bottom:max(18px, env(safe-area-inset-bottom)); transform:translateX(-50%);
+    min-width:180px; padding:7px 15px; border-radius:18px; color:#fff; text-align:center;
+    font-size:12px; font-weight:900; letter-spacing:.04em; opacity:0;
+    background:rgba(12,14,28,.74); text-shadow:0 2px 3px rgba(0,0,0,.6);
+    transition:opacity .12s, background .12s;
+  }
+  #dmg {
+    position:fixed; inset:0; pointer-events:none; z-index:12; opacity:0;
+    background:radial-gradient(circle at 50% 50%, transparent 42%, rgba(255,30,60,.55) 100%);
+  }
+  #heal {
+    position:fixed; inset:0; pointer-events:none; z-index:12; opacity:0;
+    background:radial-gradient(circle at 50% 50%, transparent 45%, rgba(60,255,140,.45) 100%);
+  }
+  #deadmsg {
+    position:absolute; top:36%; left:50%; transform:translate(-50%,-50%) rotate(-3deg);
+    font-size:clamp(34px,8vw,54px); font-weight:900; color:#ff5a6a; display:none;
+    text-shadow:0 4px 0 rgba(0,0,0,.5), 0 0 24px rgba(255,60,90,.6);
+  }
+
+  #crosshair {
+    position:absolute; top:50%; left:50%; width:22px; height:22px; transform:translate(-50%,-50%);
+    opacity:.9;
+  }
+  #crosshair::before,#crosshair::after { content:''; position:absolute; background:#fff; box-shadow:0 0 4px rgba(0,0,0,.7); border-radius:2px; }
+  #crosshair::before { left:50%; top:0; width:2px; height:100%; transform:translateX(-50%); }
+  #crosshair::after { top:50%; left:0; height:2px; width:100%; transform:translateY(-50%); }
+
+  /* ---------- overlays ---------- */
+  .overlay {
+    position:fixed; inset:0; z-index:20; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    background:radial-gradient(circle at 30% 20%, rgba(255,122,0,.22), transparent 45%),
+               radial-gradient(circle at 75% 80%, rgba(106,31,255,.25), transparent 45%),
+               rgba(8,10,22,.88);
+    color:#fff; text-align:center;
+    padding:max(20px, env(safe-area-inset-top)) max(20px, env(safe-area-inset-right))
+            max(20px, env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left));
+    overflow-y:auto;
+  }
+  .overlay h1 {
+    font-size:clamp(44px,9vw,84px); font-weight:900; letter-spacing:.02em; line-height:1;
+    background:linear-gradient(95deg,#ffb14e 20%,#ff7a00 45%, #9d6bff 60%, #6a1fff 85%);
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+    filter:drop-shadow(0 6px 18px rgba(0,0,0,.5));
+    transform:rotate(-2deg);
+  }
+  .overlay p { margin-top:14px; font-size:14px; line-height:1.9; opacity:.85; max-width:520px; }
+  .overlay .btn {
+    margin-top:26px; padding:16px 52px; font-size:20px; font-weight:900; letter-spacing:.15em;
+    color:#1a1030; background:linear-gradient(180deg,#ffe27a,#ffb02e); border:none; border-radius:40px;
+    box-shadow:0 6px 0 #b06400, 0 12px 24px rgba(0,0,0,.45); cursor:pointer; transform:rotate(-1deg);
+    transition:transform .1s;
+  }
+  .overlay .btn:active { transform:rotate(-1deg) translateY(4px); box-shadow:0 2px 0 #b06400; }
+  /* ---------- オンライン対戦UI ---------- */
+  .btn2 {
+    display:block; margin:10px auto 0; padding:11px 26px; border:none; border-radius:26px;
+    font-size:14px; font-weight:800; cursor:pointer;
+    background:rgba(255,255,255,.16); color:#fff; box-shadow:inset 0 0 0 2px rgba(255,255,255,.35);
+  }
+  .netsub { margin-top:10px; font-size:13px; opacity:.85; line-height:1.7; }
+  #qrBox {
+    margin:14px auto 0; width:236px; height:236px; background:#fff; border-radius:14px;
+    padding:10px; display:flex; align-items:center; justify-content:center;
+    box-shadow:0 8px 24px rgba(0,0,0,.5);
+  }
+  #qrBox canvas, #qrBox img { width:100% !important; height:100% !important; }
+  #qrBox.fallback { font-size:11px; color:#333; word-break:break-all; overflow:auto; text-align:left; padding:12px; }
+  #scanVideo {
+    margin:14px auto 0; display:block; width:min(280px,80vw); height:min(280px,80vw);
+    object-fit:cover; border-radius:14px; background:#000;
+    box-shadow:0 8px 24px rgba(0,0,0,.5); transform:scaleX(1);
+  }
+  .netdetails { margin-top:12px; font-size:12px; opacity:.8; }
+  .netdetails summary { cursor:pointer; }
+  .netdetails textarea {
+    display:block; width:min(320px,84vw); height:64px; margin:8px auto 0; padding:8px;
+    border-radius:10px; border:none; font-size:11px; font-family:monospace; resize:none;
+    background:rgba(255,255,255,.9); color:#1a1030;
+  }
+  @media (orientation: landscape) and (max-height: 560px) {
+    #qrBox { width:160px; height:160px; margin-top:8px; }
+    #scanVideo { width:150px; height:150px; margin-top:8px; }
+    .netsub { font-size:11px; margin-top:6px; }
+    .btn2 { padding:8px 20px; font-size:12px; margin-top:6px; }
+    .netdetails { margin-top:6px; }
+    .netdetails textarea { height:40px; }
+  }
+
+  #result { display:none; }
+  #resultScore { font-size:clamp(28px,6vw,44px); font-weight:900; margin-top:10px; display:flex; gap:24px; }
+  #resultScore .a { color:#ffb14e; } #resultScore .b { color:#b48bff; }
+
+  /* ---------- touch controls ---------- */
+  .touchonly { display:none; }
+  body.touch .touchonly { display:block; }
+  body.touch #crosshair { opacity:.55; }
+  #stick {
+    position:fixed; left:max(36px, calc(env(safe-area-inset-left) + 18px)); bottom:max(80px, calc(env(safe-area-inset-bottom) + 56px)); width:120px; height:120px; border-radius:50%;
+    background:rgba(255,255,255,.08); box-shadow:inset 0 0 0 2px rgba(255,255,255,.3); z-index:15; pointer-events:none;
+  }
+  #knob {
+    position:absolute; left:50%; top:50%; width:52px; height:52px; border-radius:50%;
+    background:rgba(255,255,255,.55); transform:translate(-50%,-50%);
+  }
+  .tbtn {
+    position:fixed; z-index:15; border-radius:50%; border:none; font-weight:900; color:#fff;
+    box-shadow:0 4px 12px rgba(0,0,0,.5), inset 0 0 0 2px rgba(255,255,255,.4);
+    user-select:none; -webkit-user-select:none;
+  }
+  #btnFire { right:max(30px, calc(env(safe-area-inset-right) + 18px)); bottom:max(96px, calc(env(safe-area-inset-bottom) + 72px)); width:96px; height:96px; font-size:17px; background:radial-gradient(circle at 35% 30%, #ffb14e, #e05e00); }
+  #btnSwim { right:max(140px, calc(env(safe-area-inset-right) + 128px)); bottom:max(44px, calc(env(safe-area-inset-bottom) + 20px)); width:70px; height:70px; font-size:13px; background:radial-gradient(circle at 35% 30%, #6fd6ff, #0a6ecf); }
+  #btnJump { right:max(130px, calc(env(safe-area-inset-right) + 118px)); bottom:max(132px, calc(env(safe-area-inset-bottom) + 108px)); width:62px; height:62px; font-size:12px; background:radial-gradient(circle at 35% 30%,#b8ff9a,#2aab55); }
+  #btnSub { right:max(32px, calc(env(safe-area-inset-right) + 20px)); bottom:max(202px, calc(env(safe-area-inset-bottom) + 178px)); width:58px; height:58px; font-size:11px; background:radial-gradient(circle at 35% 30%,#ffe27a,#d68b00); }
+  #btnMap, #btnSettings {
+    position:fixed; top:max(14px, env(safe-area-inset-top)); z-index:16; border:none; border-radius:18px;
+    height:42px; padding:0 16px; color:#fff; font-size:12px; font-weight:900;
+    background:rgba(8,12,28,.7); box-shadow:inset 0 0 0 2px rgba(255,255,255,.28),0 4px 12px rgba(0,0,0,.3);
+  }
+  #btnMap { right:max(16px, env(safe-area-inset-right)); }
+  #btnSettings { right:max(92px, calc(env(safe-area-inset-right) + 76px)); width:42px; padding:0; font-size:18px; }
+  #btnSpecial {
+    display:none; right:max(28px, calc(env(safe-area-inset-right) + 16px));
+    bottom:max(302px, calc(env(safe-area-inset-bottom) + 278px)); width:76px; height:76px;
+    font-size:11px; background:conic-gradient(#fff45c,#ff7a00,#9d6bff,#fff45c);
+    color:#28113d; animation:specialPulse .75s ease-in-out infinite alternate;
+  }
+  @keyframes specialPulse { to { transform:scale(1.08); filter:brightness(1.18); } }
+  #specialCharge {
+    position:fixed; z-index:15; right:max(114px, calc(env(safe-area-inset-right) + 102px));
+    bottom:max(218px, calc(env(safe-area-inset-bottom) + 194px)); width:78px; height:7px;
+    border-radius:5px; overflow:hidden; background:rgba(255,255,255,.18);
+    box-shadow:inset 0 0 0 1px rgba(255,255,255,.28);
+  }
+  #specialFill { width:0%; height:100%; background:linear-gradient(90deg,#fff45c,#ff8a1e,#9d6bff); transition:width .15s; }
+  body.touch #inkbar, body.touch #inklabel, body.touch #hpbar, body.touch #hplabel {
+    left:max(174px, calc(env(safe-area-inset-left) + 156px));
+  }
+
+  #mapPanel, #settingsPanel { display:none; z-index:60; background:rgba(7,9,22,.93); }
+  #mapCard, #settingsCard {
+    width:min(86vw,760px); max-height:90vh; padding:18px; border-radius:26px;
+    background:rgba(255,255,255,.1); box-shadow:inset 0 0 0 2px rgba(255,255,255,.16),0 18px 55px rgba(0,0,0,.5);
+  }
+  #mapCard { display:grid; grid-template-columns:minmax(260px,1fr) minmax(180px,.7fr); gap:20px; align-items:center; }
+  #mapCanvas { display:block; width:min(58vh,52vw); max-width:100%; aspect-ratio:1; margin:auto; border-radius:18px; background:#c9ced6; touch-action:none; box-shadow:0 8px 28px rgba(0,0,0,.42); }
+  .panelTitle { font-size:clamp(24px,4vw,38px); font-weight:900; }
+  .panelText { margin-top:10px; font-size:13px; line-height:1.7; opacity:.8; }
+  .panelBtn { margin-top:16px; padding:11px 24px; border:none; border-radius:24px; font-weight:900; color:#211330; background:#ffe16d; }
+  .settingRow { display:grid; grid-template-columns:150px 1fr 56px; gap:12px; align-items:center; margin-top:18px; text-align:left; font-size:13px; font-weight:800; }
+  .settingRow input[type="range"] { width:100%; accent-color:#ff9a3d; }
+  #gyroBtn.on { background:#82f2a3; color:#11331b; }
+
+  /* ---------- 横画面レイアウト ---------- */
+  @media (orientation: landscape) and (max-height: 560px) {
+    #timer { top:max(4px, env(safe-area-inset-top)); font-size:24px; }
+    #coverage { top:38px; width:280px; height:14px; }
+    #covAt { left:auto; right:calc(50% + 152px); transform:none; top:36px; font-size:12px; }
+    #covBt { left:calc(50% + 152px); top:36px; font-size:12px; }
+    #stick { left:max(26px, calc(env(safe-area-inset-left) + 12px)); bottom:max(30px, calc(env(safe-area-inset-bottom) + 18px)); width:104px; height:104px; }
+    #btnFire { right:max(22px, calc(env(safe-area-inset-right) + 12px)); bottom:max(46px, calc(env(safe-area-inset-bottom) + 34px)); width:82px; height:82px; font-size:15px; }
+    #btnSwim { right:max(116px, calc(env(safe-area-inset-right) + 106px)); bottom:max(20px, calc(env(safe-area-inset-bottom) + 10px)); width:58px; height:58px; font-size:12px; }
+    #btnJump { right:max(110px, calc(env(safe-area-inset-right) + 100px)); bottom:max(90px, calc(env(safe-area-inset-bottom) + 80px)); width:54px; height:54px; font-size:10px; }
+    #btnSub { right:max(22px, calc(env(safe-area-inset-right) + 12px)); bottom:max(138px, calc(env(safe-area-inset-bottom) + 126px)); width:50px; height:50px; font-size:9px; }
+    #btnSpecial { right:max(24px, calc(env(safe-area-inset-right) + 14px)); bottom:max(198px, calc(env(safe-area-inset-bottom) + 186px)); width:62px; height:62px; font-size:9px; }
+    #specialCharge { right:max(106px, calc(env(safe-area-inset-right) + 96px)); bottom:max(148px, calc(env(safe-area-inset-bottom) + 138px)); width:66px; }
+    #btnMap, #btnSettings { top:max(6px, env(safe-area-inset-top)); height:34px; font-size:10px; }
+    #btnMap { right:max(10px, env(safe-area-inset-right)); }
+    #btnSettings { right:max(74px, calc(env(safe-area-inset-right) + 64px)); width:34px; }
+    #inkbar, body.touch #inkbar { left:max(150px, calc(env(safe-area-inset-left) + 138px)); bottom:max(20px, calc(env(safe-area-inset-bottom) + 10px)); width:110px; height:12px; }
+    #inklabel, body.touch #inklabel { left:max(150px, calc(env(safe-area-inset-left) + 138px)); bottom:max(36px, calc(env(safe-area-inset-bottom) + 26px)); font-size:10px; }
+    #hpbar, body.touch #hpbar { left:max(150px, calc(env(safe-area-inset-left) + 138px)); bottom:max(56px, calc(env(safe-area-inset-bottom) + 46px)); width:110px; height:9px; }
+    #hplabel, body.touch #hplabel { left:max(150px, calc(env(safe-area-inset-left) + 138px)); bottom:max(68px, calc(env(safe-area-inset-bottom) + 58px)); font-size:10px; }
+    #kills { top:max(8px, env(safe-area-inset-top)); left:max(10px, env(safe-area-inset-left)); font-size:13px; padding:4px 10px; }
+    #inkStatus { bottom:max(8px, env(safe-area-inset-bottom)); padding:5px 12px; font-size:10px; }
+    .overlay h1 { font-size:clamp(34px,7vw,56px); }
+    .overlay p { font-size:12px; line-height:1.6; }
+    .overlay .btn { margin-top:14px; padding:12px 40px; font-size:16px; }
+    #lb { max-height:120px; }
+    #lbList { max-height:70px; }
+    #mapCard { grid-template-columns:minmax(220px,1fr) minmax(150px,.65fr); padding:12px; gap:14px; }
+    #mapCanvas { width:min(67vh,55vw); }
+    #settingsCard { padding:14px; }
+    .settingRow { margin-top:12px; }
+  }
+
+  /* ---------- オンラインランキング ---------- */
+  #lb { margin-top:16px; width:min(420px,90vw); }
+  #lbEntry { display:flex; gap:8px; justify-content:center; }
+  #lbName {
+    padding:10px 14px; border-radius:24px; border:none; font-size:16px; width:150px; text-align:center;
+    background:rgba(255,255,255,.92); color:#1a1030; font-weight:700; outline:none;
+  }
+  #lbSave {
+    padding:10px 18px; border-radius:24px; border:none; font-weight:900; font-size:14px;
+    background:linear-gradient(180deg,#8ce0ff,#2fa8e8); color:#08243a; cursor:pointer;
+    box-shadow:0 3px 0 #145a86;
+  }
+  #lbSave:disabled { opacity:.5; box-shadow:none; }
+  #lbList {
+    margin-top:12px; font-size:13px; line-height:1.9; max-height:150px; overflow:auto;
+    background:rgba(255,255,255,.08); border-radius:12px; padding:10px 16px; text-align:left;
+  }
+  .lbrow { display:flex; justify-content:space-between; gap:10px; }
+  .lbrow .nm { font-weight:900; }
+  #lbNote { margin-top:6px; font-size:10px; opacity:.55; }
+
+  /* ---------- 参照HUD：インクバトル調 ---------- */
+  #topBattleHud {
+    position:absolute; top:max(12px, env(safe-area-inset-top)); left:50%; transform:translateX(-50%);
+    width:min(760px,70vw); filter:drop-shadow(0 5px 8px rgba(0,0,0,.35));
+  }
+  #battleTopRow { display:flex; align-items:center; justify-content:center; gap:14px; }
+  .teamRoster { display:flex; gap:6px; align-items:center; }
+  .playerChip {
+    position:relative; display:block; width:48px; height:52px; border:3px solid #101421; border-radius:14px;
+    overflow:hidden; background:linear-gradient(155deg,rgba(255,255,255,.8),rgba(255,255,255,.08) 42%),#ff870f;
+    box-shadow:inset 0 0 0 2px rgba(255,255,255,.28),0 3px 0 rgba(0,0,0,.55);
+    transition:opacity .15s,filter .15s,transform .15s;
+  }
+  #teamBStatus .playerChip { background:linear-gradient(155deg,rgba(255,255,255,.72),rgba(255,255,255,.05) 42%),#7a22ea; }
+  .playerChip::before {
+    content:''; position:absolute; width:25px; height:25px; left:8px; top:7px; border:2px solid #172033;
+    border-radius:45% 45% 52% 52%; background:#ffd16d; box-shadow:inset 0 6px 0 rgba(255,255,255,.3);
+  }
+  .playerChip::after {
+    content:''; position:absolute; width:28px; height:8px; right:2px; bottom:7px; border:2px solid #121724;
+    border-radius:5px; background:#30394a; transform:rotate(-8deg);
+  }
+  .playerChip i::before,.playerChip i::after {
+    content:''; position:absolute; z-index:2; top:17px; width:4px; height:6px; border-radius:50%; background:#172033;
+  }
+  .playerChip i::before { left:15px; } .playerChip i::after { left:24px; }
+  .playerChip.down { opacity:.28; filter:grayscale(1); transform:scale(.9); }
+  .playerChip.down::after { content:'×'; inset:0; width:auto; height:auto; display:grid; place-items:center; border:0; background:rgba(10,12,20,.62); color:#fff; font:900 34px/1 system-ui; transform:none; }
+
+  #timer {
+    position:relative; top:auto; left:auto; transform:none; min-width:128px; padding:5px 18px 7px;
+    border:4px solid #0d1524; border-radius:18px; background:#111b2d; color:#fff;
+    clip-path:polygon(6% 0,94% 0,100% 18%,96% 35%,100% 55%,95% 72%,98% 100%,4% 100%,7% 78%,1% 60%,5% 42%,0 20%);
+    font-size:clamp(27px,4vw,48px); line-height:1; text-align:center;
+    text-shadow:0 4px 0 #000; box-shadow:inset 0 -6px 0 rgba(0,0,0,.25);
+  }
+  #coverageRow { display:grid; grid-template-columns:58px 1fr 58px; gap:9px; align-items:center; margin-top:7px; }
+  #coverage {
+    position:relative; top:auto; left:auto; transform:none; width:100%; height:22px;
+    border:4px solid #101522; border-radius:16px; background:#24293a; overflow:visible;
+    box-shadow:inset 0 3px 4px rgba(255,255,255,.28),0 3px 0 rgba(255,255,255,.45);
+  }
+  #coverage::after { content:''; position:absolute; inset:3px 6px auto; height:4px; border-radius:4px; background:rgba(255,255,255,.32); pointer-events:none; }
+  #covA { height:100%; border-radius:12px 0 0 12px; background:linear-gradient(#ffb23d,#ff7800); }
+  #covB { height:100%; border-radius:0 12px 12px 0; background:linear-gradient(#a634ff,#7113db); }
+  #midBadge {
+    position:absolute; z-index:2; left:50%; top:50%; transform:translate(-50%,-50%);
+    width:42px; height:42px; display:grid; place-items:center; border:4px solid #fff; border-radius:50%;
+    color:#fff; background:#172033; font-size:21px; box-shadow:0 0 0 3px #111827,0 4px 8px rgba(0,0,0,.4);
+  }
+  .covlabel { position:static; top:auto; left:auto; transform:none; font-size:18px; text-align:center; -webkit-text-stroke:1.5px #151927; }
+  #covAt { color:#ff8b10; } #covBt { color:#9428f5; }
+
+  #kills {
+    position:absolute; top:max(18px,env(safe-area-inset-top)); left:max(20px,env(safe-area-inset-left));
+    display:flex; align-items:center; gap:9px; padding:5px 17px 5px 7px; border:4px solid #101522;
+    border-radius:27px; color:#fff; background:linear-gradient(#263246,#111827);
+    font-size:16px; text-shadow:0 3px 0 #000; box-shadow:inset 0 2px 0 rgba(255,255,255,.22),0 5px 11px rgba(0,0,0,.35);
+  }
+  .splatMark { width:35px; height:35px; display:grid; place-items:center; border-radius:50%; color:#fff; background:#111a2a; font-size:28px; }
+
+  #resourceHud {
+    position:absolute; z-index:14; left:50%; bottom:max(20px,env(safe-area-inset-bottom)); transform:translateX(-50%);
+    width:min(440px,50vw); color:#fff; text-shadow:0 3px 0 #111; filter:drop-shadow(0 5px 7px rgba(0,0,0,.38));
+  }
+  .resourceLine { display:flex; align-items:center; gap:9px; }
+  .hpLine { width:68%; margin:0 0 7px 15px; }
+  .inkLine { padding:6px 8px 6px 15px; border:4px solid #252016; border-radius:28px; background:linear-gradient(#3a3324,#151719); box-shadow:inset 0 2px 0 rgba(255,255,255,.3); }
+  #hplabel,#inklabel { position:static; flex:none; color:#fff; font-size:16px; font-weight:900; opacity:1; text-shadow:0 3px 0 #222; }
+  #hpbar {
+    position:static; flex:1; width:auto; height:13px; border:3px solid #25271f; border-radius:9px;
+    background:#303536; box-shadow:inset 0 2px 3px rgba(0,0,0,.6); overflow:hidden;
+  }
+  #hpfill { border-radius:6px; box-shadow:inset 0 3px 3px rgba(255,255,255,.38); }
+  #inkbar {
+    position:static; flex:1; width:auto; height:38px; border:3px solid #6f4813; border-radius:16px;
+    background:#202326; box-shadow:inset 0 3px 6px rgba(0,0,0,.55); overflow:hidden;
+  }
+  #inkfill {
+    border-radius:13px; box-shadow:inset 0 6px 6px rgba(255,255,255,.34),inset 0 -5px 7px rgba(150,50,0,.28);
+    background:linear-gradient(180deg,#ffb72e,#ff7800 62%,#e95e00);
+  }
+  #inkPct { min-width:58px; font-size:22px; font-weight:900; text-align:center; font-variant-numeric:tabular-nums; }
+  #specialCharge {
+    position:relative; right:auto; bottom:auto; flex:none; width:46px; height:46px; border:4px solid #191b1e;
+    border-radius:50%; overflow:hidden; background:#393329; box-shadow:inset 0 0 0 3px #f2a72b,0 2px 0 rgba(255,255,255,.45);
+  }
+  #specialCharge span { position:absolute; z-index:2; inset:0; display:grid; place-items:center; font-size:21px; color:#fff; }
+  #specialFill { position:absolute; left:0; bottom:0; height:100%; background:linear-gradient(90deg,#ffe75b,#ff8b15,#9b35ff); opacity:.9; }
+
+  #stick {
+    left:max(38px,calc(env(safe-area-inset-left) + 20px)); bottom:max(38px,calc(env(safe-area-inset-bottom) + 20px));
+    width:154px; height:154px; border:3px solid rgba(255,255,255,.82);
+    background:radial-gradient(circle,rgba(255,255,255,.09) 0 43%,rgba(255,255,255,.22) 44% 46%,rgba(255,255,255,.06) 47%);
+    box-shadow:0 5px 20px rgba(0,0,0,.22),inset 0 0 0 2px rgba(20,20,30,.12);
+  }
+  #knob {
+    width:62px; height:62px; border:4px solid rgba(255,255,255,.85);
+    background:radial-gradient(circle at 35% 25%,#fff,#dfd8cb 62%,#aaa295);
+    box-shadow:0 6px 12px rgba(0,0,0,.42),inset 0 -6px 8px rgba(90,80,65,.18);
+  }
+  .stickArrow { position:absolute; color:#fff; font-size:15px; text-shadow:0 2px 3px #555; opacity:.95; }
+  .stickArrow.up{top:9px;left:50%;transform:translateX(-50%)} .stickArrow.down{bottom:8px;left:50%;transform:translateX(-50%)}
+  .stickArrow.left{left:10px;top:50%;transform:translateY(-50%)} .stickArrow.right{right:10px;top:50%;transform:translateY(-50%)}
+
+  .tbtn {
+    border:5px solid rgba(255,255,255,.88); text-shadow:0 3px 0 rgba(0,0,0,.55);
+    box-shadow:0 0 0 3px rgba(23,27,38,.72),0 7px 14px rgba(0,0,0,.42),inset 0 6px 9px rgba(255,255,255,.52),inset 0 -8px 10px rgba(90,20,0,.22);
+    overflow:visible; letter-spacing:.01em;
+  }
+  .tbtn::before { content:''; position:absolute; left:18%; top:10%; width:42%; height:18%; border-radius:50%; background:rgba(255,255,255,.52); transform:rotate(-18deg); pointer-events:none; }
+  .btnGlyph { display:block; margin-bottom:-2px; font-size:1.35em; line-height:.8; }
+  .tbtn:active { transform:scale(.92); filter:brightness(1.12); }
+  #btnFire { right:max(28px,calc(env(safe-area-inset-right) + 16px)); bottom:max(34px,calc(env(safe-area-inset-bottom) + 18px)); width:122px; height:122px; font-size:25px; background:radial-gradient(circle at 40% 35%,#ffb936,#ff7610 55%,#e74000 78%); }
+  #btnSwim { right:max(166px,calc(env(safe-area-inset-right) + 154px)); bottom:max(28px,calc(env(safe-area-inset-bottom) + 16px)); width:80px; height:80px; font-size:15px; background:radial-gradient(circle at 40% 34%,#8ee9ff,#249fe8 56%,#0862c6); }
+  #btnJump { right:max(145px,calc(env(safe-area-inset-right) + 133px)); bottom:max(124px,calc(env(safe-area-inset-bottom) + 112px)); width:72px; height:72px; font-size:14px; background:radial-gradient(circle at 40% 34%,#c8ff7d,#62ce39 56%,#2b9c2e); }
+  #btnSub { right:max(42px,calc(env(safe-area-inset-right) + 30px)); bottom:max(178px,calc(env(safe-area-inset-bottom) + 166px)); width:66px; height:66px; font-size:12px; background:radial-gradient(circle at 40% 34%,#ffe56f,#f39b14 58%,#d26c00); }
+  #btnSpecial { right:max(236px,calc(env(safe-area-inset-right) + 224px)); bottom:max(30px,calc(env(safe-area-inset-bottom) + 18px)); width:72px; height:72px; border-color:#fff266; }
+  #btnMap,#btnSettings {
+    top:max(20px,env(safe-area-inset-top)); border:4px solid #101522; background:linear-gradient(#2c3749,#111827);
+    box-shadow:inset 0 2px 0 rgba(255,255,255,.25),0 5px 10px rgba(0,0,0,.32); text-shadow:0 2px 0 #000;
+  }
+  #btnMap { right:max(20px,env(safe-area-inset-right)); height:52px; padding:0 25px; border-radius:27px; font-size:16px; }
+  #btnMap::before { content:'●'; margin-right:9px; color:#fff; }
+  #btnSettings { right:max(160px,calc(env(safe-area-inset-right) + 140px)); width:52px; height:52px; border-radius:50%; font-size:23px; }
+  #inkStatus { bottom:max(92px,calc(env(safe-area-inset-bottom) + 74px)); }
+
+  @media (orientation:landscape) and (max-height:560px) {
+    #topBattleHud { top:max(5px,env(safe-area-inset-top)); width:min(560px,68vw); }
+    #battleTopRow { gap:8px; }
+    .teamRoster { gap:3px; }
+    .playerChip { width:32px; height:35px; border-width:2px; border-radius:9px; }
+    .playerChip::before { width:17px;height:17px;left:5px;top:4px;border-width:1px; }
+    .playerChip::after { width:19px;height:5px;bottom:4px;border-width:1px; }
+    .playerChip i::before,.playerChip i::after { top:10px;width:3px;height:4px; }
+    .playerChip i::before { left:10px } .playerChip i::after { left:16px }
+    #timer { min-width:90px;padding:3px 12px 5px;font-size:27px;border-width:3px; }
+    #coverageRow { grid-template-columns:44px 1fr 44px;gap:5px;margin-top:4px; }
+    #coverage { height:15px;border-width:3px; }
+    #midBadge { width:29px;height:29px;border-width:3px;font-size:14px; }
+    .covlabel { font-size:13px; }
+    #kills { top:max(8px,env(safe-area-inset-top));left:max(9px,env(safe-area-inset-left));padding:3px 11px 3px 4px;border-width:3px;font-size:12px; }
+    .splatMark { width:26px;height:26px;font-size:20px; }
+    #resourceHud { width:min(350px,45vw);bottom:max(8px,env(safe-area-inset-bottom)); }
+    .hpLine { margin-bottom:3px; } .inkLine { padding:3px 5px 3px 10px;border-width:3px; }
+    #hplabel,#inklabel { font-size:12px; }
+    #hpbar { height:10px;border-width:2px; }
+    #inkbar { height:28px;border-width:2px; }
+    #inkPct { min-width:46px;font-size:17px; }
+    #specialCharge { width:35px;height:35px;border-width:3px; }
+    #specialCharge span { font-size:16px; }
+    #stick { left:max(22px,calc(env(safe-area-inset-left) + 10px));bottom:max(18px,calc(env(safe-area-inset-bottom) + 8px));width:118px;height:118px; }
+    #knob { width:48px;height:48px;border-width:3px; }
+    .stickArrow { font-size:11px; }
+    #btnFire { right:max(18px,calc(env(safe-area-inset-right) + 8px));bottom:max(18px,calc(env(safe-area-inset-bottom) + 8px));width:94px;height:94px;font-size:20px; }
+    #btnSwim { right:max(124px,calc(env(safe-area-inset-right) + 114px));bottom:max(12px,calc(env(safe-area-inset-bottom) + 4px));width:62px;height:62px;font-size:12px; }
+    #btnJump { right:max(112px,calc(env(safe-area-inset-right) + 102px));bottom:max(82px,calc(env(safe-area-inset-bottom) + 72px));width:57px;height:57px;font-size:11px; }
+    #btnSub { right:max(23px,calc(env(safe-area-inset-right) + 13px));bottom:max(121px,calc(env(safe-area-inset-bottom) + 111px));width:52px;height:52px;font-size:9px; }
+    #btnSpecial { right:max(184px,calc(env(safe-area-inset-right) + 174px));bottom:max(12px,calc(env(safe-area-inset-bottom) + 4px));width:58px;height:58px;font-size:9px; }
+    #btnMap,#btnSettings { top:max(7px,env(safe-area-inset-top));border-width:3px; }
+    #btnMap { right:max(9px,env(safe-area-inset-right));height:38px;padding:0 15px;font-size:11px; }
+    #btnSettings { right:max(100px,calc(env(safe-area-inset-right) + 90px));width:38px;height:38px;font-size:18px; }
+    #inkStatus { bottom:max(58px,calc(env(safe-area-inset-bottom) + 48px)); }
+  }
+
+  /* ---------- GAS ルーム / 待機ロビー ---------- */
+  #roomOnline { display:none; z-index:80; padding:max(14px,env(safe-area-inset-top)) max(18px,env(safe-area-inset-right)) max(14px,env(safe-area-inset-bottom)) max(18px,env(safe-area-inset-left)); }
+  .roomShell { width:min(1040px,94vw); max-height:94vh; padding:20px; border-radius:30px; background:rgba(13,18,34,.94); box-shadow:inset 0 0 0 3px rgba(255,255,255,.12),0 22px 70px rgba(0,0,0,.56); overflow:auto; }
+  .roomHeader { display:flex; align-items:center; justify-content:space-between; gap:16px; }
+  .roomTitle { font-size:clamp(25px,4vw,45px); font-weight:900; background:linear-gradient(90deg,#ffad32,#ff7610 45%,#a544ff); background-clip:text; color:transparent; }
+  .roomPanel { margin-top:16px; }
+  .roomActions { display:grid; grid-template-columns:repeat(2,minmax(190px,1fr)); gap:13px; max-width:650px; margin:18px auto 0; }
+  .roomBtn { min-height:54px; padding:11px 22px; border:3px solid #151b2a; border-radius:18px; color:#25172b; background:linear-gradient(#ffe47e,#ffa92f); font-size:16px; font-weight:900; box-shadow:inset 0 3px 0 rgba(255,255,255,.5),0 5px 0 #9a5000; }
+  .roomBtn.alt { color:#112738; background:linear-gradient(#b9efff,#47b9ef); box-shadow:inset 0 3px 0 rgba(255,255,255,.5),0 5px 0 #17698f; }
+  .roomBtn.dark { color:#fff; background:#252d40; box-shadow:inset 0 0 0 2px rgba(255,255,255,.18),0 4px 0 #0d1018; }
+  .roomBtn.danger { color:#fff; background:linear-gradient(#ff7b81,#d93850); box-shadow:0 5px 0 #811728; }
+  .roomBtn:disabled { opacity:.38; filter:grayscale(.7); box-shadow:none; }
+  .roomField { display:grid; grid-template-columns:150px minmax(180px,1fr); gap:12px; align-items:center; margin:11px auto 0; max-width:580px; text-align:left; }
+  .roomField label { font-size:13px; font-weight:900; color:#c9d3e8; }
+  .roomField input,.roomField select { min-height:42px; padding:8px 13px; border:2px solid rgba(255,255,255,.2); border-radius:13px; color:#172033; background:#f6f8ff; font-size:15px; font-weight:800; }
+  .roomHint { margin-top:12px; color:#b8c3d8; font-size:12px; line-height:1.7; }
+  #gasSetup { max-width:650px; margin:16px auto 0; padding:12px 15px; border-radius:15px; color:#dff8e7; background:rgba(81,205,130,.12); box-shadow:inset 0 0 0 2px rgba(97,224,146,.28); }
+  .lobbyGrid { display:grid; grid-template-columns:minmax(260px,.72fr) minmax(390px,1.28fr); gap:16px; margin-top:15px; text-align:left; }
+  .lobbyCard { padding:17px; border-radius:22px; background:rgba(255,255,255,.075); box-shadow:inset 0 0 0 2px rgba(255,255,255,.1); }
+  .lobbyCard h3 { font-size:18px; margin-bottom:12px; }
+  .settingSummary { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+  .settingSummary div { padding:9px 11px; border-radius:12px; background:rgba(0,0,0,.24); font-size:12px; }
+  .settingSummary b { display:block; margin-top:3px; color:#fff; font-size:15px; }
+  .roomCodeBox { margin-top:12px; padding:12px; border:3px dashed rgba(255,255,255,.3); border-radius:16px; text-align:center; }
+  .roomCodeBox strong { display:block; font-size:34px; letter-spacing:.2em; color:#ffe073; }
+  .teamLobby { margin-top:10px; }
+  .teamLobbyTitle { padding:6px 12px; border-radius:11px; font-size:13px; font-weight:900; }
+  #lobbyTeamA .teamLobbyTitle { background:#f28318; } #lobbyTeamB .teamLobbyTitle { background:#7828df; }
+  .lobbySlot { display:grid; grid-template-columns:30px 1fr auto auto; gap:9px; align-items:center; min-height:38px; margin-top:5px; padding:5px 9px; border-radius:11px; color:#eaf0ff; background:rgba(0,0,0,.23); font-size:12px; }
+  .lobbySlot.empty { opacity:.45; }
+  .slotIcon { width:25px; height:25px; display:grid; place-items:center; border-radius:8px; background:#3a4358; }
+  .slotType,.slotState { padding:3px 7px; border-radius:9px; font-size:9px; font-weight:900; background:#30394d; }
+  .slotState.ready { color:#14351d; background:#8df2a3; } .slotType.bot { color:#38260d; background:#ffd16e; }
+  #roomStatus { min-height:26px; margin-top:12px; font-size:13px; font-weight:800; color:#dce5f7; }
+  #roomStatus.good { color:#83f09e; } #roomStatus.error { color:#ff8290; }
+  .lobbyButtons { display:flex; flex-wrap:wrap; gap:9px; margin-top:13px; }
+  .lobbyButtons .roomBtn { min-height:42px; padding:7px 15px; font-size:12px; box-shadow:none; }
+  @media (orientation:landscape) and (max-height:560px) {
+    .roomShell { padding:12px 15px; border-radius:20px; }
+    .roomHeader { min-height:32px; } .roomTitle { font-size:25px; }
+    .roomPanel { margin-top:8px; } .roomActions { margin-top:10px; gap:8px; }
+    .roomBtn { min-height:42px; padding:7px 15px; font-size:13px; }
+    .roomField { margin-top:7px; grid-template-columns:125px minmax(160px,1fr); }
+    .roomField input,.roomField select { min-height:35px; padding:5px 10px; font-size:12px; }
+    .lobbyGrid { margin-top:8px; gap:10px; grid-template-columns:minmax(230px,.7fr) minmax(360px,1.3fr); }
+    .lobbyCard { padding:11px; border-radius:16px; } .lobbyCard h3 { margin-bottom:7px; font-size:15px; }
+    .settingSummary { gap:5px; } .settingSummary div { padding:5px 8px; font-size:10px; } .settingSummary b { font-size:12px; }
+    .roomCodeBox { margin-top:7px; padding:6px; } .roomCodeBox strong { font-size:24px; }
+    .teamLobby { margin-top:5px; } .teamLobbyTitle { padding:4px 9px; font-size:10px; }
+    .lobbySlot { min-height:29px; margin-top:3px; padding:3px 7px; grid-template-columns:22px 1fr auto auto; }
+    .slotIcon { width:20px; height:20px; } #roomStatus { margin-top:7px; min-height:18px; font-size:11px; }
+    .lobbyButtons { margin-top:7px; }
+  }
+</style>
+</head>
+<body>
+<div id="rotatePrompt" role="status" aria-live="polite" aria-hidden="true">
+  <div class="rotateCard">
+    <span class="rotateIcon" aria-hidden="true">↻</span>
+    <h2>端末を横向きにしてください</h2>
+    <p>INK CLASHは横画面でプレイします。<br>横向きにすると自動的にゲームへ戻ります。</p>
+  </div>
+</div>
+<div id="game"></div>
+
+<div id="hud">
+  <div id="kills"><span class="splatMark">✹</span><span>SPLAT ×0</span></div>
+  <div id="topBattleHud">
+    <div id="battleTopRow">
+      <div id="teamAStatus" class="teamRoster">
+        <span class="playerChip"><i></i></span><span class="playerChip"><i></i></span><span class="playerChip"><i></i></span><span class="playerChip"><i></i></span>
+      </div>
+      <div id="timer">3:00</div>
+      <div id="teamBStatus" class="teamRoster">
+        <span class="playerChip"><i></i></span><span class="playerChip"><i></i></span><span class="playerChip"><i></i></span><span class="playerChip"><i></i></span>
+      </div>
+    </div>
+    <div id="coverageRow">
+      <div class="covlabel" id="covAt">0%</div>
+      <div id="coverage"><div id="covA"></div><div id="covN"></div><div id="covB"></div><span id="midBadge">⚓</span></div>
+      <div class="covlabel" id="covBt">0%</div>
+    </div>
+  </div>
+  <div id="inkStatus"></div>
+  <div id="resourceHud">
+    <div class="resourceLine hpLine">
+      <div id="hplabel">HP</div>
+      <div id="hpbar"><div id="hpfill"></div></div>
+    </div>
+    <div class="resourceLine inkLine">
+      <div id="inklabel">INK</div>
+      <div id="inkbar"><div id="inkfill"></div></div>
+      <div id="inkPct">100%</div>
+      <div id="specialCharge" aria-label="スペシャルゲージ"><span>♠</span><div id="specialFill"></div></div>
+    </div>
+  </div>
+  <div id="deadmsg">やられた！</div>
+  <div id="crosshair"></div>
+</div>
+<div id="dmg"></div>
+<div id="heal"></div>
+
+<div id="stick" class="touchonly">
+  <span class="stickArrow up">▲</span><span class="stickArrow right">▶</span>
+  <span class="stickArrow down">▼</span><span class="stickArrow left">◀</span>
+  <div id="knob"></div>
+</div>
+<button id="btnFire" class="tbtn touchonly">FIRE</button>
+<button id="btnSwim" class="tbtn touchonly"><span class="btnGlyph">≋</span>SWIM</button>
+<button id="btnJump" class="tbtn touchonly"><span class="btnGlyph">⬆</span>JUMP</button>
+<button id="btnSub" class="tbtn touchonly"><span class="btnGlyph">●</span>BOMB</button>
+<button id="btnSpecial" class="tbtn"><span class="btnGlyph">★</span>SPECIAL</button>
+<button id="btnSettings" aria-label="操作設定">⚙</button>
+<button id="btnMap">MAP</button>
+
+<div class="overlay" id="title">
+  <h1>INK CLASH</h1>
+  <p>
+    4対4のチーム戦！ 3分間でより多くの床を塗ったチームの勝ち。<br>
+    床や壁を塗り、自分色の壁を潜行して近道を作ろう。敵インクは危険！<br><br>
+    <b>PC:</b> WASD移動／Spaceジャンプ／Q急旋回／Eボム／Rスペシャル／Mマップ<br>
+    <b>スマホ:</b> 左スティック移動／右側スワイプ視点・急旋回／JUMP・FIRE・SWIM・BOMB<br>
+    潜行中にJUMPでインクロール、潜行中にFIREで飛び出し攻撃。<br><br>
+    <b>オンライン対戦:</b> 6桁ルームコードまたは招待URLで参加。足りない枠はbotで補充できます
+  </p>
+  <button class="btn" id="startBtn">START</button>
+  <button class="btn2" id="btnOnline" style="margin-top:14px">オンライン対戦</button>
+</div>
+
+<div class="overlay" id="online" style="display:none">
+  <h1 style="font-size:clamp(30px,7vw,52px)">P2P たいせん</h1>
+  <p id="netStatus">同じ場所にいる相手とQRコードを見せ合って接続します。<br>どちらか一方が「ホストになる」を選んでください。</p>
+
+  <div id="netMenu">
+    <button class="btn" id="btnHost">ホストになる</button>
+    <button class="btn" id="btnJoin" style="background:linear-gradient(180deg,#a8e9ff,#3fb6ef);box-shadow:0 6px 0 #16688f,0 12px 24px rgba(0,0,0,.45)">参加する</button>
+    <button class="btn2" id="btnNetBack">もどる</button>
+  </div>
+
+  <div id="netCode" style="display:none">
+    <div id="qrTitle" class="netsub"></div>
+    <div id="qrBox"></div>
+    <div id="qrHelp" class="netsub"></div>
+    <details class="netdetails">
+      <summary>QRが使えないときは文字コードで交換</summary>
+      <textarea id="codeOut" readonly></textarea>
+      <button class="btn2" id="btnCopyCode">コードをコピー</button>
+    </details>
+    <button class="btn" id="btnScanNext">相手のコードを読み取る</button>
+    <button class="btn2" id="btnNetBack2">やめる</button>
+  </div>
+
+  <div id="netScan" style="display:none">
+    <div class="netsub">相手のQRコードにカメラを向けてください</div>
+    <video id="scanVideo" playsinline muted></video>
+    <div id="scanMsg" class="netsub"></div>
+    <details class="netdetails">
+      <summary>カメラが使えないときは文字コードを貼り付け</summary>
+      <textarea id="codeIn" placeholder="相手のコードをここに貼り付け"></textarea>
+      <button class="btn2" id="btnPasteCode">このコードで接続</button>
+    </details>
+    <button class="btn2" id="btnScanCancel">やめる</button>
+  </div>
+</div>
+
+<div class="overlay" id="roomOnline" aria-hidden="true">
+  <div class="roomShell">
+    <div class="roomHeader">
+      <div class="roomTitle">ONLINE BATTLE</div>
+      <button class="roomBtn dark" id="roomTopBack">タイトルへ戻る</button>
+    </div>
+
+    <section class="roomPanel" id="roomHome">
+      <div class="roomField"><label for="roomPlayerName">プレイヤー名</label><input id="roomPlayerName" maxlength="12" value="Player"></div>
+      <div class="roomActions">
+        <button class="roomBtn" id="roomCreateOpen">ルームを作る</button>
+        <button class="roomBtn alt" id="roomJoinOpen">ルームに参加</button>
+      </div>
+      <div class="roomHint">招待URLを開いた場合はルームコードが自動入力されます。初期版は人間2人まで、残り枠はbotで補充します。</div>
+      <div id="gasSetup">
+        <b>マッチングサーバー：GAS</b>
+        <div class="roomHint">ルーム作成・参加だけGoogle Apps Scriptを使い、対戦中はWebRTCで直接通信します。</div>
+      </div>
+    </section>
+
+    <section class="roomPanel" id="roomCreatePanel" style="display:none">
+      <div class="roomField"><label>ルール</label><select id="createRule"><option value="turf">ナワバリバトル</option></select></div>
+      <div class="roomField"><label>ステージ</label><select id="createStage"><option value="ink_yard">インクヤード</option><option value="random">ランダム</option></select></div>
+      <div class="roomField"><label>対戦人数</label><select id="createTeamSize"><option value="1">1対1</option><option value="2">2対2</option><option value="3">3対3</option><option value="4" selected>4対4</option></select></div>
+      <div class="roomField"><label>bot補充</label><select id="createBotFill"><option value="true" selected>ON</option><option value="false">OFF</option></select></div>
+      <div class="roomField"><label>bot難易度</label><select id="createBotDifficulty"><option value="easy">やさしい</option><option value="normal" selected>ふつう</option><option value="hard">つよい</option></select></div>
+      <div class="roomField"><label>開始方法</label><select id="createStartMode"><option value="host" selected>ホストが開始</option><option value="auto" disabled>人数が揃ったら自動開始（v2）</option><option value="timed" disabled>30秒後にbot補充（v2）</option></select></div>
+      <div class="roomActions">
+        <button class="roomBtn" id="roomCreateConfirm">この設定で作成</button>
+        <button class="roomBtn dark" id="roomCreateCancel">戻る</button>
+      </div>
+    </section>
+
+    <section class="roomPanel" id="roomJoinPanel" style="display:none">
+      <div class="roomField"><label for="joinRoomCode">6桁ルームコード</label><input id="joinRoomCode" inputmode="numeric" maxlength="6" placeholder="482193"></div>
+      <div class="roomActions">
+        <button class="roomBtn alt" id="roomJoinConfirm">参加する</button>
+        <button class="roomBtn dark" id="roomJoinCancel">戻る</button>
+      </div>
+    </section>
+
+    <section class="roomPanel" id="roomLobby" style="display:none">
+      <div class="lobbyGrid">
+        <div class="lobbyCard">
+          <h3>ルーム設定</h3>
+          <div class="settingSummary">
+            <div>ルール<b id="lobbyRule">ナワバリ</b></div>
+            <div>ステージ<b id="lobbyStage">インクヤード</b></div>
+            <div>対戦人数<b id="lobbyTeamSize">4対4</b></div>
+            <div>bot補充<b id="lobbyBotFill">ON</b></div>
+            <div>bot難易度<b id="lobbyBotDifficulty">ふつう</b></div>
+            <div>開始方法<b id="lobbyStartMode">ホストが開始</b></div>
+          </div>
+          <div class="roomCodeBox">ルームコード<strong id="lobbyRoomCode">------</strong></div>
+          <div class="lobbyButtons">
+            <button class="roomBtn alt" id="copyInviteUrl">招待リンクをコピー</button>
+          </div>
+        </div>
+        <div class="lobbyCard">
+          <h3>参加者</h3>
+          <div class="teamLobby" id="lobbyTeamA"><div class="teamLobbyTitle">TEAM ORANGE</div><div class="teamSlots"></div></div>
+          <div class="teamLobby" id="lobbyTeamB"><div class="teamLobbyTitle">TEAM PURPLE</div><div class="teamSlots"></div></div>
+          <div id="roomStatus">対戦相手を待っています</div>
+          <div class="lobbyButtons">
+            <button class="roomBtn" id="lobbyStart" disabled>botで埋めて開始</button>
+            <button class="roomBtn alt" id="lobbyReady" style="display:none">準備OK</button>
+            <button class="roomBtn dark" id="lobbySwitchTeam" style="display:none">チーム変更</button>
+            <button class="roomBtn danger" id="lobbyLeave">ルームを閉じる</button>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
+
+<div class="overlay" id="mapPanel" aria-hidden="true">
+  <div id="mapCard">
+    <canvas id="mapCanvas" width="512" height="512"></canvas>
+    <div>
+      <div class="panelTitle">ナワバリマップ</div>
+      <div class="panelText">
+        自分は白、味方は水色で表示されます。<br>
+        味方アイコンか自陣スポーンをタップすると、そこへスーパージャンプします。
+      </div>
+      <button class="panelBtn" id="btnMapClose">バトルへ戻る</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="settingsPanel" aria-hidden="true">
+  <div id="settingsCard">
+    <div class="panelTitle">操作設定</div>
+    <div class="settingRow">
+      <label for="lookSens">カメラ感度</label>
+      <input id="lookSens" type="range" min="0.45" max="2" step="0.05" value="1">
+      <output id="lookSensOut">1.00</output>
+    </div>
+    <div class="settingRow">
+      <label for="gyroSens">ジャイロ感度</label>
+      <input id="gyroSens" type="range" min="0.35" max="2" step="0.05" value="1">
+      <output id="gyroSensOut">1.00</output>
+    </div>
+    <button class="panelBtn" id="gyroBtn">ジャイロ：OFF</button>
+    <button class="panelBtn" id="btnSettingsClose" style="margin-left:8px">閉じる</button>
+    <div class="panelText">PC：Space ジャンプ／Q クイックターン／E ボム／R スペシャル／M マップ</div>
+  </div>
+</div>
+
+<div class="overlay" id="result">
+  <h1 id="resultTitle">FINISH!</h1>
+  <div id="resultScore"><span class="a">0%</span><span>vs</span><span class="b">0%</span></div>
+  <p id="resultMsg"></p>
+  <div id="lb">
+    <div id="lbEntry">
+      <input id="lbName" maxlength="8" placeholder="なまえ">
+      <button id="lbSave">ランキング登録</button>
+    </div>
+    <div id="lbList">読み込み中…</div>
+    <div id="lbNote">※登録したスコアと名前は、このゲームの全プレイヤーに公開されます</div>
+  </div>
+  <button class="btn" id="retryBtn">もう一回</button>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+/* =====================================================================
+   INK CLASH — オリジナル3Dインクシューター
+   ===================================================================== */
+'use strict';
+
+// 公開リンク経由など、CDNが読めなかった場合に真っ黒画面にしない
+if (typeof THREE === 'undefined'){
+  document.body.innerHTML =
+    '<div class="overlay"><h1>読み込みエラー</h1>' +
+    '<p>3Dライブラリを読み込めませんでした。<br>' +
+    '通信環境を確認して、ページを再読み込みしてください。</p></div>';
+  throw new Error('three.js failed to load');
+}
+
+// ---------- 基本設定 ----------
+const ARENA = 80;                 // ステージ一辺
+const TEX = 1024;                 // 塗りテクスチャ解像度
+const GRID = 160;                 // 塗り判定グリッド
+const MATCH_TIME = 180;
+
+// ---------- モード ----------
+let mode = 'solo';      // 'solo' | 'online'
+let isHost = false;
+let net = null;         // P2P接続（後で初期化）
+let activeMatchSettings = { teamSize:4, botFill:true, botDifficulty:'normal', stage:'ink_yard' };
+function netSend(msg){ if (net && net.ready) net.send(msg); }
+
+const TEAM = {
+  A: { main: 0xff7a00, light: 0xffb14e, dark: 0xc24f00, css:'#ff8a1e', cssLight:'#ffc37a' },
+  B: { main: 0x6a1fff, light: 0x9d6bff, dark: 0x4712b8, css:'#7c3bff', cssLight:'#b48bff' },
+};
+
+const isTouch = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
+if (isTouch) document.body.classList.add('touch');
+const rotatePrompt = document.getElementById('rotatePrompt');
+function updateOrientationUI(){
+  const blocked = isTouch && matchMedia('(orientation: portrait)').matches;
+  document.body.classList.toggle('portrait-blocked', blocked);
+  rotatePrompt.setAttribute('aria-hidden', blocked ? 'false' : 'true');
+}
+updateOrientationUI();
+
+// ---------- レンダラー / シーン ----------
+const renderer = new THREE.WebGLRenderer({ antialias:true, powerPreference:'high-performance' });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.outputEncoding = THREE.sRGBEncoding;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.05;
+document.getElementById('game').appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(0xbcd7ef, 70, 210);
+
+const camera = new THREE.PerspectiveCamera(66, innerWidth/innerHeight, 0.1, 500);
+
+// ---------- 空（グラデーションシェーダー） ----------
+{
+  const skyGeo = new THREE.SphereGeometry(320, 32, 16);
+  const skyMat = new THREE.ShaderMaterial({
+    side: THREE.BackSide, depthWrite: false, fog: false,
+    uniforms: {
+      top:    { value: new THREE.Color(0x2f7fd8) },
+      mid:    { value: new THREE.Color(0x9fd0f2) },
+      bottom: { value: new THREE.Color(0xffe9c9) },
+    },
+    vertexShader: `varying vec3 vP; void main(){ vP = position; gl_Position = projectionMatrix*modelViewMatrix*vec4(position,1.0); }`,
+    fragmentShader: `
+      varying vec3 vP; uniform vec3 top; uniform vec3 mid; uniform vec3 bottom;
+      void main(){
+        float h = normalize(vP).y;
+        vec3 c = h > 0.15 ? mix(mid, top, smoothstep(0.15, 0.75, h))
+                          : mix(bottom, mid, smoothstep(-0.1, 0.15, h));
+        gl_FragColor = vec4(c, 1.0);
+      }`
+  });
+  scene.add(new THREE.Mesh(skyGeo, skyMat));
+}
+
+// 雲（ふわふわのビルボード的球群）
+{
+  const cloudMat = new THREE.MeshBasicMaterial({ color:0xffffff, transparent:true, opacity:0.9, fog:false });
+  for (let i=0;i<9;i++){
+    const g = new THREE.Group();
+    const n = 4 + Math.floor(Math.random()*4);
+    for (let j=0;j<n;j++){
+      const s = 6 + Math.random()*9;
+      const m = new THREE.Mesh(new THREE.SphereGeometry(s, 10, 8), cloudMat);
+      m.position.set((j - n/2)*s*0.9, Math.random()*3, (Math.random()-0.5)*6);
+      m.scale.y = 0.55;
+      g.add(m);
+    }
+    const a = Math.random()*Math.PI*2;
+    g.position.set(Math.cos(a)*(150+Math.random()*80), 55+Math.random()*45, Math.sin(a)*(150+Math.random()*80));
+    scene.add(g);
+  }
+}
+
+// ---------- ライティング ----------
+scene.add(new THREE.HemisphereLight(0xcfe6ff, 0xffd9a8, 0.75));
+const sun = new THREE.DirectionalLight(0xfff2dd, 1.35);
+sun.position.set(45, 70, 25);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.camera.left = -60; sun.shadow.camera.right = 60;
+sun.shadow.camera.top = 60;  sun.shadow.camera.bottom = -60;
+sun.shadow.camera.far = 220;
+sun.shadow.bias = -0.0006;
+scene.add(sun);
+const rim = new THREE.DirectionalLight(0x9fc4ff, 0.35);
+rim.position.set(-40, 30, -50);
+scene.add(rim);
+
+// ---------- 塗りキャンバス（床テクスチャ） ----------
+const paintCv = document.createElement('canvas');
+paintCv.width = paintCv.height = TEX;
+const pctx = paintCv.getContext('2d');
+const paintTex = new THREE.CanvasTexture(paintCv);
+paintTex.encoding = THREE.sRGBEncoding;
+paintTex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+
+function drawBaseFloor(){
+  pctx.fillStyle = '#c9ced6';
+  pctx.fillRect(0,0,TEX,TEX);
+  // タイル
+  pctx.strokeStyle = 'rgba(90,100,120,.35)';
+  pctx.lineWidth = 3;
+  const step = TEX/10;
+  for (let i=0;i<=10;i++){
+    pctx.beginPath(); pctx.moveTo(i*step,0); pctx.lineTo(i*step,TEX); pctx.stroke();
+    pctx.beginPath(); pctx.moveTo(0,i*step); pctx.lineTo(TEX,i*step); pctx.stroke();
+  }
+  // ノイズ
+  for (let i=0;i<2600;i++){
+    pctx.fillStyle = Math.random()<0.5 ? 'rgba(255,255,255,.06)' : 'rgba(60,70,90,.06)';
+    const r = 1+Math.random()*3;
+    pctx.beginPath();
+    pctx.arc(Math.random()*TEX, Math.random()*TEX, r, 0, 7);
+    pctx.fill();
+  }
+  // センターライン
+  pctx.fillStyle = 'rgba(255,255,60,.5)';
+  pctx.fillRect(0, TEX/2-5, TEX, 10);
+}
+
+// 塗り判定グリッド
+let grid, countA, countB;
+function resetGrid(){
+  grid = new Int8Array(GRID*GRID);
+  countA = 0; countB = 0;
+}
+resetGrid();
+drawBaseFloor();
+paintTex.needsUpdate = true;
+
+function worldToTex(x, z){ return [ (x/ARENA + 0.5) * TEX, (z/ARENA + 0.5) * TEX ]; }
+
+function splat(x, z, radius, team){
+  const [cx, cy] = worldToTex(x, z);
+  const pr = radius / ARENA * TEX;
+  const col = TEAM[team];
+  // メインの塊（放射グラデ）
+  const blobs = 5 + Math.floor(Math.random()*4);
+  for (let i=0;i<blobs;i++){
+    const a = Math.random()*Math.PI*2;
+    const d = i===0 ? 0 : Math.random()*pr*0.75;
+    const r = i===0 ? pr*(0.8+Math.random()*0.3) : pr*(0.28+Math.random()*0.4);
+    const bx = cx + Math.cos(a)*d, by = cy + Math.sin(a)*d;
+    const gr = pctx.createRadialGradient(bx,by,r*0.1, bx,by,r);
+    gr.addColorStop(0, col.cssLight);
+    gr.addColorStop(0.55, col.css);
+    gr.addColorStop(1, col.css);
+    pctx.fillStyle = gr;
+    pctx.beginPath(); pctx.arc(bx,by,r,0,7); pctx.fill();
+  }
+  // 飛び散り
+  for (let i=0;i<6;i++){
+    const a = Math.random()*Math.PI*2;
+    const d = pr*(0.9+Math.random()*0.9);
+    pctx.fillStyle = col.css;
+    pctx.beginPath(); pctx.arc(cx+Math.cos(a)*d, cy+Math.sin(a)*d, pr*(0.08+Math.random()*0.14), 0, 7); pctx.fill();
+  }
+  paintTex.needsUpdate = true;
+
+  // グリッド更新
+  const gx = Math.round((x/ARENA + 0.5)*GRID), gz = Math.round((z/ARENA + 0.5)*GRID);
+  const gr2 = Math.max(1, Math.round(radius/ARENA*GRID*0.85));
+  const t = team === 'A' ? 1 : 2;
+  for (let dz=-gr2; dz<=gr2; dz++) for (let dx=-gr2; dx<=gr2; dx++){
+    if (dx*dx+dz*dz > gr2*gr2) continue;
+    const ix = gx+dx, iz = gz+dz;
+    if (ix<0||iz<0||ix>=GRID||iz>=GRID) continue;
+    const idx = iz*GRID+ix, prev = grid[idx];
+    if (prev === t) continue;
+    if (prev === 1) countA--; else if (prev === 2) countB--;
+    grid[idx] = t;
+    if (t === 1) countA++; else countB++;
+  }
+}
+
+function inkAt(x, z){
+  const ix = Math.round((x/ARENA + 0.5)*GRID), iz = Math.round((z/ARENA + 0.5)*GRID);
+  if (ix<0||iz<0||ix>=GRID||iz>=GRID) return 0;
+  return grid[iz*GRID+ix];
+}
+
+// 自分の塗りを適用しつつ相手にも同じ塗りを送る（両者のスコアを一致させる）
+function paint(x, z, r, team){
+  splat(x, z, r, team);
+  netSend({ t:'sp', x:+x.toFixed(2), z:+z.toFixed(2), r:+r.toFixed(2), m:team });
+}
+
+// ---------- ステージ ----------
+const floorMat = new THREE.MeshStandardMaterial({ map: paintTex, roughness: 0.42, metalness: 0.05 });
+const floor = new THREE.Mesh(new THREE.PlaneGeometry(ARENA, ARENA), floorMat);
+floor.rotation.x = -Math.PI/2;
+floor.receiveShadow = true;
+scene.add(floor);
+
+// 外周の地面
+{
+  const outer = new THREE.Mesh(
+    new THREE.PlaneGeometry(600, 600),
+    new THREE.MeshStandardMaterial({ color: 0x6fae6a, roughness: 1 })
+  );
+  outer.rotation.x = -Math.PI/2;
+  outer.position.y = -0.05;
+  outer.receiveShadow = true;
+  scene.add(outer);
+}
+
+// 障害物とコリジョン
+const obstacles = [];
+const wallMat = new THREE.MeshStandardMaterial({ color: 0xe8eef4, roughness: 0.6 });
+const accentMatA = new THREE.MeshStandardMaterial({ color: TEAM.A.main, roughness: 0.5 });
+const accentMatB = new THREE.MeshStandardMaterial({ color: TEAM.B.main, roughness: 0.5 });
+
+function addBox(x, z, w, h, d, mat, solid=true, ry=0){
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+  m.position.set(x, h/2, z);
+  m.rotation.y = ry;
+  m.castShadow = m.receiveShadow = true;
+  scene.add(m);
+  if (solid){
+    const o = {
+      id: obstacles.length, x, z, hw: w/2 + 0.55, hd: d/2 + 0.55,
+      wallHw: w/2, wallHd: d/2, h, mesh:m, paintable:ry === 0
+    };
+    obstacles.push(o);
+  }
+  return m;
+}
+
+// ---------- 壁インク ----------
+// 各着弾を薄いデカールと判定パッチとして保持する。
+const wallPaints = [];
+const wallCircleGeo = new THREE.CircleGeometry(1, 22);
+
+function applyWallPaint(o, axis, sign, u, y, radius, team, broadcast=true){
+  if (!o || !o.paintable) return;
+  const r = Math.max(0.7, Math.min(2.8, radius));
+  const g = new THREE.Group();
+  const mat = new THREE.MeshBasicMaterial({
+    color:TEAM[team].main, transparent:true, opacity:0.92,
+    depthWrite:false, polygonOffset:true, polygonOffsetFactor:-3
+  });
+  const main = new THREE.Mesh(wallCircleGeo, mat);
+  main.scale.set(r, r * (0.9 + Math.random()*0.25), 1);
+  g.add(main);
+  for (let i=0;i<5;i++){
+    const drop = new THREE.Mesh(wallCircleGeo, mat);
+    const a = Math.random()*Math.PI*2;
+    const d = r*(0.72+Math.random()*0.55);
+    const s = r*(0.08+Math.random()*0.16);
+    drop.position.set(Math.cos(a)*d, Math.sin(a)*d, -0.002);
+    drop.scale.set(s, s*(0.7+Math.random()*0.6), 1);
+    g.add(drop);
+  }
+  const yy = Math.max(0.25, Math.min(o.h-0.18, y));
+  if (axis === 'x'){
+    g.position.set(o.x + sign*(o.wallHw+0.012), yy, u);
+    g.rotation.y = sign > 0 ? Math.PI/2 : -Math.PI/2;
+  } else {
+    g.position.set(u, yy, o.z + sign*(o.wallHd+0.012));
+    g.rotation.y = sign > 0 ? 0 : Math.PI;
+  }
+  scene.add(g);
+  wallPaints.push({ o, axis, sign, u, y:yy, r, team, mesh:g });
+  while (wallPaints.length > 260){
+    const old = wallPaints.shift();
+    scene.remove(old.mesh);
+    old.mesh.traverse(ch => { if (ch.material && ch.material !== mat) ch.material.dispose(); });
+  }
+  if (broadcast){
+    netSend({ t:'wp', i:o.id, a:axis, s:sign, u:+u.toFixed(2), y:+yy.toFixed(2), r:+r.toFixed(2), m:team });
+  }
+}
+
+function wallInkAt(o, axis, sign, u, y){
+  for (let i=wallPaints.length-1;i>=0;i--){
+    const p = wallPaints[i];
+    if (p.o !== o || p.axis !== axis || p.sign !== sign) continue;
+    const du = u-p.u, dy = y-p.y;
+    // 見た目上つながっている飛沫の継ぎ目で登攀が切れないよう、少し広く判定する。
+    const climbR = p.r + 0.38;
+    if (du*du + dy*dy <= climbR*climbR) return p.team === 'A' ? 1 : 2;
+  }
+  return 0;
+}
+
+function clearWallPaint(){
+  for (const p of wallPaints){
+    scene.remove(p.mesh);
+    p.mesh.traverse(ch => { if (ch.material) ch.material.dispose(); });
+  }
+  wallPaints.length = 0;
+}
+
+// 外壁
+{
+  const wm = new THREE.MeshStandardMaterial({ color: 0xb9c6d4, roughness: 0.8 });
+  const t = 2, h = 3.2;
+  addBox(0, -ARENA/2 - t/2, ARENA + t*2, h, t, wm);
+  addBox(0,  ARENA/2 + t/2, ARENA + t*2, h, t, wm);
+  addBox(-ARENA/2 - t/2, 0, t, h, ARENA, wm);
+  addBox( ARENA/2 + t/2, 0, t, h, ARENA, wm);
+}
+
+// 中央・左右の構造物（点対称配置）
+addBox(0, 0, 10, 2.4, 10, wallMat);
+addBox(0, 0, 4.5, 4.6, 4.5, new THREE.MeshStandardMaterial({ color: 0xf6c944, roughness: 0.45 }));
+for (const s of [1, -1]){
+  const am = s === 1 ? accentMatB : accentMatA;
+  addBox( 14*s,  14*s, 7, 3.0, 7, wallMat);
+  addBox(-16*s,  10*s, 5, 2.2, 12, wallMat);
+  addBox( 26*s,  -4*s, 6, 1.6, 6, am);
+  addBox(  6*s,  26*s, 12, 2.6, 4, wallMat);
+  addBox(-28*s, -24*s, 5, 1.4, 5, am);
+  // 円柱タワー
+  const cyl = new THREE.Mesh(new THREE.CylinderGeometry(2.4, 2.8, 6.5, 24), am);
+  cyl.position.set(-6*s, 3.25, -20*s);
+  cyl.castShadow = cyl.receiveShadow = true;
+  scene.add(cyl);
+  obstacles.push({ x:-6*s, z:-20*s, hw:3.3, hd:3.3, h:6.5 });
+}
+
+// 左右の近道を区切る壁。正面から回り込むか、インクを縦に塗って越える。
+for (const s of [-1, 1]){
+  addBox(22*s, 1*s, 2.6, 4.4, 13, wallMat);
+}
+
+// スポーンパッド
+function spawnPad(x, z, team){
+  const g = new THREE.Group();
+  const base = new THREE.Mesh(new THREE.CylinderGeometry(4, 4.4, 0.5, 32),
+    new THREE.MeshStandardMaterial({ color: TEAM[team].dark, roughness: 0.4 }));
+  base.position.y = 0.25;
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(3.2, 0.28, 12, 40),
+    new THREE.MeshStandardMaterial({ color: TEAM[team].light, emissive: TEAM[team].main, emissiveIntensity: 0.7, roughness: 0.3 }));
+  ring.rotation.x = Math.PI/2; ring.position.y = 0.58;
+  base.castShadow = base.receiveShadow = true;
+  g.add(base, ring);
+  g.position.set(x, 0, z);
+  scene.add(g);
+  return g;
+}
+const SPAWN_A = new THREE.Vector3(-32, 0, -32);
+const SPAWN_B = new THREE.Vector3( 32, 0,  32);
+spawnPad(SPAWN_A.x, SPAWN_A.z, 'A');
+spawnPad(SPAWN_B.x, SPAWN_B.z, 'B');
+
+// ---------- キャラクター ----------
+function makeToonMat(color, emissive=0x000000, ei=0){
+  return new THREE.MeshStandardMaterial({ color, roughness: 0.55, metalness: 0.02, emissive, emissiveIntensity: ei });
+}
+
+function createKid(team, role = 'bot'){
+  const c = TEAM[team];
+  const g = new THREE.Group();
+
+  // 足元リング：チーム色をひと目で判別できるように
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(0.72, 0.09, 8, 28),
+    new THREE.MeshStandardMaterial({ color: c.light, emissive: c.main, emissiveIntensity: 0.9, roughness: 0.35 }));
+  ring.rotation.x = Math.PI/2;
+  ring.position.y = 0.06;
+  g.add(ring);
+
+  // 頭上マーカー：自分＝白／味方＝チーム色／敵＝敵色
+  const markCol = role === 'self' ? 0xffffff : c.light;
+  const marker = new THREE.Mesh(new THREE.ConeGeometry(0.26, 0.44, 4),
+    new THREE.MeshStandardMaterial({ color: markCol, emissive: markCol, emissiveIntensity: 0.85, roughness: 0.3 }));
+  marker.rotation.x = Math.PI;      // 下向きの矢印
+  marker.rotation.y = Math.PI/4;
+  marker.position.y = 2.35;
+  g.add(marker);
+
+  const bodyMat = makeToonMat(c.main, c.main, 0.12);
+  const body = new THREE.Mesh(new THREE.SphereGeometry(0.62, 28, 22), bodyMat);
+  body.position.y = 0.95;
+  body.scale.set(1, 1.18, 0.95);
+  body.castShadow = true;
+  g.add(body);
+
+  // 自分だけ白いバイザー状のラインを足して見分けやすく
+  if (role === 'self'){
+    const band = new THREE.Mesh(new THREE.TorusGeometry(0.6, 0.075, 8, 28),
+      new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xffffff, emissiveIntensity: 0.35, roughness: 0.3 }));
+    band.position.y = 1.28;
+    band.rotation.x = Math.PI/2 - 0.22;
+    g.add(band);
+  }
+
+  // 触角（うしろに2本）
+  for (const s of [-1, 1]){
+    const tent = new THREE.Mesh(new THREE.ConeGeometry(0.18, 1.0, 14), bodyMat);
+    tent.position.set(0.24*s, 1.55, -0.42);
+    tent.rotation.x = -2.4;
+    tent.rotation.z = 0.25*s;
+    tent.castShadow = true;
+    g.add(tent);
+  }
+
+  // 目
+  for (const s of [-1, 1]){
+    const white = new THREE.Mesh(new THREE.SphereGeometry(0.185, 16, 12),
+      new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.25 }));
+    white.position.set(0.24*s, 1.12, 0.5);
+    white.scale.set(1, 1.35, 0.6);
+    const pupil = new THREE.Mesh(new THREE.SphereGeometry(0.085, 12, 10),
+      new THREE.MeshStandardMaterial({ color: 0x1c1030, roughness: 0.2 }));
+    pupil.position.set(0.24*s, 1.13, 0.62);
+    g.add(white, pupil);
+  }
+
+  // 脚
+  const legMat = makeToonMat(0x243044);
+  for (const s of [-1, 1]){
+    const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.14, 0.5, 10), legMat);
+    leg.position.set(0.22*s, 0.25, 0);
+    leg.castShadow = true;
+    g.add(leg);
+    const shoe = new THREE.Mesh(new THREE.SphereGeometry(0.17, 12, 10), makeToonMat(0xffffff));
+    shoe.position.set(0.22*s, 0.08, 0.07);
+    shoe.scale.set(1, 0.6, 1.4);
+    shoe.castShadow = true;
+    g.add(shoe);
+  }
+
+  // インクタンク（背中）
+  const tank = new THREE.Group();
+  const glass = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.24, 0.62, 18),
+    new THREE.MeshStandardMaterial({ color: 0xdff2ff, roughness: 0.08, transparent: true, opacity: 0.45 }));
+  const inkFill = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.5, 16), makeToonMat(c.main, c.main, 0.5));
+  const cap = new THREE.Mesh(new THREE.SphereGeometry(0.24, 14, 10), makeToonMat(0x2a3348));
+  cap.position.y = 0.34; cap.scale.y = 0.5;
+  tank.add(glass, inkFill, cap);
+  tank.position.set(0, 1.05, -0.62);
+  tank.rotation.x = 0.25;
+  g.add(tank);
+
+  // ブラスター
+  const gun = new THREE.Group();
+  const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.16, 0.7, 14), makeToonMat(0xf2f5fa));
+  barrel.rotation.x = Math.PI/2;
+  const nozzle = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.11, 0.2, 12), makeToonMat(c.dark));
+  nozzle.rotation.x = Math.PI/2; nozzle.position.z = 0.44;
+  const gripBody = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.22, 0.3), makeToonMat(c.main, c.main, 0.2));
+  gripBody.position.y = -0.16;
+  gun.add(barrel, nozzle, gripBody);
+  gun.position.set(0.5, 0.95, 0.35);
+  gun.castShadow = true;
+  g.add(gun);
+
+  g.traverse(o => { if (o.isMesh) o.castShadow = true; });
+
+  // イカ形態
+  const squid = new THREE.Group();
+  const sBody = new THREE.Mesh(new THREE.ConeGeometry(0.42, 1.1, 18), makeToonMat(c.main, c.main, 0.35));
+  sBody.rotation.x = Math.PI/2;
+  const sFinL = new THREE.Mesh(new THREE.ConeGeometry(0.16, 0.55, 10), makeToonMat(c.main));
+  sFinL.rotation.z = Math.PI/2; sFinL.position.set(-0.35, 0, -0.3);
+  const sFinR = sFinL.clone(); sFinR.rotation.z = -Math.PI/2; sFinR.position.x = 0.35;
+  squid.add(sBody, sFinL, sFinR);
+  squid.position.y = 0.3;
+  squid.visible = false;
+  squid.traverse(o => { if (o.isMesh) o.castShadow = true; });
+  g.add(squid);
+
+  return {
+    group: g, kid: [body], gun, squid, ring, marker,
+    humanParts: g.children.filter(ch => ch !== squid && ch !== ring && ch !== marker),
+  };
+}
+
+// ---------- プレイヤー ----------
+const player = {
+  ...createKid('A', 'self'),
+  pos: SPAWN_A.clone(),
+  team: 'A',
+  ink: 1,
+  hp: 100,
+  dead: false,
+  respawnT: 0,
+  swimming: false,
+  fireCd: 0,
+  yaw: Math.PI * 0.75,
+  vy: 0,
+  climbing: false,
+  climbSurface: null,
+  climbGrace: 0,
+  surfaceAttackT: 0,
+  emergeWindow: 0,
+  enemyInkT: 0,
+  rollT: 0,
+  rollCd: 0,
+  rollVX: 0,
+  rollVZ: 0,
+  superJump: null,
+  special: 0,
+};
+scene.add(player.group);
+let kills = 0, dmgFlash = 0, healFlash = 0;
+let shake = 0;                      // 発砲・被弾による画面揺れの強さ
+function addShake(v){ shake = Math.min(1.2, shake + v); }
+
+function mySpawn(){ return player.team === 'A' ? SPAWN_A : SPAWN_B; }
+function foeTeam(){ return player.team === 'A' ? 'B' : 'A'; }
+
+// 対戦相手（オンライン時のみ生成）
+let remote = null;
+function ensureRemote(team){
+  if (remote){ scene.remove(remote.group); remote = null; }
+  const r = {
+    ...createKid(team, 'bot'), team,
+    pos: (team === 'A' ? SPAWN_A : SPAWN_B).clone(),
+    tpos: (team === 'A' ? SPAWN_A : SPAWN_B).clone(),
+    yaw: 0, tyaw: 0, hp: 100, dead: false, swimming: false,
+  };
+  r.group.position.copy(r.pos);
+  scene.add(r.group);
+  remote = r;
+}
+function setSquidStealth(entity, opacity){
+  const value = Math.max(0.12, Math.min(1, opacity));
+  if (entity._squidOpacity === value) return;
+  entity._squidOpacity = value;
+  entity.squid.traverse(o => {
+    if (!o.isMesh) return;
+    o.material.transparent = value < 1;
+    o.material.opacity = value;
+    o.material.depthWrite = value >= 0.55;
+  });
+}
+function updateRemote(dt){
+  if (!remote) return;
+  const k = Math.min(1, dt * 12);
+  remote.pos.lerp(remote.tpos, k);
+  remote.group.position.copy(remote.pos);
+  let d = remote.tyaw - remote.yaw;
+  while (d > Math.PI) d -= Math.PI*2;
+  while (d < -Math.PI) d += Math.PI*2;
+  remote.yaw += d * k;
+  remote.group.rotation.y = remote.yaw;
+  remote.group.visible = !remote.dead;
+  remote.squid.visible = remote.swimming;
+  for (const part of remote.humanParts) part.visible = !remote.swimming;
+  const remoteOwn = inkAt(remote.pos.x, remote.pos.z) === (remote.team === 'A' ? 1 : 2);
+  setSquidStealth(remote, remote.swimming && remoteOwn ? 0.18 : 0.72);
+  remote.ring.visible = !remote.swimming;
+  remote.marker.visible = !remote.swimming;
+  if (!remote.swimming) remote.group.position.y += Math.abs(Math.sin(performance.now()*0.011)) * 0.07;
+}
+
+let camYaw = Math.PI * 0.75, camPitch = 0.38;
+
+// ---------- ボット ----------
+const bots = [];
+function makeBot(team, spawn, offset){
+  const b = {
+    ...createKid(team, 'bot'),
+    team,
+    pos: spawn.clone().add(offset),
+    home: spawn.clone(),
+    homeOff: offset.clone(),
+    hp: 100,
+    dead: false,
+    active: true,
+    respawnT: 0,
+    target: new THREE.Vector3(),
+    tpos: spawn.clone().add(offset),   // オンライン時はホストから届く位置へ補間
+    fireCd: Math.random(),
+    retarget: 0,
+    yaw: 0,
+    enemyInkT: 0,
+  };
+  b.group.position.copy(b.pos);
+  scene.add(b.group);
+  pickBotTarget(b);
+  bots.push(b);
+}
+function pickBotTarget(b){
+  // 未塗装 or 敵色エリアを狙う
+  for (let tries=0; tries<14; tries++){
+    const x = (Math.random()-0.5) * (ARENA-10);
+    const z = (Math.random()-0.5) * (ARENA-10);
+    const ink = inkAt(x, z);
+    const own = b.team === 'A' ? 1 : 2;
+    if (ink !== own || tries === 13){
+      b.target.set(x, 0, z);
+      break;
+    }
+  }
+  b.retarget = 4 + Math.random()*4;
+}
+
+// 4対4：Aチーム=プレイヤー+ボット3、Bチーム=ボット4（オンラインでは4体目を相手プレイヤーが担当）
+const BOT_OFFSETS = [
+  new THREE.Vector3( 3.5, 0,  0.5),
+  new THREE.Vector3(-1.0, 0,  3.5),
+  new THREE.Vector3( 1.5, 0, -3.0),
+  new THREE.Vector3(-3.5, 0, -0.5),
+];
+for (let i=0;i<3;i++) makeBot('A', SPAWN_A, BOT_OFFSETS[i]);
+for (let i=0;i<4;i++) makeBot('B', SPAWN_B, BOT_OFFSETS[i].clone().multiplyScalar(-1));
+
+// 常に4対4：Aチーム=ボット0,1,2、Bチーム=ボット3,4,5,6
+// オンラインでは Aの4人目=ホスト、Bの4人目=ゲスト が担当するのでボット6を休ませる
+function assignBotRoster(){
+  if (mode === 'online'){
+    const perTeam = activeMatchSettings.botFill ? Math.max(0,activeMatchSettings.teamSize-1) : 0;
+    for (const team of ['A','B']){
+      let used=0;
+      for (const b of bots){
+        if (b.team!==team) continue;
+        b.active=used<perTeam;
+        used++;
+      }
+    }
+  } else {
+    bots.forEach(b => { b.active = true; });
+  }
+  for (const b of bots){
+    if (!b.active){ b.dead = true; b.group.visible = false; }
+  }
+}
+
+// ---------- 弾 ----------
+const projectiles = [];
+const projGeoA = new THREE.SphereGeometry(0.17, 12, 10);
+const projMat = {
+  A: new THREE.MeshStandardMaterial({ color: TEAM.A.light, emissive: TEAM.A.main, emissiveIntensity: 0.8, roughness: 0.3 }),
+  B: new THREE.MeshStandardMaterial({ color: TEAM.B.light, emissive: TEAM.B.main, emissiveIntensity: 0.8, roughness: 0.3 }),
+};
+
+function shoot(origin, dir, team, opts = {}){
+  const vel = opts.vel ? opts.vel.clone()
+    : dir.clone().multiplyScalar(26).add(new THREE.Vector3((Math.random()-0.5)*1.6, (Math.random()-0.5)*1.2 + 2.2, (Math.random()-0.5)*1.6));
+  const r = opts.r != null ? opts.r : 1.55 + Math.random()*0.5;
+  const m = new THREE.Mesh(projGeoA, projMat[team]);
+  m.position.copy(origin);
+  m.scale.setScalar(0.85 + Math.random()*0.35);
+  m.castShadow = true;
+  scene.add(m);
+  projectiles.push({
+    mesh: m, vel, team,
+    fromPlayer: !!opts.fromPlayer,
+    ghost: !!opts.ghost,     // ゴースト弾＝見た目だけ。塗りは相手からのイベントで反映
+    life: 2.4, r,
+    damage: opts.damage != null ? opts.damage : (opts.fromPlayer ? 34 : 20),
+    emerge: !!opts.emerge,
+  });
+  if (opts.broadcast){
+    netSend({ t:'sh', m:team,
+      x:+origin.x.toFixed(2), y:+origin.y.toFixed(2), z:+origin.z.toFixed(2),
+      vx:+vel.x.toFixed(2), vy:+vel.y.toFixed(2), vz:+vel.z.toFixed(2), r:+r.toFixed(2),
+      d:opts.damage, e:opts.emerge ? 1 : 0 });
+  }
+}
+
+// ---------- サブ武器：インクボム ----------
+const bombs = [];
+const bombGeo = new THREE.SphereGeometry(0.34,16,12);
+function createBomb(team, origin, vel, ghost=false, fromPlayer=false){
+  const mesh=new THREE.Mesh(bombGeo,new THREE.MeshStandardMaterial({
+    color:TEAM[team].light, emissive:TEAM[team].main, emissiveIntensity:.65, roughness:.3
+  }));
+  mesh.position.copy(origin); mesh.castShadow=true; scene.add(mesh);
+  bombs.push({ mesh,vel:vel.clone(),team,ghost,fromPlayer,fuse:1.25,bounced:false });
+}
+function throwSubWeapon(){
+  if (!running || player.dead || player.ink<0.28) return;
+  player.ink-=0.28;
+  const dir=new THREE.Vector3(-Math.sin(camYaw),.38,-Math.cos(camYaw)).normalize();
+  const origin=player.pos.clone().add(new THREE.Vector3(0,1.25,0));
+  const vel=dir.multiplyScalar(15).add(new THREE.Vector3(0,4.5,0));
+  createBomb(player.team,origin,vel,false,true);
+  netSend({ t:'sb',m:player.team,x:+origin.x.toFixed(2),y:+origin.y.toFixed(2),z:+origin.z.toFixed(2),
+    vx:+vel.x.toFixed(2),vy:+vel.y.toFixed(2),vz:+vel.z.toFixed(2) });
+}
+function explodeBomb(b){
+  const pos=b.mesh.position.clone();
+  burst(pos.clone().add(new THREE.Vector3(0,.35,0)),b.team,28,9);
+  if (!b.ghost){
+    paint(pos.x,pos.z,5.2,b.team);
+    if (b.fromPlayer) addSpecial(.16);
+    for (const bot of bots){
+      if (!bot.active||bot.dead||bot.team===b.team) continue;
+      if (bot.pos.distanceTo(pos)<5.4) damageBot(bot,58,bot.pos.clone(),b.fromPlayer,b.team);
+    }
+  }
+  if (b.team!==player.team && !player.dead && player.pos.distanceTo(pos)<5.4){
+    damagePlayer(30,pos);
+  }
+}
+function updateBombs(dt){
+  for(let i=bombs.length-1;i>=0;i--){
+    const b=bombs[i];
+    const before=b.mesh.position.clone();
+    b.vel.y-=18*dt;
+    b.mesh.position.addScaledVector(b.vel,dt);
+    b.mesh.rotation.x+=dt*8; b.mesh.rotation.z+=dt*11;
+    if (b.mesh.position.y<=.32){
+      b.mesh.position.y=.32;
+      if (!b.bounced){ b.vel.y=Math.abs(b.vel.y)*.38; b.bounced=true; }
+      else b.vel.y=0;
+      b.vel.x*=Math.pow(.18,dt); b.vel.z*=Math.pow(.18,dt);
+    }
+    const hit=projectileObstacleHit(b.mesh.position);
+    if (hit){
+      b.mesh.position.copy(before);
+      b.vel.x*=-.42; b.vel.z*=-.42; b.vel.y=Math.max(2,Math.abs(b.vel.y)*.35);
+    }
+    b.fuse-=dt;
+    if (b.fuse<=0){
+      explodeBomb(b);
+      scene.remove(b.mesh); b.mesh.material.dispose(); bombs.splice(i,1);
+    }
+  }
+}
+
+// ---------- ダメージ / 撃破 ----------
+const deadmsgEl = document.getElementById('deadmsg');
+
+function damageBot(b, dmg, hitPos, byPlayer, killerTeam, byRemote){
+  b.hp -= dmg;
+  burst(hitPos, killerTeam, 5, 3);
+  if (b.hp <= 0 && !b.dead){
+    b.dead = true;
+    b.respawnT = 3;
+    b.group.visible = false;
+    paint(b.pos.x, b.pos.z, 3.4, killerTeam);        // 倒すと大きく塗れる！
+    burst(new THREE.Vector3(b.pos.x, 1, b.pos.z), killerTeam, 20, 7);
+    if (byPlayer && b.team !== player.team) addKill();
+    if (byRemote) netSend({ t:'bk' });               // 相手の手柄として通知
+  }
+}
+
+function addKill(){
+  kills++;
+  document.querySelector('#kills span:last-child').textContent = 'SPLAT ×' + kills;
+  // 撃破ボーナス：HPとインクが回復する
+  if (!player.dead){
+    player.hp = Math.min(100, player.hp + 45);
+    player.ink = Math.min(1, player.ink + 0.35);
+    healFlash = 0.8;
+    burst(player.pos.clone().add(new THREE.Vector3(0, 1, 0)), player.team, 12, 4);
+  }
+}
+
+// 被弾は「やられた側」が判定する（P2Pでの食い違いを防ぐ）
+function damagePlayer(dmg, hitPos){
+  if (player.dead) return;
+  const foe = foeTeam();
+  player.hp -= dmg;
+  dmgFlash = 0.9;
+  addShake(0.34);
+  burst(hitPos, foe, 5, 3);
+  netSend({ t:'hp', v: Math.max(0, player.hp) });
+  if (player.hp <= 0){
+    closeMap();
+    closeSettings();
+    player.dead = true;
+    updateSpecialUI();
+    player.respawnT = 2.6;
+    player.group.visible = false;
+    firing = false;
+    paint(player.pos.x, player.pos.z, 3.4, foe);
+    burst(new THREE.Vector3(player.pos.x, 1, player.pos.z), foe, 20, 7);
+    deadmsgEl.style.display = 'block';
+    netSend({ t:'dd' });     // 相手に「倒された」と伝える
+  }
+}
+
+function revivePlayer(){
+  player.dead = false;
+  updateSpecialUI();
+  player.hp = 100;
+  player.ink = 1;
+  player.pos.copy(mySpawn());
+  player.vy = 0;
+  player.climbing = false;
+  player.climbSurface = null;
+  player.climbGrace = 0;
+  player.rollT = 0;
+  player.rollCd = 0;
+  player.superJump = null;
+  player.surfaceAttackT = 0;
+  player.emergeWindow = 0;
+  player.group.visible = true;
+  deadmsgEl.style.display = 'none';
+  netSend({ t:'rv' });
+}
+
+// ---------- パーティクル ----------
+const particles = [];
+const partGeo = new THREE.SphereGeometry(0.09, 8, 6);
+const partMat = {
+  A: new THREE.MeshBasicMaterial({ color: TEAM.A.light }),
+  B: new THREE.MeshBasicMaterial({ color: TEAM.B.light }),
+};
+function burst(pos, team, n=10, power=5){
+  for (let i=0;i<n;i++){
+    if (particles.length > 240) break;
+    const m = new THREE.Mesh(partGeo, partMat[team]);
+    m.position.copy(pos);
+    scene.add(m);
+    const a = Math.random()*Math.PI*2, up = 2 + Math.random()*power;
+    particles.push({
+      mesh: m,
+      vel: new THREE.Vector3(Math.cos(a)*(1+Math.random()*power*0.6), up, Math.sin(a)*(1+Math.random()*power*0.6)),
+      life: 0.5 + Math.random()*0.4,
+    });
+  }
+}
+
+// ---------- 入力 ----------
+const keys = {};
+let firing = false, wantSwim = false;
+let jumpQueued = false, subQueued = false, specialQueued = false;
+let lookSensitivity = 1, gyroSensitivity = 1;
+addEventListener('keydown', e => {
+  keys[e.code] = true;
+  if (e.code==='ShiftLeft'||e.code==='ShiftRight') wantSwim = true;
+  if (!e.repeat){
+    if (e.code==='Space') jumpQueued = true;
+    if (e.code==='KeyQ') performQuickTurn();
+    if (e.code==='KeyE') subQueued = true;
+    if (e.code==='KeyR') specialQueued = true;
+    if (e.code==='KeyM') toggleMap();
+    if (e.code==='Escape'){ closeMap(); closeSettings(); }
+  }
+  if (['Space','KeyQ','KeyE','KeyR','KeyM'].includes(e.code)) e.preventDefault();
+});
+addEventListener('keyup',   e => { keys[e.code] = false; if(e.code==='ShiftLeft'||e.code==='ShiftRight') wantSwim = false; });
+
+function tryPointerLock(){
+  try {
+    if (!isTouch && renderer.domElement.requestPointerLock){
+      const p = renderer.domElement.requestPointerLock();
+      if (p && p.catch) p.catch(()=>{});
+    }
+  } catch(e){ /* サンドボックス環境ではドラッグ視点にフォールバック */ }
+}
+document.addEventListener('pointerlockerror', ()=>{}, false);
+
+let mouseDown = false, lastMX = 0, lastMY = 0;
+renderer.domElement.addEventListener('mousedown', e => {
+  if (isTouch || !running) return;   // スマホではタッチ操作のみ受け付ける（マウスエミュレーション干渉防止）
+  if (document.pointerLockElement !== renderer.domElement) tryPointerLock();
+  mouseDown = true; lastMX = e.clientX; lastMY = e.clientY;
+  if (e.button === 0) firing = true;
+});
+addEventListener('mouseup', e => {
+  if (isTouch) return;
+  mouseDown = false; if (e.button === 0) firing = false;
+});
+addEventListener('mousemove', e => {
+  if (isTouch) return;
+  if (document.pointerLockElement === renderer.domElement){
+    camYaw   -= e.movementX * 0.0026 * lookSensitivity;
+    camPitch = Math.min(1.15, Math.max(-0.15, camPitch + e.movementY * 0.0022 * lookSensitivity));
+  } else if (mouseDown){
+    // ポインターロック不可の環境ではドラッグで視点操作
+    camYaw   -= (e.clientX - lastMX) * 0.0038 * lookSensitivity;
+    camPitch = Math.min(1.15, Math.max(-0.15, camPitch + (e.clientY - lastMY) * 0.0032 * lookSensitivity));
+    lastMX = e.clientX; lastMY = e.clientY;
+  }
+});
+addEventListener('contextmenu', e => e.preventDefault());
+
+// タッチ操作
+const stick = { active:false, id:-1, ox:0, oy:0, dx:0, dy:0 };
+const look  = { id:-1, lx:0, ly:0, lt:0, quickT:0 };
+const stickEl = document.getElementById('stick');
+const knobEl = document.getElementById('knob');
+
+addEventListener('touchstart', e => {
+  for (const t of e.changedTouches){
+    if (t.target.closest && t.target.closest('.tbtn,.overlay,#btnMap,#btnSettings')) continue;
+    e.preventDefault();   // マウスイベント生成やスクロール等の干渉を防止
+    if (t.clientX < innerWidth/2 && !stick.active){
+      stick.active = true; stick.id = t.identifier;
+      stick.ox = t.clientX; stick.oy = t.clientY; stick.dx = stick.dy = 0;
+      stickEl.style.left = (t.clientX-60)+'px';
+      stickEl.style.bottom = 'auto';
+      stickEl.style.top = (t.clientY-60)+'px';
+    } else if (look.id === -1){
+      look.id = t.identifier; look.lx = t.clientX; look.ly = t.clientY; look.lt = performance.now();
+    }
+  }
+}, {passive:false});
+addEventListener('touchmove', e => {
+  let handled = false;
+  for (const t of e.changedTouches){
+    if (t.identifier === stick.id){
+      handled = true;
+      const dx = t.clientX - stick.ox, dy = t.clientY - stick.oy;
+      const len = Math.hypot(dx, dy), max = 48;
+      const k = len > max ? max/len : 1;
+      stick.dx = dx*k/max; stick.dy = dy*k/max;
+      knobEl.style.transform = `translate(calc(-50% + ${dx*k}px), calc(-50% + ${dy*k}px))`;
+    } else if (t.identifier === look.id){
+      handled = true;
+      const dx = t.clientX-look.lx, dy = t.clientY-look.ly;
+      const now = performance.now();
+      camYaw   -= dx * 0.0052 * lookSensitivity;
+      camPitch = Math.min(1.15, Math.max(-0.15, camPitch + dy * 0.0045 * lookSensitivity));
+      if (Math.abs(dx) > 30 && now-look.lt < 90 && now-look.quickT > 550){
+        performQuickTurn(Math.sign(dx));
+        look.quickT = now;
+      }
+      look.lx = t.clientX; look.ly = t.clientY;
+      look.lt = now;
+    }
+  }
+  if (handled) e.preventDefault();
+}, {passive:false});
+addEventListener('touchend', e => {
+  for (const t of e.changedTouches){
+    if (t.identifier === stick.id){
+      stick.active = false; stick.id = -1; stick.dx = stick.dy = 0;
+      knobEl.style.transform = 'translate(-50%,-50%)';
+      stickEl.style.left = ''; stickEl.style.top = ''; stickEl.style.bottom = '';  // 位置を初期に戻す
+    }
+    if (t.identifier === look.id) look.id = -1;
+  }
+}, {passive:true});
+addEventListener('touchcancel', e => {
+  for (const t of e.changedTouches){
+    if (t.identifier === stick.id){
+      stick.active = false; stick.id = -1; stick.dx = stick.dy = 0;
+      knobEl.style.transform = 'translate(-50%,-50%)';
+      stickEl.style.left = ''; stickEl.style.top = ''; stickEl.style.bottom = '';
+    }
+    if (t.identifier === look.id) look.id = -1;
+  }
+}, {passive:true});
+
+const btnFire = document.getElementById('btnFire');
+const btnSwim = document.getElementById('btnSwim');
+for (const [el, on, off] of [[btnFire, ()=>firing=true, ()=>firing=false],[btnSwim, ()=>wantSwim=true, ()=>wantSwim=false]]){
+  el.addEventListener('touchstart', e=>{ e.preventDefault(); on(); });
+  el.addEventListener('touchend',   e=>{ e.preventDefault(); off(); });
+  el.addEventListener('touchcancel',e=>{ e.preventDefault(); off(); });
+}
+function bindTouchAction(id, action){
+  const el = document.getElementById(id);
+  el.addEventListener('touchstart', e => { e.preventDefault(); action(); }, {passive:false});
+  el.addEventListener('click', e => { if (!isTouch){ e.preventDefault(); action(); } });
+}
+bindTouchAction('btnJump', () => jumpQueued = true);
+bindTouchAction('btnSub', () => subQueued = true);
+bindTouchAction('btnSpecial', () => specialQueued = true);
+
+// ---------- 物理ヘルパー ----------
+function collideObstacles(pos, r){
+  let contact = null;
+  for (const o of obstacles){
+    if (pos.y >= o.h - 0.12) continue;
+    const dx = pos.x - o.x, dz = pos.z - o.z;
+    const px = o.hw - Math.abs(dx), pz = o.hd - Math.abs(dz);
+    if (px > 0 && pz > 0){
+      if (px < pz){
+        const sign = Math.sign(dx || 1);
+        pos.x = o.x + sign * o.hw;
+        contact = { o, axis:'x', sign, u:pos.z, nx:sign, nz:0 };
+      } else {
+        const sign = Math.sign(dz || 1);
+        pos.z = o.z + sign * o.hd;
+        contact = { o, axis:'z', sign, u:pos.x, nx:0, nz:sign };
+      }
+    }
+  }
+  const lim = ARENA/2 - 1.2;
+  pos.x = Math.max(-lim, Math.min(lim, pos.x));
+  pos.z = Math.max(-lim, Math.min(lim, pos.z));
+  return contact;
+}
+
+function groundHeightAt(x, z, currentY){
+  let h = 0;
+  for (const o of obstacles){
+    if (!o.paintable) continue;
+    if (Math.abs(x-o.x) <= o.wallHw+0.38 && Math.abs(z-o.z) <= o.wallHd+0.38 && currentY >= o.h-0.45){
+      h = Math.max(h, o.h);
+    }
+  }
+  return h;
+}
+
+function projectileObstacleHit(p){
+  for (const o of obstacles){
+    if (p.y < 0 || p.y > o.h + 0.2) continue;
+    const dx = p.x-o.x, dz = p.z-o.z;
+    if (Math.abs(dx) > o.hw || Math.abs(dz) > o.hd) continue;
+    if (!o.paintable) return { o, paintable:false };
+    const edgeX = Math.abs(Math.abs(dx)-o.wallHw);
+    const edgeZ = Math.abs(Math.abs(dz)-o.wallHd);
+    if (edgeX < edgeZ){
+      const sign = Math.sign(dx || p.vel.x || 1);
+      return { o, paintable:true, axis:'x', sign, u:Math.max(o.z-o.wallHd, Math.min(o.z+o.wallHd, p.z)) };
+    }
+    const sign = Math.sign(dz || p.vel.z || 1);
+    return { o, paintable:true, axis:'z', sign, u:Math.max(o.x-o.wallHw, Math.min(o.x+o.wallHw, p.x)) };
+  }
+  return null;
+}
+
+// ---------- ゲーム状態 ----------
+let running = false, timeLeft = MATCH_TIME, stateT = 0, botSyncT = 0;
+const clock = new THREE.Clock();
+
+function resetGame(){
+  drawBaseFloor();
+  paintTex.needsUpdate = true;
+  resetGrid();
+  clearWallPaint();
+  player.pos.copy(mySpawn()); player.ink = 1; player.vy = 0;
+  player.climbing = false; player.surfaceAttackT = 0; player.emergeWindow = 0; player.enemyInkT = 0;
+  player.climbSurface = null; player.climbGrace = 0;
+  player.rollT = 0; player.rollCd = 0; player.superJump = null; player.special = 0;
+  player.hp = 100; player.dead = false; player.respawnT = 0;
+  player.group.visible = true;
+  deadmsgEl.style.display = 'none';
+  inkStatus.style.opacity = '0';
+  updateSpecialUI();
+  kills = 0; dmgFlash = 0; healFlash = 0; shake = 0; stateT = 0; botSyncT = 0;
+  document.querySelector('#kills span:last-child').textContent = 'SPLAT ×0';
+  // 自陣が背後になる向きにカメラを合わせる
+  camYaw = player.team === 'A' ? Math.PI * 0.75 : Math.PI * -0.25;
+  camPitch = 0.38;
+
+  assignBotRoster();
+  for (const b of bots){
+    if (!b.active) continue;
+    b.hp = 100; b.dead = false; b.respawnT = 0;
+    b.enemyInkT = 0;
+    b.pos.copy(b.home).add(b.homeOff);
+    b.tpos.copy(b.pos);
+    b.group.visible = true;
+    b.group.position.copy(b.pos);
+    pickBotTarget(b);
+  }
+
+  if (mode === 'online'){
+    ensureRemote(foeTeam());
+    remote.pos.copy(foeTeam() === 'A' ? SPAWN_A : SPAWN_B);
+    remote.tpos.copy(remote.pos);
+  } else if (remote){
+    scene.remove(remote.group); remote = null;
+  }
+
+  for (const p of projectiles) scene.remove(p.mesh);
+  projectiles.length = 0;
+  for (const b of bombs){ scene.remove(b.mesh); b.mesh.material.dispose(); }
+  bombs.length = 0;
+  for (const p of particles) scene.remove(p.mesh);
+  particles.length = 0;
+  timeLeft = MATCH_TIME;
+  // 初期陣地（両者で必ず同じになるよう固定パターンで塗る）
+  const seedOff = [[0,0],[3,-2],[-3,2],[2,3],[-2,-3],[5,1],[-5,-1],[1,-5]];
+  for (const [ox, oz] of seedOff){
+    splat(SPAWN_A.x + ox, SPAWN_A.z + oz, 2.5, 'A');
+    splat(SPAWN_B.x + ox, SPAWN_B.z + oz, 2.5, 'B');
+  }
+}
+
+// ---------- HUD ----------
+const elTimer = document.getElementById('timer');
+const elCovA = document.getElementById('covA'), elCovB = document.getElementById('covB');
+const elCovAt = document.getElementById('covAt'), elCovBt = document.getElementById('covBt');
+const elInk = document.getElementById('inkfill');
+const elHp = document.getElementById('hpfill');
+const elDmg = document.getElementById('dmg');
+const elHeal = document.getElementById('heal');
+const inkStatus = document.getElementById('inkStatus');
+const inkPctEl = document.getElementById('inkPct');
+let hudTimer = 0;
+
+function pct(){
+  const total = GRID*GRID;
+  return [countA/total*100, countB/total*100];
+}
+
+function updateTeamRoster(){
+  for (const team of ['A','B']){
+    const members=[];
+    if (player.team===team) members.push(player);
+    if (remote && remote.team===team) members.push(remote);
+    for (const b of bots) if (b.active && b.team===team) members.push(b);
+    const chips=document.querySelectorAll(`#team${team}Status .playerChip`);
+    chips.forEach((chip,i)=>{
+      const member=members[i];
+      chip.classList.toggle('down',!member||!!member.dead);
+      chip.title=!member?'空き':(member===player?'YOU':member===remote?'PLAYER':'BOT');
+    });
+  }
+}
+
+function updateHUD(dt){
+  hudTimer -= dt;
+  const mm = Math.floor(Math.max(0,timeLeft)/60), ss = Math.floor(Math.max(0,timeLeft)%60);
+  elTimer.textContent = `${mm}:${String(ss).padStart(2,'0')}`;
+  elTimer.style.color = timeLeft < 15 ? '#ff5a5a' : '#fff';
+  elInk.style.width = (player.ink*100).toFixed(0)+'%';
+  inkPctEl.textContent = (player.ink*100).toFixed(0)+'%';
+  elInk.style.background = player.team === 'A'
+    ? 'linear-gradient(90deg,#ff9a3d,#ff7a00)' : 'linear-gradient(90deg,#9d6bff,#6a1fff)';
+  elHp.style.width = Math.max(0, player.hp)+'%';
+  elHp.style.background = player.hp > 40 ? 'linear-gradient(90deg,#8dff96,#27c94a)' : 'linear-gradient(90deg,#ffb14e,#ff4e4e)';
+  dmgFlash = Math.max(0, dmgFlash - dt * 1.6);
+  elDmg.style.opacity = dmgFlash;
+  healFlash = Math.max(0, healFlash - dt * 1.8);
+  elHeal.style.opacity = healFlash;
+  if (hudTimer <= 0){
+    hudTimer = 0.4;
+    const [a, b] = pct();
+    const shown = a + b || 1;
+    elCovA.style.width = (a/Math.max(shown,40)*100*0.98).toFixed(1)+'%';
+    elCovB.style.width = (b/Math.max(shown,40)*100*0.98).toFixed(1)+'%';
+    elCovAt.textContent = a.toFixed(1)+'%';
+    elCovBt.textContent = b.toFixed(1)+'%';
+    updateTeamRoster();
+  }
+}
+
+function animateMarkers(){
+  const t = performance.now() * 0.004;
+  const bob = Math.sin(t) * 0.12;
+  for (const b of bots){
+    if (b.active && b.marker) b.marker.position.y = 2.35 + bob;
+  }
+  if (remote && remote.marker) remote.marker.position.y = 2.35 + bob;
+  if (player.marker) player.marker.visible = false;   // 自分の頭上には出さない
+}
+
+// ---------- 更新 ----------
+const tmpV = new THREE.Vector3();
+
+function performQuickTurn(direction=0){
+  if (!running || player.dead) return;
+  camYaw += direction ? -Math.sign(direction)*Math.PI*0.58 : Math.PI;
+  addShake(0.12);
+}
+
+const specialFill = document.getElementById('specialFill');
+const btnSpecial = document.getElementById('btnSpecial');
+function updateSpecialUI(){
+  const value = Math.max(0, Math.min(1, player.special || 0));
+  specialFill.style.width = (value*100).toFixed(0)+'%';
+  btnSpecial.style.display = value >= 1 && running && !player.dead ? 'block' : 'none';
+}
+function addSpecial(amount){
+  if (player.dead) return;
+  player.special = Math.min(1, player.special+amount);
+  updateSpecialUI();
+}
+function activateSpecial(){
+  if (!running || player.dead || player.special < 1) return;
+  player.special = 0;
+  updateSpecialUI();
+  addShake(1);
+  const center = player.pos.clone();
+  paint(center.x, center.z, 6.5, player.team);
+  for (let i=0;i<8;i++){
+    const a = i/8*Math.PI*2;
+    paint(center.x+Math.cos(a)*6.5, center.z+Math.sin(a)*6.5, 3.2, player.team);
+  }
+  burst(center.clone().add(new THREE.Vector3(0,1,0)), player.team, 42, 12);
+  for (const b of bots){
+    if (!b.active || b.dead || b.team === player.team) continue;
+    if (b.pos.distanceTo(center) < 11) damageBot(b, 70, b.pos.clone(), true, player.team);
+  }
+  netSend({ t:'sx', m:player.team, x:+center.x.toFixed(2), y:+center.y.toFixed(2), z:+center.z.toFixed(2) });
+}
+
+const mapPanel = document.getElementById('mapPanel');
+const mapCanvas = document.getElementById('mapCanvas');
+const mapCtx = mapCanvas.getContext('2d');
+let mapOpen = false, mapDrawT = 0;
+function mapXY(pos){
+  return { x:(pos.x/ARENA+0.5)*mapCanvas.width, y:(pos.z/ARENA+0.5)*mapCanvas.height };
+}
+function getJumpTargets(){
+  const targets = [{ pos:mySpawn().clone(), label:'SPAWN' }];
+  for (const b of bots){
+    if (b.active && !b.dead && b.team === player.team) targets.push({ pos:b.pos.clone(), label:'ALLY' });
+  }
+  if (remote && !remote.dead && remote.team === player.team) targets.push({ pos:remote.pos.clone(), label:'ALLY' });
+  return targets;
+}
+function drawMap(){
+  mapCtx.clearRect(0,0,mapCanvas.width,mapCanvas.height);
+  mapCtx.drawImage(paintCv,0,0,mapCanvas.width,mapCanvas.height);
+  mapCtx.strokeStyle='rgba(255,255,255,.8)';
+  mapCtx.lineWidth=8;
+  mapCtx.strokeRect(4,4,mapCanvas.width-8,mapCanvas.height-8);
+  for (const t of getJumpTargets()){
+    const p=mapXY(t.pos);
+    mapCtx.beginPath(); mapCtx.arc(p.x,p.y,t.label==='SPAWN'?13:10,0,Math.PI*2);
+    mapCtx.fillStyle=t.label==='SPAWN'?'#63ffe2':'#72ddff';
+    mapCtx.fill(); mapCtx.lineWidth=4; mapCtx.strokeStyle='#10233c'; mapCtx.stroke();
+  }
+  const me=mapXY(player.pos);
+  mapCtx.beginPath(); mapCtx.arc(me.x,me.y,11,0,Math.PI*2);
+  mapCtx.fillStyle='#fff'; mapCtx.fill(); mapCtx.lineWidth=4; mapCtx.strokeStyle=TEAM[player.team].css; mapCtx.stroke();
+}
+function openMap(){
+  if (!running || player.dead) return;
+  mapOpen=true; mapPanel.style.display='flex'; mapPanel.setAttribute('aria-hidden','false'); drawMap();
+  firing=false; wantSwim=false;
+  stick.dx=stick.dy=0;
+}
+function closeMap(){
+  mapOpen=false; mapPanel.style.display='none'; mapPanel.setAttribute('aria-hidden','true');
+}
+function toggleMap(){ if (mapOpen) closeMap(); else openMap(); }
+function startSuperJump(target){
+  if (!running || player.dead) return;
+  closeMap();
+  player.swimming=false; player.climbing=false; player.climbSurface=null; player.vy=0;
+  player.superJump={ t:0, duration:1.05, from:player.pos.clone(), to:target.clone() };
+  burst(player.pos.clone().add(new THREE.Vector3(0,.5,0)),player.team,12,6);
+}
+function updateSuperJump(dt){
+  const j=player.superJump;
+  j.t+=dt;
+  const p=Math.min(1,j.t/j.duration);
+  player.pos.lerpVectors(j.from,j.to,p);
+  player.pos.y=(j.from.y*(1-p)+j.to.y*p)+Math.sin(Math.PI*p)*9;
+  player.group.position.copy(player.pos);
+  player.group.rotation.y+=dt*10;
+  stateT-=dt;
+  if (stateT<=0 && net && net.ready){
+    stateT=.05;
+    netSend({t:'st',x:+player.pos.x.toFixed(2),z:+player.pos.z.toFixed(2),
+      h:+player.pos.y.toFixed(2),y:+player.group.rotation.y.toFixed(2),s:0,c:0});
+  }
+  if (p>=1){
+    player.pos.copy(j.to);
+    player.pos.y=groundHeightAt(player.pos.x,player.pos.z,j.to.y);
+    player.superJump=null;
+    paint(player.pos.x,player.pos.z,2.4,player.team);
+    burst(player.pos.clone().add(new THREE.Vector3(0,.4,0)),player.team,16,7);
+    addSpecial(0.04);
+  }
+  updateCamera(dt);
+}
+document.getElementById('btnMap').addEventListener('click', toggleMap);
+document.getElementById('btnMapClose').addEventListener('click', closeMap);
+mapCanvas.addEventListener('pointerdown', e=>{
+  const r=mapCanvas.getBoundingClientRect();
+  const x=(e.clientX-r.left)/r.width*mapCanvas.width;
+  const y=(e.clientY-r.top)/r.height*mapCanvas.height;
+  let best=null, bestD=52;
+  for (const t of getJumpTargets()){
+    const p=mapXY(t.pos), d=Math.hypot(x-p.x,y-p.y);
+    if (d<bestD){ best=t; bestD=d; }
+  }
+  if (best) startSuperJump(best.pos);
+});
+
+const settingsPanel=document.getElementById('settingsPanel');
+const lookSensInput=document.getElementById('lookSens');
+const gyroSensInput=document.getElementById('gyroSens');
+const lookSensOut=document.getElementById('lookSensOut');
+const gyroSensOut=document.getElementById('gyroSensOut');
+const gyroBtn=document.getElementById('gyroBtn');
+let gyroEnabled=false, lastGyro=null;
+try{
+  lookSensitivity=Number(localStorage.getItem('ink-look-sens'))||1;
+  gyroSensitivity=Number(localStorage.getItem('ink-gyro-sens'))||1;
+}catch(e){}
+lookSensInput.value=lookSensitivity;
+gyroSensInput.value=gyroSensitivity;
+lookSensOut.textContent=lookSensitivity.toFixed(2);
+gyroSensOut.textContent=gyroSensitivity.toFixed(2);
+function openSettings(){
+  settingsPanel.style.display='flex'; settingsPanel.setAttribute('aria-hidden','false');
+  firing=false; wantSwim=false; closeMap();
+}
+function closeSettings(){
+  settingsPanel.style.display='none'; settingsPanel.setAttribute('aria-hidden','true');
+}
+lookSensInput.addEventListener('input',()=>{
+  lookSensitivity=Number(lookSensInput.value);
+  lookSensOut.textContent=lookSensitivity.toFixed(2);
+  try{ localStorage.setItem('ink-look-sens',lookSensitivity); }catch(e){}
+});
+gyroSensInput.addEventListener('input',()=>{
+  gyroSensitivity=Number(gyroSensInput.value);
+  gyroSensOut.textContent=gyroSensitivity.toFixed(2);
+  try{ localStorage.setItem('ink-gyro-sens',gyroSensitivity); }catch(e){}
+});
+async function toggleGyro(){
+  if (!gyroEnabled && typeof DeviceOrientationEvent!=='undefined' && typeof DeviceOrientationEvent.requestPermission==='function'){
+    try{
+      const permission=await DeviceOrientationEvent.requestPermission();
+      if (permission!=='granted') return;
+    }catch(e){ return; }
+  }
+  gyroEnabled=!gyroEnabled;
+  lastGyro=null;
+  gyroBtn.classList.toggle('on',gyroEnabled);
+  gyroBtn.textContent='ジャイロ：'+(gyroEnabled?'ON':'OFF');
+}
+addEventListener('deviceorientation',e=>{
+  if (!gyroEnabled||!running||mapOpen||settingsPanel.style.display==='flex'||e.alpha==null||e.beta==null) return;
+  if (!lastGyro){ lastGyro={a:e.alpha,b:e.beta}; return; }
+  let da=e.alpha-lastGyro.a;
+  if (da>180) da-=360; else if (da<-180) da+=360;
+  const db=e.beta-lastGyro.b;
+  camYaw-=da*0.012*gyroSensitivity;
+  camPitch=Math.min(1.15,Math.max(-0.15,camPitch+db*0.008*gyroSensitivity));
+  lastGyro={a:e.alpha,b:e.beta};
+});
+document.getElementById('btnSettings').addEventListener('click',openSettings);
+document.getElementById('btnSettingsClose').addEventListener('click',closeSettings);
+gyroBtn.addEventListener('click',toggleGyro);
+
+function updateCamera(dt){
+  const camDist = 7.2, camH = 2.2;
+  let cx = player.pos.x + Math.sin(camYaw) * camDist * Math.cos(camPitch);
+  let cz = player.pos.z + Math.cos(camYaw) * camDist * Math.cos(camPitch);
+  let cy = player.pos.y + camH + Math.sin(camPitch) * camDist;
+  // 登攀中はカメラを壁の外側へ置き、壁内へのクリッピングを防ぐ。
+  if (player.climbing && player.climbSurface){
+    const s = player.climbSurface;
+    cx = player.pos.x + s.nx*4.8;
+    cz = player.pos.z + s.nz*4.8;
+    cy = player.pos.y + 2.7;
+  }
+  camera.position.lerp(tmpV.set(cx, cy, cz), 1 - Math.pow(0.0001, dt));
+
+  // 画面揺れ（発砲・被弾）
+  shake = Math.max(0, shake - dt * 3.2);
+  let lx = player.pos.x, ly = player.pos.y + 1.3, lz = player.pos.z;
+  if (shake > 0.001){
+    const s = shake * shake * 0.42;             // 減衰を効かせて自然に
+    const t = performance.now() * 0.05;
+    camera.position.x += Math.sin(t * 1.7) * s;
+    camera.position.y += Math.sin(t * 2.3) * s * 0.8;
+    camera.position.z += Math.cos(t * 1.9) * s;
+    lx += Math.sin(t * 2.1) * s * 0.5;
+    ly += Math.cos(t * 2.7) * s * 0.5;
+  }
+  camera.lookAt(lx, ly, lz);
+}
+
+function updatePlayer(dt){
+  if (player.dead){
+    jumpQueued = subQueued = specialQueued = false;
+    player.respawnT -= dt;
+    if (player.respawnT <= 0) revivePlayer();
+    updateCamera(dt);
+    return;
+  }
+  if (player.superJump){
+    updateSuperJump(dt);
+    return;
+  }
+  if (mapOpen || settingsPanel.style.display==='flex'){
+    player.group.position.copy(player.pos);
+    updateCamera(dt);
+    return;
+  }
+
+  let mx = 0, mz = 0;
+  if (keys['KeyW'] || keys['ArrowUp']) mz -= 1;
+  if (keys['KeyS'] || keys['ArrowDown']) mz += 1;
+  if (keys['KeyA'] || keys['ArrowLeft']) mx -= 1;
+  if (keys['KeyD'] || keys['ArrowRight']) mx += 1;
+  mx += stick.dx; mz += stick.dy;
+  const mlen = Math.hypot(mx, mz);
+  if (mlen > 1){ mx /= mlen; mz /= mlen; }
+
+  const onInk = inkAt(player.pos.x, player.pos.z);
+  const ownVal = player.team === 'A' ? 1 : 2;
+  const ownInk = onInk === ownVal;
+  const enemyInk = onInk !== 0 && !ownInk && player.pos.y < 0.35;
+  const wasSwimming = player.swimming;
+  player.surfaceAttackT = Math.max(0, player.surfaceAttackT-dt);
+  player.emergeWindow = Math.max(0, player.emergeWindow-dt);
+  if (wasSwimming && !wantSwim) player.emergeWindow = Math.max(player.emergeWindow, 0.38);
+  player.swimming = wantSwim && player.surfaceAttackT <= 0;
+
+  let speed = 7.5;
+  if (enemyInk) speed = 3.25;
+  if (player.swimming) speed = ownInk ? 13.5 : 2.7;
+
+  const sin = Math.sin(camYaw), cos = Math.cos(camYaw);
+  let vx = (mx * cos + mz * sin) * speed;
+  let vz = (-mx * sin + mz * cos) * speed;
+
+  player.rollCd = Math.max(0, player.rollCd-dt);
+  if (jumpQueued){
+    if (player.swimming && ownInk && player.rollCd <= 0){
+      let dx = vx, dz = vz;
+      if (Math.hypot(dx,dz) < 0.2){
+        dx = Math.sin(player.yaw); dz = Math.cos(player.yaw);
+      }
+      const dl = Math.hypot(dx,dz) || 1;
+      player.rollVX = dx/dl*18;
+      player.rollVZ = dz/dl*18;
+      player.rollT = 0.22;
+      player.rollCd = 0.58;
+      player.emergeWindow = Math.max(player.emergeWindow, 0.28);
+      addShake(0.22);
+      burst(player.pos.clone().add(new THREE.Vector3(0,0.2,0)), player.team, 8, 4);
+    } else if (!player.swimming && !player.climbing){
+      const jumpGround = groundHeightAt(player.pos.x, player.pos.z, player.pos.y);
+      if (player.pos.y <= jumpGround+0.12){
+        player.vy = 8.4;
+        player.pos.y = jumpGround+0.06;
+      }
+    }
+    jumpQueued = false;
+  }
+  if (player.rollT > 0){
+    player.rollT = Math.max(0, player.rollT-dt);
+    vx = player.rollVX;
+    vz = player.rollVZ;
+    player.swimming = true;
+  }
+  player.pos.x += vx * dt;
+  player.pos.z += vz * dt;
+  const contact = collideObstacles(player.pos, 0.6);
+
+  // 自分色の壁に潜行して押し続けると、その塗られた高さまで登れる。
+  let ownWall = false;
+  if (contact && contact.o.paintable){
+    ownWall = wallInkAt(contact.o, contact.axis, contact.sign, contact.u, player.pos.y+0.55) === ownVal;
+  }
+  const pressingWall = contact && (vx*contact.nx + vz*contact.nz < -0.15);
+  if (player.swimming && ownWall && pressingWall && mlen > 0.08){
+    player.climbSurface = { ...contact };
+    player.climbGrace = 0.18;
+  }
+
+  // 登り始めた面へ吸着する。フレーム間の接触抜けや小さな塗りの隙間を許容する。
+  player.climbing = false;
+  const climb = player.climbSurface;
+  if (climb && player.swimming && mlen > 0.06){
+    climb.u = climb.axis === 'x' ? player.pos.z : player.pos.x;
+    const stillPainted = wallInkAt(climb.o, climb.axis, climb.sign, climb.u, player.pos.y+0.48) === ownVal;
+    if (stillPainted) player.climbGrace = 0.18;
+    else player.climbGrace -= dt;
+    if (player.climbGrace > 0) player.climbing = true;
+  }
+  if (player.climbing){
+    const s = player.climbSurface;
+    player.vy = 0;
+    // 壁から離れたりめり込んだりしないよう、法線方向だけ位置を固定する。
+    if (s.axis === 'x') player.pos.x = s.o.x + s.sign*s.o.hw;
+    else                player.pos.z = s.o.z + s.sign*s.o.hd;
+    player.pos.y += 7.2*dt;
+    if (player.pos.y >= s.o.h-0.12){
+      player.pos.y = s.o.h+0.08;
+      player.pos.x -= s.nx*0.95;
+      player.pos.z -= s.nz*0.95;
+      player.climbing = false;
+      player.climbSurface = null;
+      player.climbGrace = 0;
+    }
+  } else {
+    if (!player.swimming || player.climbGrace <= 0 || mlen <= 0.06){
+      player.climbSurface = null;
+      player.climbGrace = 0;
+    }
+    const groundY = groundHeightAt(player.pos.x, player.pos.z, player.pos.y);
+    if (player.pos.y <= groundY+0.08 && player.vy <= 0){
+      player.pos.y = groundY;
+      player.vy = 0;
+    } else if (player.pos.y > groundY+0.02){
+      player.vy -= 20*dt;
+      player.pos.y += player.vy*dt;
+      if (player.pos.y < groundY){ player.pos.y = groundY; player.vy = 0; }
+    }
+  }
+
+  // 敵インクは強く減速し、約3HP/秒の小さな継続ダメージを与える。
+  if (enemyInk && !player.climbing){
+    player.enemyInkT -= dt;
+    if (player.enemyInkT <= 0){
+      player.enemyInkT = 0.5;
+      damagePlayer(1.5, player.pos.clone().add(new THREE.Vector3(0,0.2,0)));
+    }
+  } else {
+    player.enemyInkT = 0;
+  }
+
+  if (ownInk){
+    if (player.swimming) player.ink = Math.min(1, player.ink + dt * 0.6);   // 潜行中は高速回復
+    else                 player.ink = Math.min(1, player.ink + dt * 0.12);  // 立っているだけなら少しずつ
+  }
+
+  if (subQueued){ throwSubWeapon(); subQueued = false; }
+  if (specialQueued){ activateSpecial(); specialQueued = false; }
+
+  player.fireCd -= dt;
+  // 潜行中に射撃すると勢いよく飛び出し、太く強い初弾を撃つ。
+  if (firing && player.swimming && (ownInk || player.climbing) && player.fireCd <= 0 && player.ink > 0.055){
+    player.swimming = false;
+    player.climbing = false;
+    player.climbSurface = null;
+    player.climbGrace = 0;
+    player.surfaceAttackT = 0.34;
+    player.emergeWindow = 0.42;
+  }
+  if (firing && !player.swimming && player.fireCd <= 0 && player.ink > 0.02){
+    const emerge = player.emergeWindow > 0;
+    player.fireCd = emerge ? 0.28 : 0.095;
+    player.ink = Math.max(0, player.ink - (emerge ? 0.055 : 0.022));
+    const dir = new THREE.Vector3(-Math.sin(camYaw), Math.sin(-camPitch*0.55 + 0.18), -Math.cos(camYaw)).normalize();
+    const origin = player.pos.clone().add(new THREE.Vector3(-Math.sin(camYaw)*0.8, 1.1, -Math.cos(camYaw)*0.8));
+    shoot(origin, dir, player.team, {
+      fromPlayer:true, broadcast:true, emerge,
+      damage:emerge ? 44 : 34, r:emerge ? 2.25 : undefined,
+      vel:emerge ? dir.clone().multiplyScalar(31).add(new THREE.Vector3(0,2.2,0)) : undefined
+    });
+    if (emerge){
+      player.emergeWindow = 0;
+      burst(player.pos.clone().add(new THREE.Vector3(0,0.45,0)), player.team, 13, 5);
+    }
+    addShake(emerge ? 0.36 : 0.16);
+    if (Math.random() < 0.25) paint(player.pos.x + (Math.random()-0.5), player.pos.z + (Math.random()-0.5), 0.7, player.team);
+  }
+
+  if (mlen > 0.05 && !firing) player.yaw = Math.atan2(vx, vz);
+  if (firing) player.yaw = Math.atan2(-Math.sin(camYaw), -Math.cos(camYaw));
+  player.group.position.copy(player.pos);
+  player.group.rotation.y = player.yaw;
+
+  const swimHidden = player.swimming && (ownInk || player.climbing);
+  player.squid.visible = player.swimming;
+  for (const part of player.humanParts) part.visible = !player.swimming;
+  setSquidStealth(player, swimHidden ? 0.34 : 0.78);
+  player.ring.visible = !player.swimming;
+  if (player.swimming){
+    player.squid.position.y = swimHidden ? 0.10 : 0.35;
+    player.squid.rotation.z = player.climbing ? Math.PI/2 : 0;
+    if (swimHidden && mlen > 0.05 && Math.random() < 0.3){
+      burst(player.pos.clone().add(new THREE.Vector3(0,0.15,0)), player.team, 1, 2);
+      if (ownInk && Math.random() < 0.24) paint(player.pos.x, player.pos.z, 0.9, player.team);
+    }
+  } else {
+    player.squid.rotation.z = 0;
+    player.group.position.y += Math.abs(Math.sin(performance.now()*0.012)) * (mlen>0.05?0.09:0);
+  }
+
+  inkStatus.style.opacity = (enemyInk || player.climbing) ? '1' : '0';
+  inkStatus.style.background = enemyInk ? 'rgba(155,36,82,.84)' : 'rgba(30,116,170,.82)';
+  inkStatus.textContent = enemyInk ? '敵インク：移動速度↓  HP↓' : (player.climbing ? '壁を潜行中 ↑' : '');
+
+  stateT -= dt;
+  if (stateT <= 0 && net && net.ready){
+    stateT = 0.05;
+    netSend({ t:'st', x:+player.pos.x.toFixed(2), z:+player.pos.z.toFixed(2),
+              h:+player.pos.y.toFixed(2), y:+player.yaw.toFixed(2),
+              s: player.swimming ? 1 : 0, c:player.climbing ? 1 : 0 });
+  }
+
+  updateCamera(dt);
+}
+
+// 指定チームから見た敵の位置リスト
+function foePositions(team){
+  const out = [];
+  if (player.team !== team && !player.dead) out.push(player.pos);
+  if (remote && remote.team !== team && !remote.dead) out.push(remote.pos);
+  for (const o of bots) if (o.active && !o.dead && o.team !== team) out.push(o.pos);
+  return out;
+}
+
+// ゲスト側：ボットはホストから届いた位置へ補間するだけ
+function interpBots(dt){
+  const k = Math.min(1, dt * 12);
+  for (const b of bots){
+    if (!b.active) continue;
+    b.pos.lerp(b.tpos, k);
+    b.group.position.copy(b.pos);
+    let d = b.yaw - b.group.rotation.y;
+    while (d > Math.PI) d -= Math.PI*2;
+    while (d < -Math.PI) d += Math.PI*2;
+    b.group.rotation.y += d * k;
+    b.group.visible = !b.dead;
+    b.group.position.y = Math.abs(Math.sin(performance.now()*0.011 + b.pos.x)) * 0.08;
+  }
+}
+
+function updateBots(dt){
+  // オンラインではホストがボットをまとめて動かし、ゲストは受信して表示するだけ
+  if (mode === 'online' && !isHost){ interpBots(dt); return; }
+
+  for (const b of bots){
+    if (!b.active) continue;
+    // 撃破されたらリスポーン待ち
+    if (b.dead){
+      b.respawnT -= dt;
+      if (b.respawnT <= 0){
+        b.dead = false;
+        b.hp = 100;
+        b.pos.copy(b.home).add(b.homeOff);
+        b.group.visible = true;
+        b.group.position.copy(b.pos);
+        pickBotTarget(b);
+      }
+      continue;
+    }
+
+    b.retarget -= dt;
+    const toT = tmpV.set(b.target.x - b.pos.x, 0, b.target.z - b.pos.z);
+    const dist = toT.length();
+    if (dist < 2.5 || b.retarget <= 0) pickBotTarget(b);
+    toT.normalize();
+    const botInk = inkAt(b.pos.x, b.pos.z);
+    const onOwn = botInk === (b.team === 'A' ? 1 : 2);
+    const onEnemy = botInk !== 0 && !onOwn;
+    const difficulty=mode==='online'?activeMatchSettings.botDifficulty:'normal';
+    const moveMul=difficulty==='easy'?.82:(difficulty==='hard'?1.16:1);
+    const speed = (onOwn ? 8.5 : (onEnemy ? 3.4 : 6.2))*moveMul;
+    b.pos.x += toT.x * speed * dt;
+    b.pos.z += toT.z * speed * dt;
+    collideObstacles(b.pos, 0.6);
+    if (onEnemy){
+      b.enemyInkT -= dt;
+      if (b.enemyInkT <= 0){
+        b.enemyInkT = 0.5;
+        damageBot(b, 1.5, b.pos.clone().add(new THREE.Vector3(0,0.2,0)), false, b.team === 'A' ? 'B' : 'A');
+      }
+    } else {
+      b.enemyInkT = 0;
+    }
+    if (b.dead) continue;
+    b.yaw = Math.atan2(toT.x, toT.z);
+    b.group.position.copy(b.pos);
+    b.group.rotation.y += (b.yaw - b.group.rotation.y) * Math.min(1, dt*8);
+    b.group.position.y = Math.abs(Math.sin(performance.now()*0.011 + b.pos.x)) * 0.08;
+
+    // 近くに敵チームのキャラがいれば狙い撃つ
+    let aimAt = null, best = 13;
+    for (const fp of foePositions(b.team)){
+      const d = Math.hypot(fp.x - b.pos.x, fp.z - b.pos.z);
+      if (d < best){ best = d; aimAt = fp; }
+    }
+
+    // 射撃（敵がいれば敵へ、いなければ進行方向へ塗り）
+    b.fireCd -= dt;
+    if (b.fireCd <= 0){
+      const fireMul=difficulty==='easy'?1.42:(difficulty==='hard'?.76:1);
+      b.fireCd = (0.16 + Math.random()*0.1)*fireMul;
+      let dir;
+      if (aimAt){
+        dir = new THREE.Vector3(aimAt.x - b.pos.x, 1.1, aimAt.z - b.pos.z);
+        dir.y = 0.1 + best * 0.028;   // 距離に応じて山なり補正
+        dir.normalize();
+        b.group.rotation.y = Math.atan2(aimAt.x - b.pos.x, aimAt.z - b.pos.z);
+      } else {
+        dir = new THREE.Vector3(toT.x, 0.22 + Math.random()*0.15, toT.z).normalize();
+      }
+      const origin = b.pos.clone().add(new THREE.Vector3(dir.x*0.7, 1.1, dir.z*0.7));
+      shoot(origin, dir, b.team, { broadcast: mode === 'online' });
+    }
+  }
+
+  // ホストはボットの位置をまとめてゲストへ送る（約12回/秒）
+  if (mode === 'online' && isHost){
+    botSyncT -= dt;
+    if (botSyncT <= 0){
+      botSyncT = 0.08;
+      const arr = [];
+      bots.forEach((b, i) => {
+        if (!b.active) return;
+        arr.push([i, +b.pos.x.toFixed(1), +b.pos.z.toFixed(1), +b.yaw.toFixed(2), b.dead ? 1 : 0]);
+      });
+      netSend({ t:'bs', a: arr });
+    }
+  }
+}
+
+function hitChar(p, cpos, radius=0.79){
+  const dx = p.x - cpos.x, dz = p.z - cpos.z;
+  const dy = p.y - (cpos.y + 1.05);
+  return dx*dx + dz*dz < radius*radius && Math.abs(dy) < 1.08;
+}
+
+function updateProjectiles(dt){
+  for (let i = projectiles.length-1; i >= 0; i--){
+    const p = projectiles[i];
+    p.vel.y -= 34 * dt;
+    p.mesh.position.addScaledVector(p.vel, dt);
+    p.life -= dt;
+    const pos = p.mesh.position;
+    // 弾の向き（進行方向へ伸ばす）
+    p.mesh.scale.y = 1 + Math.min(0.8, p.vel.length()*0.012);
+    p.mesh.lookAt(pos.x + p.vel.x, pos.y + p.vel.y, pos.z + p.vel.z);
+
+    let dead = false;
+    // 潜行中も無敵ではないが、当たり判定が小さくなる。
+    if (p.team !== player.team && !player.dead && hitChar(pos, player.pos, player.swimming ? 0.43 : 0.79)){
+      damagePlayer(p.emerge ? 20 : 13, pos.clone());
+      dead = true;
+    }
+    // 相手プレイヤーへの命中は見た目だけ（ダメージは相手側が判定して通知）
+    if (!dead && remote && !remote.dead && p.team !== remote.team && hitChar(pos, remote.pos)){
+      burst(pos.clone(), p.team, 5, 3);
+      dead = true;
+    }
+    if (!dead){
+      for (let bi = 0; bi < bots.length; bi++){
+        const b = bots[bi];
+        if (!b.active || b.dead || b.team === p.team) continue;
+        if (hitChar(pos, b.pos)){
+          if (mode === 'online' && !isHost){
+            // ボットの体力はホストが管理しているので、当たったことだけ伝える
+            burst(pos.clone(), p.team, 5, 3);
+            if (p.fromPlayer) netSend({ t:'bh', i: bi, d:p.damage });
+          } else {
+            damageBot(b, p.damage, pos.clone(), p.fromPlayer, p.team);
+          }
+          dead = true;
+          break;
+        }
+      }
+    }
+
+    if (!dead && pos.y <= 0.14){
+      if (Math.abs(pos.x) < ARENA/2 && Math.abs(pos.z) < ARENA/2){
+        // ゴースト弾は塗らない（相手から届く塗りイベントで反映される）
+        if (!p.ghost){
+          paint(pos.x, pos.z, p.r, p.team);
+          if (p.fromPlayer) addSpecial(0.018+p.r*0.006);
+        }
+        burst(new THREE.Vector3(pos.x, 0.2, pos.z), p.team, 6, 4);
+      }
+      dead = true;
+    } else if (!dead){
+      const wallHit = projectileObstacleHit(pos);
+      if (wallHit){
+        if (!p.ghost && wallHit.paintable){
+          applyWallPaint(wallHit.o, wallHit.axis, wallHit.sign, wallHit.u, pos.y, p.r, p.team);
+          if (p.fromPlayer) addSpecial(0.016+p.r*0.005);
+        }
+        burst(pos, p.team, p.emerge ? 10 : 5, p.emerge ? 5 : 3);
+        dead = true;
+      }
+    }
+    if (!dead && p.life <= 0) dead = true;
+    if (dead){
+      scene.remove(p.mesh);
+      projectiles.splice(i, 1);
+    }
+  }
+}
+
+function updateParticles(dt){
+  for (let i = particles.length-1; i >= 0; i--){
+    const p = particles[i];
+    p.vel.y -= 22 * dt;
+    p.mesh.position.addScaledVector(p.vel, dt);
+    p.life -= dt;
+    p.mesh.scale.setScalar(Math.max(0.05, p.life * 1.8));
+    if (p.life <= 0 || p.mesh.position.y < 0){
+      scene.remove(p.mesh);
+      particles.splice(i, 1);
+    }
+  }
+}
+
+// ---------- 結果 & オンラインランキング ----------
+const resultEl = document.getElementById('result');
+const LB_KEY = 'ink-clash-leaderboard-v1';
+let lastPaint = 0, lastKills = 0;
+
+function escHTML(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+async function loadLB(){
+  try {
+    const r = await window.storage.get(LB_KEY, true);
+    return r ? JSON.parse(r.value) : [];
+  } catch(e){ return []; }   // キー未作成なども空扱い
+}
+
+async function renderLB(){
+  const list = document.getElementById('lbList');
+  if (!window.storage){
+    list.innerHTML = 'この環境ではオンラインランキングは使えません（ゲーム自体は問題なく遊べます）';
+    document.getElementById('lbEntry').style.display = 'none';
+    document.getElementById('lbNote').style.display = 'none';
+    return;
+  }
+  list.innerHTML = '読み込み中…';
+  const data = await loadLB();
+  if (!data.length){ list.innerHTML = 'まだ記録がありません。一番乗りを狙おう！'; return; }
+  list.innerHTML = data.slice(0, 10).map((e, i) =>
+    `<div class="lbrow"><span class="nm">${i+1}. ${escHTML(e.n)}</span><span>塗り ${e.p}% ／ ${e.k} たおし</span></div>`
+  ).join('');
+}
+
+async function submitScore(){
+  if (!window.storage) return;
+  const btn = document.getElementById('lbSave');
+  const name = (document.getElementById('lbName').value.trim() || 'ゲスト').slice(0, 8);
+  btn.disabled = true;
+  btn.textContent = '登録中…';
+  try {
+    const data = await loadLB();
+    data.push({ n: name, p: +lastPaint.toFixed(1), k: lastKills, t: Date.now() });
+    data.sort((a, b) => (b.p - a.p) || (b.k - a.k));
+    await window.storage.set(LB_KEY, JSON.stringify(data.slice(0, 30)), true);
+    btn.textContent = '登録ずみ！';
+  } catch(e){
+    btn.textContent = '失敗…もう一度';
+    btn.disabled = false;
+  }
+  renderLB();
+}
+document.getElementById('lbSave').addEventListener('click', submitScore);
+
+function finishGame(){
+  if (!running) return;
+  running = false;
+  if(mode==='online'&&isHost&&roomSession&&roomSession.code){
+    fbPatch(`rooms/${roomSession.code}`,{status:'ended',updatedAt:Date.now()}).catch(()=>{});
+    const endedCode=roomSession.code;
+    setTimeout(()=>{ if(roomSession.code===endedCode) fbDelete(`rooms/${endedCode}`).catch(()=>{}); },5*60*1000);
+  }
+  closeMap();
+  closeSettings();
+  updateSpecialUI();
+  document.exitPointerLock && document.exitPointerLock();
+  const [a, b] = pct();
+  const mine = player.team === 'A' ? a : b;
+  const foe  = player.team === 'A' ? b : a;
+  lastPaint = mine; lastKills = kills;
+  document.querySelector('#resultScore .a').textContent = a.toFixed(1)+'%';
+  document.querySelector('#resultScore .b').textContent = b.toFixed(1)+'%';
+  const title = document.getElementById('resultTitle');
+  const msg = document.getElementById('resultMsg');
+  const tail = `（たおした数: ${kills}）`;
+  if (mine > foe){ title.textContent = 'WIN!'; msg.textContent = 'あなたのチームの勝利！ ナイス塗り！' + tail; }
+  else if (foe > mine){ title.textContent = 'LOSE…'; msg.textContent = '相手チームの勝利… 次はもっと塗ろう！' + tail; }
+  else { title.textContent = 'DRAW'; msg.textContent = 'まさかの引き分け！' + tail; }
+  const btn = document.getElementById('lbSave');
+  btn.disabled = false;
+  btn.textContent = 'ランキング登録';
+  // オンライン時の再戦はホストが仕切る
+  document.getElementById('retryBtn').textContent =
+    mode === 'online' ? (isHost ? 'もう一回（相手も開始）' : '相手の開始を待つ') : 'もう一回';
+  document.getElementById('retryBtn').disabled = (mode === 'online' && !isHost);
+  resultEl.style.display = 'flex';
+  renderLB();
+}
+
+function startMatch(){
+  resultEl.style.display = 'none';
+  document.getElementById('title').style.display = 'none';
+  hideNetUI();
+  resetGame();
+  running = true;
+  updateSpecialUI();
+  tryLandscape();
+  tryPointerLock();
+}
+
+// =====================================================================
+//  P2P オンライン対戦（WebRTC + QRコードでシグナリング）
+// =====================================================================
+
+// --- SDPを極小コードに圧縮／復元（QRに収めるため） ---
+function hexToB64(hex){
+  const bytes = hex.split(':').map(h => parseInt(h, 16));
+  let s = '';
+  for (const b of bytes) s += String.fromCharCode(b);
+  return btoa(s).replace(/=+$/, '');
+}
+function b64ToHex(b64){
+  const s = atob(b64.replace(/-/g,'+').replace(/_/g,'/'));
+  const out = [];
+  for (let i=0;i<s.length;i++) out.push(s.charCodeAt(i).toString(16).padStart(2,'0'));
+  return out.join(':').toUpperCase();
+}
+
+function packSDP(sdp, kind){
+  const ufrag = (sdp.match(/a=ice-ufrag:(\S+)/) || [])[1] || '';
+  const pwd   = (sdp.match(/a=ice-pwd:(\S+)/) || [])[1] || '';
+  const fp    = (sdp.match(/a=fingerprint:sha-256 (\S+)/i) || [])[1] || '';
+  const seen = new Set(), cands = [];
+  const re = /a=candidate:\S+ \d+ (udp|UDP) \d+ (\S+) (\d+) typ (host|srflx)/g;
+  let m;
+  while ((m = re.exec(sdp)) !== null){
+    const key = m[2] + ':' + m[3];
+    if (seen.has(key)) continue;
+    seen.add(key);
+    cands.push(m[2] + ',' + m[3]);
+    if (cands.length >= 6) break;
+  }
+  return [kind, ufrag, pwd, hexToB64(fp), cands.join(';')].join('|');
+}
+
+function unpackSDP(code){
+  const [kind, ufrag, pwd, fpB64, candStr] = code.trim().split('|');
+  if (!ufrag || !pwd || !fpB64) throw new Error('コードの形式が違います');
+  const cands = (candStr || '').split(';').filter(Boolean).map((c, i) => {
+    const [ip, port] = c.split(',');
+    return `a=candidate:${i+1} 1 udp ${2130706431 - i} ${ip} ${port} typ host`;
+  });
+  const sdp = [
+    'v=0',
+    'o=- 1 1 IN IP4 127.0.0.1',
+    's=-',
+    't=0 0',
+    'a=group:BUNDLE 0',
+    'a=msid-semantic: WMS',
+    'm=application 9 UDP/DTLS/SCTP webrtc-datachannel',
+    'c=IN IP4 0.0.0.0',
+    'a=mid:0',
+    `a=ice-ufrag:${ufrag}`,
+    `a=ice-pwd:${pwd}`,
+    'a=ice-options:trickle',
+    `a=fingerprint:sha-256 ${b64ToHex(fpB64)}`,
+    `a=setup:${kind === 'O' ? 'actpass' : 'active'}`,
+    'a=sctp-port:5000',
+    'a=max-message-size:262144',
+    ...cands,
+    ''
+  ].join('\r\n');
+  return { type: kind === 'O' ? 'offer' : 'answer', sdp };
+}
+
+// --- 接続本体 ---
+const RTC_CONF = { iceServers: [
+  { urls: 'stun:stun.l.google.com:19302' },
+  { urls: 'stun:stun1.l.google.com:19302' },
+] };
+
+function closeNet(){
+  if (net){
+    try { net.dc && net.dc.close(); net.pc && net.pc.close(); } catch(e){}
+    net = null;
+  }
+  if (remote){ scene.remove(remote.group); remote = null; }
+}
+
+function waitIce(pc){
+  return new Promise(resolve => {
+    if (pc.iceGatheringState === 'complete') return resolve();
+    const done = () => { clearTimeout(to); resolve(); };
+    const to = setTimeout(done, 2500);   // 遅いSTUNで待たされ過ぎないように
+    pc.addEventListener('icegatheringstatechange', () => {
+      if (pc.iceGatheringState === 'complete') done();
+    });
+  });
+}
+
+function attachChannel(dc){
+  net.dc = dc;
+  dc.onopen = () => {
+    net.ready = true;
+    setNetStatus('接続できました！ 対戦開始します…');
+    if (isHost){
+      setTimeout(() => { netSend({ t:'go' }); startMatch(); }, 700);
+    }
+  };
+  dc.onclose = () => {
+    net.ready = false;
+    if (running){ setNetStatus('相手との接続が切れました'); finishGame(); }
+  };
+  dc.onmessage = e => {
+    let msg;
+    try { msg = JSON.parse(e.data); } catch(err){ return; }
+    handleNet(msg);
+  };
+}
+
+function handleNet(m){
+  switch (m.t){
+    case 'go':                                   // ホストからの開始合図
+      if (!isHost){
+        if (roomSession && roomSession.room && roomSession.room.settings){
+          activeMatchSettings={...activeMatchSettings,...roomSession.room.settings};
+        }
+        hideRoomOnlineForMatch();
+        startMatch();
+      }
+      break;
+    case 'st':                                   // 相手の位置・向き
+      if (remote){
+        remote.tpos.set(m.x, Number.isFinite(m.h) ? m.h : 0, m.z);
+        remote.tyaw = m.y; remote.swimming = !!m.s; remote.climbing = !!m.c;
+      }
+      break;
+    case 'sp':                                   // 相手の塗り（そのまま反映）
+      splat(m.x, m.z, m.r, m.m);
+      break;
+    case 'wp':                                   // 相手の壁塗り
+      applyWallPaint(obstacles[m.i], m.a, m.s, m.u, m.y, m.r, m.m, false);
+      break;
+    case 'sh':                                   // 相手の弾（見た目のみ／自分への当たり判定あり）
+      shoot(new THREE.Vector3(m.x, m.y, m.z), null, m.m,
+            { vel: new THREE.Vector3(m.vx, m.vy, m.vz), r:m.r, damage:m.d, emerge:!!m.e, ghost:true });
+      break;
+    case 'sb':                                   // 相手のサブ武器
+      createBomb(m.m,new THREE.Vector3(m.x,m.y,m.z),new THREE.Vector3(m.vx,m.vy,m.vz),true,false);
+      break;
+    case 'sx': {                                 // 相手のスペシャル衝撃波
+      const pos=new THREE.Vector3(m.x,m.y,m.z);
+      burst(pos.clone().add(new THREE.Vector3(0,1,0)),m.m,38,11);
+      if (m.m!==player.team && !player.dead && player.pos.distanceTo(pos)<11) damagePlayer(55,pos);
+      break;
+    }
+    case 'bs':                                   // ホストからのボット位置
+      if (!isHost && Array.isArray(m.a)){
+        for (const [i, x, z, y, d] of m.a){
+          const b = bots[i];
+          if (!b) continue;
+          b.tpos.set(x, 0, z);
+          b.yaw = y;
+          b.dead = !!d;
+        }
+      }
+      break;
+    case 'bh':                                   // ゲストがボットに当てた
+      if (isHost){
+        const b = bots[m.i];
+        if (b && b.active && !b.dead) damageBot(b, m.d, b.pos.clone(), false, foeTeam(), true);
+      }
+      break;
+    case 'bk':                                   // 自分が倒したボットの報告
+      addKill();
+      break;
+    case 'hp':
+      if (remote) remote.hp = m.v;
+      break;
+    case 'dd':                                   // 相手がやられた
+      if (remote){
+        remote.dead = true;
+        remote.group.visible = false;
+        burst(new THREE.Vector3(remote.pos.x, 1, remote.pos.z), player.team, 18, 7);
+      }
+      addKill();
+      break;
+    case 'rv':
+      if (remote){ remote.dead = false; remote.hp = 100; remote.group.visible = true; }
+      break;
+    case 'tm':
+      if (!isHost) timeLeft = m.v;
+      break;
+    case 'end':
+      if (!isHost) finishGame();
+      break;
+  }
+}
+
+async function startHost(){
+  closeNet();
+  isHost = true;
+  mode = 'online';
+  player.team = 'A';
+  const pc = new RTCPeerConnection(RTC_CONF);
+  net = { pc, dc: null, ready: false, send: msg => { try { net.dc.send(JSON.stringify(msg)); } catch(e){} } };
+  const dc = pc.createDataChannel('game', { ordered: false, maxRetransmits: 0 });
+  attachChannel(dc);
+  const offer = await pc.createOffer();
+  await pc.setLocalDescription(offer);
+  await waitIce(pc);
+  const code = packSDP(pc.localDescription.sdp, 'O');
+  showCode(code, 'ホストのコード', '相手にこのQRを読み取ってもらってください。読み取ったら「相手のコードを読み取る」へ。');
+}
+
+async function joinAsGuest(hostCode){
+  closeNet();
+  isHost = false;
+  mode = 'online';
+  player.team = 'B';
+  const pc = new RTCPeerConnection(RTC_CONF);
+  net = { pc, dc: null, ready: false, send: msg => { try { net.dc.send(JSON.stringify(msg)); } catch(e){} } };
+  pc.ondatachannel = e => attachChannel(e.channel);
+  await pc.setRemoteDescription(unpackSDP(hostCode));
+  const answer = await pc.createAnswer();
+  await pc.setLocalDescription(answer);
+  await waitIce(pc);
+  const code = packSDP(pc.localDescription.sdp, 'A');
+  showCode(code, 'あなたのコード', 'このQRをホストの人に読み取ってもらえば接続完了です。');
+}
+
+async function acceptAnswer(answerCode){
+  if (!net || !net.pc) throw new Error('先にホストのコードを作ってください');
+  await net.pc.setRemoteDescription(unpackSDP(answerCode));
+  setNetStatus('接続中…そのままお待ちください');
+}
+
+// --- オンライン対戦のUI制御 ---
+const onlineEl = document.getElementById('online');
+const netMenuEl = document.getElementById('netMenu');
+const netCodeEl = document.getElementById('netCode');
+const netScanEl = document.getElementById('netScan');
+const netStatusEl = document.getElementById('netStatus');
+const qrBoxEl = document.getElementById('qrBox');
+const scanVideo = document.getElementById('scanVideo');
+const scanMsg = document.getElementById('scanMsg');
+
+let scanStream = null, scanRAF = 0, scanCanvas = null, pendingRole = null;
+
+function setNetStatus(txt){ netStatusEl.innerHTML = txt; }
+
+function showNetPanel(which){
+  netMenuEl.style.display = which === 'menu' ? 'block' : 'none';
+  netCodeEl.style.display = which === 'code' ? 'block' : 'none';
+  netScanEl.style.display = which === 'scan' ? 'block' : 'none';
+}
+
+const inIframe = (() => { try { return window.self !== window.top; } catch(e){ return true; } })();
+
+function openNetUI(){
+  document.getElementById('title').style.display = 'none';
+  onlineEl.style.display = 'flex';
+  showNetPanel('menu');
+  let s = '同じ場所・同じWi-Fiにいる相手とQRコードを見せ合って接続します。<br>どちらか一方が「ホストになる」を選んでください。';
+  if (inIframe){
+    s += '<br><br><b style="color:#ffd47a">この画面は埋め込み表示のため、カメラが使えない場合があります。'
+       + 'うまくいかないときは別タブで開くか、文字コードでの交換をお使いください。</b>';
+  }
+  setNetStatus(s);
+}
+function hideNetUI(){
+  stopScan();
+  onlineEl.style.display = 'none';
+}
+
+function renderQR(text){
+  qrBoxEl.innerHTML = '';
+  qrBoxEl.classList.remove('fallback');
+  if (typeof QRCode === 'undefined'){
+    qrBoxEl.classList.add('fallback');
+    qrBoxEl.textContent = text;   // ライブラリが読めない環境では文字で表示
+    return;
+  }
+  try {
+    new QRCode(qrBoxEl, { text, width: 216, height: 216, correctLevel: QRCode.CorrectLevel.L });
+  } catch(e){
+    qrBoxEl.classList.add('fallback');
+    qrBoxEl.textContent = text;
+  }
+}
+
+function showCode(code, title, help){
+  showNetPanel('code');
+  document.getElementById('qrTitle').textContent = title;
+  document.getElementById('qrHelp').textContent = help;
+  document.getElementById('codeOut').value = code;
+  renderQR(code);
+  // ゲストは相手に読み取ってもらうだけなので読み取りボタンは出さない
+  document.getElementById('btnScanNext').style.display = isHost ? 'block' : 'none';
+  if (!isHost) setNetStatus('ホストがこのQRを読み取れば対戦が始まります');
+}
+
+function stopScan(){
+  cancelAnimationFrame(scanRAF);
+  if (scanStream){ scanStream.getTracks().forEach(t => t.stop()); scanStream = null; }
+}
+
+function openCodeFallback(sel){
+  const d = document.querySelector(sel + ' .netdetails');
+  if (d) d.open = true;
+}
+
+async function startScan(onResult){
+  showNetPanel('scan');
+  scanMsg.textContent = 'カメラを起動しています…';
+  if (typeof jsQR === 'undefined'){
+    scanMsg.textContent = 'QR読み取りが使えません。下の文字コード欄をお使いください。';
+    openCodeFallback('#netScan');
+    return;
+  }
+  try {
+    scanStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+  } catch(e){
+    scanMsg.textContent = 'カメラを使えませんでした。下の文字コード欄をお使いください。';
+    openCodeFallback('#netScan');
+    return;
+  }
+  scanVideo.srcObject = scanStream;
+  try { await scanVideo.play(); } catch(e){}
+  scanMsg.textContent = '読み取り中…';
+  if (!scanCanvas) scanCanvas = document.createElement('canvas');
+  const ctx = scanCanvas.getContext('2d', { willReadFrequently: true });
+  const tick = () => {
+    if (!scanStream) return;
+    if (scanVideo.readyState === scanVideo.HAVE_ENOUGH_DATA){
+      const w = 360;
+      const h = Math.round(w * (scanVideo.videoHeight || 1) / (scanVideo.videoWidth || 1)) || w;
+      scanCanvas.width = w; scanCanvas.height = h;
+      ctx.drawImage(scanVideo, 0, 0, w, h);
+      const img = ctx.getImageData(0, 0, w, h);
+      const found = jsQR(img.data, w, h, { inversionAttempts: 'dontInvert' });
+      if (found && found.data){
+        stopScan();
+        onResult(found.data);
+        return;
+      }
+    }
+    scanRAF = requestAnimationFrame(tick);
+  };
+  tick();
+}
+
+async function handleScanned(code){
+  try {
+    scanMsg.textContent = '接続処理中…';
+    if (pendingRole === 'guest'){
+      await joinAsGuest(code);
+    } else {
+      await acceptAnswer(code);
+      showNetPanel('code');
+      setNetStatus('接続中…そのままお待ちください');
+    }
+  } catch(e){
+    scanMsg.textContent = 'うまくいきませんでした（' + e.message + '）。もう一度お試しください。';
+    showNetPanel('scan');
+  }
+}
+
+function backToTitle(){
+  closeNet();
+  mode = 'solo';
+  hideNetUI();
+  document.getElementById('title').style.display = 'flex';
+}
+
+document.getElementById('btnOnline').addEventListener('click', openNetUI);
+document.getElementById('btnNetBack').addEventListener('click', backToTitle);
+document.getElementById('btnNetBack2').addEventListener('click', backToTitle);
+document.getElementById('btnScanCancel').addEventListener('click', () => {
+  stopScan();
+  showNetPanel(pendingRole === 'guest' ? 'menu' : 'code');
+});
+
+document.getElementById('btnHost').addEventListener('click', async () => {
+  pendingRole = 'host';
+  setNetStatus('接続コードを作成中…');
+  try { await startHost(); }
+  catch(e){ setNetStatus('接続を準備できませんでした: ' + e.message); showNetPanel('menu'); }
+});
+
+document.getElementById('btnJoin').addEventListener('click', () => {
+  pendingRole = 'guest';
+  isHost = false;
+  startScan(handleScanned);
+});
+
+document.getElementById('btnScanNext').addEventListener('click', () => {
+  pendingRole = 'host';
+  startScan(handleScanned);
+});
+
+document.getElementById('btnPasteCode').addEventListener('click', () => {
+  const v = document.getElementById('codeIn').value.trim();
+  if (v) handleScanned(v);
+});
+
+document.getElementById('btnCopyCode').addEventListener('click', async () => {
+  const btn = document.getElementById('btnCopyCode');
+  const ta = document.getElementById('codeOut');
+  try { await navigator.clipboard.writeText(ta.value); btn.textContent = 'コピーしました'; }
+  catch(e){ ta.select(); btn.textContent = '選択しました（手動でコピー）'; }
+  setTimeout(() => btn.textContent = 'コードをコピー', 1800);
+});
+
+// =====================================================================
+//  Google Apps Script マッチング（v1: 人間2人 + bot補充）
+// =====================================================================
+const MATCHMAKING_GAS_URL='https://script.google.com/macros/s/AKfycbxxQJLzWr0F7pKZmgURWu2XWLTiov8p1UOIMTSse72SMc2dwSxhL3SbxzIgiPVTvyHgwQ/exec';
+const roomOnlineEl=document.getElementById('roomOnline');
+const roomPanels=['roomHome','roomCreatePanel','roomJoinPanel','roomLobby'];
+const roomSession={
+  code:'', playerId:'', hostId:'', room:null, poll:0, peerStarted:false,
+  answerApplied:false, started:false, inviteCode:'', leaving:false
+};
+
+function gasEndpoint(){
+  if(!/^https:\/\/script\.google\.com\/macros\/s\/[^/]+\/exec$/.test(MATCHMAKING_GAS_URL)){
+    throw new Error('マッチングサーバーの準備中です');
+  }
+  return MATCHMAKING_GAS_URL;
+}
+async function matchmakingRequest(path,method='GET',body){
+  const res=await fetch(gasEndpoint(),{
+    method:'POST',
+    redirect:'follow',
+    body:JSON.stringify({path:path.replace(/^\/+|\/+$/g,''),method,body})
+  });
+  const text=await res.text();
+  let payload=null;
+  try{ payload=text?JSON.parse(text):null; }
+  catch(e){ throw new Error(`マッチングサーバー応答エラー (${res.status})`); }
+  if(!res.ok||payload?.ok===false) throw new Error(payload?.error||`マッチング接続エラー (${res.status})`);
+  return payload?.data??null;
+}
+const fbGet=path=>matchmakingRequest(path);
+const fbPut=(path,value)=>matchmakingRequest(path,'PUT',value);
+const fbPatch=(path,value)=>matchmakingRequest(path,'PATCH',value);
+const fbDelete=path=>matchmakingRequest(path,'DELETE');
+
+function roomPlayerId(){
+  let id='';
+  try{ id=localStorage.getItem('ink-player-id')||''; }catch(e){}
+  if (!id){
+    id='player_'+(crypto.randomUUID?crypto.randomUUID().replace(/-/g,'').slice(0,14):Math.random().toString(36).slice(2,16));
+    try{ localStorage.setItem('ink-player-id',id); }catch(e){}
+  }
+  return id;
+}
+function roomPlayerName(){
+  const input=document.getElementById('roomPlayerName');
+  const name=(input.value.trim()||'Player').slice(0,12);
+  try{ localStorage.setItem('ink-player-name',name); }catch(e){}
+  return name;
+}
+function setRoomPanel(id){
+  for(const panel of roomPanels) document.getElementById(panel).style.display=panel===id?'block':'none';
+}
+function setRoomStatus(text,type=''){
+  const el=document.getElementById('roomStatus');
+  el.textContent=text; el.className=type;
+}
+function openRoomOnline(inviteCode=''){
+  roomSession.leaving=false;
+  document.getElementById('title').style.display='none';
+  onlineEl.style.display='none';
+  roomOnlineEl.style.display='flex';
+  roomOnlineEl.setAttribute('aria-hidden','false');
+  let savedName='Player';
+  try{ savedName=localStorage.getItem('ink-player-name')||'Player'; }catch(e){}
+  document.getElementById('roomPlayerName').value=savedName;
+  roomSession.inviteCode=inviteCode;
+  if(inviteCode){
+    document.getElementById('joinRoomCode').value=inviteCode;
+    setRoomPanel('roomJoinPanel');
+  }else setRoomPanel('roomHome');
+}
+function hideRoomOnlineForMatch(){
+  roomOnlineEl.style.display='none';
+  roomOnlineEl.setAttribute('aria-hidden','true');
+  stopRoomPolling();
+}
+function stopRoomPolling(){
+  clearInterval(roomSession.poll); roomSession.poll=0;
+}
+function resetRoomSession(){
+  stopRoomPolling();
+  roomSession.code=''; roomSession.hostId=''; roomSession.room=null;
+  roomSession.peerStarted=false; roomSession.answerApplied=false; roomSession.started=false;
+}
+async function leaveRoom(goTitle=true){
+  const code=roomSession.code, id=roomSession.playerId;
+  roomSession.leaving=true;
+  stopRoomPolling();
+  try{
+    if(code){
+      if(isHost) await fbDelete(`rooms/${code}`);
+      else{
+        await fbDelete(`rooms/${code}/players/${id}`);
+        await fbDelete(`rooms/${code}/signaling/${id}`);
+      }
+    }
+  }catch(e){}
+  closeNet(); resetRoomSession(); mode='solo';
+  roomOnlineEl.style.display='none'; roomOnlineEl.setAttribute('aria-hidden','true');
+  if(goTitle) document.getElementById('title').style.display='flex';
+}
+
+function roomSettingsFromForm(){
+  return {
+    rule:document.getElementById('createRule').value,
+    stage:document.getElementById('createStage').value,
+    teamSize:Number(document.getElementById('createTeamSize').value),
+    minHumanPlayers:2,
+    botFill:document.getElementById('createBotFill').value==='true',
+    botDifficulty:document.getElementById('createBotDifficulty').value,
+    startMode:document.getElementById('createStartMode').value
+  };
+}
+async function generateRoomCode(){
+  for(let i=0;i<12;i++){
+    const code=String(Math.floor(100000+Math.random()*900000));
+    if(await fbGet(`rooms/${code}`)==null) return code;
+  }
+  throw new Error('ルームコードを作成できませんでした');
+}
+async function createGasRoom(){
+  const settings=roomSettingsFromForm();
+  const code=await generateRoomCode();
+  const id=roomPlayerId(), now=Date.now();
+  const room={
+    status:'waiting',hostId:id,createdAt:now,updatedAt:now,settings,
+    players:{[id]:{name:roomPlayerName(),team:'A',ready:true,host:true,connected:true}},
+    signaling:{}
+  };
+  await fbPut(`rooms/${code}`,room);
+  isHost=true; mode='online'; player.team='A';
+  roomSession.code=code; roomSession.playerId=id; roomSession.hostId=id; roomSession.room=room;
+  showWaitingLobby(); startRoomPolling();
+}
+async function joinGasRoom(){
+  const code=document.getElementById('joinRoomCode').value.replace(/\D/g,'').slice(0,6);
+  if(code.length!==6) throw new Error('6桁のルームコードを入力してください');
+  const room=await fbGet(`rooms/${code}`);
+  if(!room) throw new Error('ルームが見つかりません');
+  if(room.status!=='waiting') throw new Error('このルームはすでに対戦中です');
+  if(Date.now()-(room.createdAt||0)>30*60*1000) throw new Error('ルームの有効期限が切れています');
+  const humans=Object.values(room.players||{});
+  if(humans.length>=2) throw new Error('ルームが満員です（v1は人間2人まで）');
+  const id=roomPlayerId();
+  const occupiedA=humans.some(p=>p.team==='A'), team=occupiedA?'B':'A';
+  const data={name:roomPlayerName(),team,ready:false,host:false,connected:false};
+  await fbPut(`rooms/${code}/players/${id}`,data);
+  isHost=false; mode='online'; player.team=team;
+  room.players=room.players||{}; room.players[id]=data;
+  roomSession.code=code; roomSession.playerId=id; roomSession.hostId=room.hostId; roomSession.room=room;
+  showWaitingLobby(); startRoomPolling();
+}
+
+function showWaitingLobby(){
+  setRoomPanel('roomLobby');
+  document.getElementById('lobbyRoomCode').textContent=roomSession.code;
+  document.getElementById('lobbyReady').style.display=isHost?'none':'inline-block';
+  document.getElementById('lobbySwitchTeam').style.display=isHost?'none':'inline-block';
+  document.getElementById('lobbyLeave').textContent=isHost?'ルームを閉じる':'退出する';
+  renderWaitingLobby();
+}
+function settingLabel(value,map){ return map[value]||value; }
+function makeLobbySlot(playerData,botName=''){
+  const div=document.createElement('div');
+  if(!playerData && !botName){
+    div.className='lobbySlot empty';
+    div.innerHTML='<span class="slotIcon">＋</span><span>募集中</span><span class="slotType">OPEN</span><span class="slotState">WAIT</span>';
+    return div;
+  }
+  if(botName){
+    div.className='lobbySlot';
+    div.innerHTML=`<span class="slotIcon">◉</span><span>${botName}</span><span class="slotType bot">BOT</span><span class="slotState ready">READY</span>`;
+    return div;
+  }
+  div.className='lobbySlot';
+  const host=playerData.host?'★ ':'';
+  const state=playerData.connected?(playerData.ready?'READY':'接続済み'):(playerData.ready?'接続中':'準備中');
+  div.innerHTML=`<span class="slotIcon">●</span><span>${host}${escHTML(playerData.name)}</span><span class="slotType">HUMAN</span><span class="slotState ${playerData.ready&&playerData.connected?'ready':''}">${state}</span>`;
+  return div;
+}
+function renderWaitingLobby(){
+  const room=roomSession.room;
+  if(!room) return;
+  const s=room.settings||{};
+  document.getElementById('lobbyRule').textContent=settingLabel(s.rule,{turf:'ナワバリ'});
+  document.getElementById('lobbyStage').textContent=settingLabel(s.stage,{ink_yard:'インクヤード',random:'ランダム'});
+  document.getElementById('lobbyTeamSize').textContent=`${s.teamSize||4}対${s.teamSize||4}`;
+  document.getElementById('lobbyBotFill').textContent=s.botFill?'ON':'OFF';
+  document.getElementById('lobbyBotDifficulty').textContent=settingLabel(s.botDifficulty,{easy:'やさしい',normal:'ふつう',hard:'つよい'});
+  document.getElementById('lobbyStartMode').textContent=settingLabel(s.startMode,{host:'ホストが開始',auto:'自動開始',timed:'30秒後'});
+  const players=Object.values(room.players||{});
+  for(const team of ['A','B']){
+    const box=document.querySelector(`#lobbyTeam${team} .teamSlots`);
+    box.innerHTML='';
+    const humans=players.filter(p=>p.team===team);
+    const size=Number(s.teamSize)||4;
+    for(let i=0;i<size;i++){
+      if(humans[i]) box.appendChild(makeLobbySlot(humans[i]));
+      else if(s.botFill) box.appendChild(makeLobbySlot(null,`BOT-${team}${i+1}`));
+      else box.appendChild(makeLobbySlot(null,''));
+    }
+  }
+  const connected=players.length>=2&&players.every(p=>p.connected);
+  const ready=players.length>=2&&players.every(p=>p.ready);
+  const balanced=players.some(p=>p.team==='A')&&players.some(p=>p.team==='B');
+  const fullEnough=s.botFill||players.length>=(Number(s.teamSize)||4)*2;
+  const canStart=isHost&&connected&&ready&&balanced&&fullEnough&&net&&net.ready;
+  const startBtn=document.getElementById('lobbyStart');
+  startBtn.disabled=!canStart;
+  if(players.length<2) setRoomStatus('対戦相手を待っています');
+  else if(!balanced) setRoomStatus('両チームに人間が1人以上必要です','error');
+  else if(!connected||!net||!net.ready) setRoomStatus('P2P接続を確立しています…');
+  else if(!ready) setRoomStatus('ゲストの準備OKを待っています');
+  else if(!fullEnough) setRoomStatus(`あと${(Number(s.teamSize)||4)*2-players.length}人必要です`,'error');
+  else setRoomStatus(s.botFill?'開始できます。不足枠はbotで補充されます':'開始できます','good');
+  const me=(room.players||{})[roomSession.playerId];
+  const readyBtn=document.getElementById('lobbyReady');
+  if(me&&!isHost) readyBtn.textContent=me.ready?'準備を取り消す':'準備OK';
+}
+
+function attachLobbyChannel(dc,peerId=''){
+  net.dc=dc;
+  dc.onopen=async()=>{
+    net.ready=true;
+    if(!isHost){
+      try{ await fbPatch(`rooms/${roomSession.code}/players/${roomSession.playerId}`,{connected:true}); }catch(e){}
+    }
+    if(roomSession.room&&roomSession.room.players&&roomSession.room.players[roomSession.playerId]){
+      roomSession.room.players[roomSession.playerId].connected=true;
+    }
+    renderWaitingLobby();
+  };
+  dc.onclose=async()=>{
+    if(roomSession.leaving)return;
+    net.ready=false;
+    const disconnectedId=isHost?peerId:roomSession.playerId;
+    try{ await fbPatch(`rooms/${roomSession.code}/players/${disconnectedId}`,{connected:false}); }catch(e){}
+    if(running){
+      if(isHost){
+        if(remote){ scene.remove(remote.group); remote=null; }
+        const replacement=bots.find(b=>b.team==='B'&&!b.active);
+        if(replacement){ replacement.active=true; replacement.dead=false; replacement.hp=100; replacement.group.visible=true; replacement.pos.copy(SPAWN_B); }
+        inkStatus.style.opacity='1'; inkStatus.textContent='相手が切断：BOTに交代';
+      }else{
+        finishGame();
+        openRoomOnline();
+        setRoomPanel('roomHome');
+      }
+    }else{
+      try{ net&&net.pc&&net.pc.close(); }catch(e){}
+      net=null; roomSession.peerStarted=false; roomSession.answerApplied=false;
+      if(isHost&&peerId) fbDelete(`rooms/${roomSession.code}/signaling/${peerId}`).catch(()=>{});
+      renderWaitingLobby();
+    }
+  };
+  dc.onmessage=e=>{
+    let msg; try{msg=JSON.parse(e.data);}catch(err){return;}
+    handleNet(msg);
+  };
+}
+async function startHostLobbyPeer(guestId){
+  if(roomSession.peerStarted) return;
+  roomSession.peerStarted=true;
+  closeNet();
+  const pc=new RTCPeerConnection(RTC_CONF);
+  net={pc,dc:null,ready:false,send:msg=>{try{net.dc.send(JSON.stringify(msg));}catch(e){}}};
+  const dc=pc.createDataChannel('ink-clash',{ordered:false});
+  attachLobbyChannel(dc,guestId);
+  const offer=await pc.createOffer();
+  await pc.setLocalDescription(offer);
+  await waitIce(pc);
+  await fbPut(`rooms/${roomSession.code}/signaling/${guestId}`,{
+    offer:{type:pc.localDescription.type,sdp:pc.localDescription.sdp},createdAt:Date.now()
+  });
+}
+async function applyHostAnswer(signal){
+  if(roomSession.answerApplied||!net||!net.pc||!signal.answer) return;
+  roomSession.answerApplied=true;
+  await net.pc.setRemoteDescription(signal.answer);
+}
+async function startGuestLobbyPeer(signal){
+  if(roomSession.peerStarted||!signal||!signal.offer) return;
+  roomSession.peerStarted=true;
+  closeNet();
+  const pc=new RTCPeerConnection(RTC_CONF);
+  net={pc,dc:null,ready:false,send:msg=>{try{net.dc.send(JSON.stringify(msg));}catch(e){}}};
+  pc.ondatachannel=e=>attachLobbyChannel(e.channel,roomSession.hostId);
+  await pc.setRemoteDescription(signal.offer);
+  const answer=await pc.createAnswer();
+  await pc.setLocalDescription(answer);
+  await waitIce(pc);
+  await fbPatch(`rooms/${roomSession.code}/signaling/${roomSession.playerId}`,{
+    answer:{type:pc.localDescription.type,sdp:pc.localDescription.sdp},answeredAt:Date.now()
+  });
+}
+async function pollRoom(){
+  if(!roomSession.code) return;
+  try{
+    const room=await fbGet(`rooms/${roomSession.code}`);
+    if(!room){ stopRoomPolling(); setRoomStatus('ホストが退出したか、ルームの期限が切れました','error'); return; }
+    roomSession.room=room;
+    renderWaitingLobby();
+    const players=room.players||{};
+    if(isHost){
+      const guestId=Object.keys(players).find(id=>id!==roomSession.playerId);
+      if(guestId){
+        await startHostLobbyPeer(guestId);
+        const signal=(room.signaling||{})[guestId];
+        if(signal) await applyHostAnswer(signal);
+      }
+    }else{
+      const signal=(room.signaling||{})[roomSession.playerId];
+      if(signal) await startGuestLobbyPeer(signal);
+    }
+  }catch(e){ setRoomStatus(e.message,'error'); }
+}
+function startRoomPolling(){
+  stopRoomPolling();
+  pollRoom();
+  roomSession.poll=setInterval(pollRoom,900);
+}
+async function startLobbyMatch(){
+  if(!isHost||!net||!net.ready||!roomSession.room) return;
+  activeMatchSettings={...activeMatchSettings,...roomSession.room.settings};
+  roomSession.started=true;
+  await fbPatch(`rooms/${roomSession.code}`,{status:'starting',updatedAt:Date.now()});
+  setRoomStatus('READY… 3','good');
+  setTimeout(()=>setRoomStatus('READY… 2','good'),1000);
+  setTimeout(()=>setRoomStatus('READY… 1','good'),2000);
+  setTimeout(async()=>{
+    setRoomStatus('GO!','good');
+    netSend({t:'go'});
+    await fbPatch(`rooms/${roomSession.code}`,{status:'playing',updatedAt:Date.now()}).catch(()=>{});
+    hideRoomOnlineForMatch();
+    startMatch();
+  },3000);
+}
+
+// 新しいルームUIを優先し、旧QR UIのクリック処理は発火させない。
+document.getElementById('btnOnline').addEventListener('click',e=>{
+  e.preventDefault(); e.stopImmediatePropagation(); openRoomOnline();
+},true);
+document.getElementById('roomTopBack').addEventListener('click',()=>leaveRoom(true));
+document.getElementById('roomCreateOpen').addEventListener('click',()=>setRoomPanel('roomCreatePanel'));
+document.getElementById('roomJoinOpen').addEventListener('click',()=>setRoomPanel('roomJoinPanel'));
+document.getElementById('roomCreateCancel').addEventListener('click',()=>setRoomPanel('roomHome'));
+document.getElementById('roomJoinCancel').addEventListener('click',()=>setRoomPanel('roomHome'));
+document.getElementById('roomCreateConfirm').addEventListener('click',async()=>{
+  try{ await createGasRoom(); }catch(e){ setRoomPanel('roomHome'); setRoomStatus(e.message,'error'); alert(e.message); }
+});
+document.getElementById('roomJoinConfirm').addEventListener('click',async()=>{
+  try{ await joinGasRoom(); }catch(e){ setRoomStatus(e.message,'error'); alert(e.message); }
+});
+document.getElementById('lobbyReady').addEventListener('click',async()=>{
+  const me=roomSession.room&&roomSession.room.players&&roomSession.room.players[roomSession.playerId];
+  if(!me)return;
+  await fbPatch(`rooms/${roomSession.code}/players/${roomSession.playerId}`,{ready:!me.ready});
+  me.ready=!me.ready; renderWaitingLobby();
+});
+document.getElementById('lobbySwitchTeam').addEventListener('click',async()=>{
+  const me=roomSession.room&&roomSession.room.players&&roomSession.room.players[roomSession.playerId];
+  if(!me)return;
+  const team=me.team==='A'?'B':'A';
+  await fbPatch(`rooms/${roomSession.code}/players/${roomSession.playerId}`,{team});
+  me.team=team; player.team=team; renderWaitingLobby();
+});
+document.getElementById('lobbyStart').addEventListener('click',startLobbyMatch);
+document.getElementById('lobbyLeave').addEventListener('click',()=>leaveRoom(true));
+document.getElementById('copyInviteUrl').addEventListener('click',async()=>{
+  const url=new URL(location.href); url.searchParams.set('room',roomSession.code);
+  const btn=document.getElementById('copyInviteUrl');
+  try{ await navigator.clipboard.writeText(url.toString()); btn.textContent='コピーしました'; }
+  catch(e){ btn.textContent=url.toString(); }
+  setTimeout(()=>btn.textContent='招待リンクをコピー',1800);
+});
+addEventListener('beforeunload',()=>{
+  if(!roomSession.code||isHost)return;
+  try{
+    fetch(gasEndpoint(),{
+      method:'POST',
+      keepalive:true,
+      body:JSON.stringify({
+        path:`rooms/${roomSession.code}/players/${roomSession.playerId}`,
+        method:'DELETE'
+      })
+    });
+  }catch(e){}
+});
+setTimeout(()=>{
+  const invite=new URLSearchParams(location.search).get('room');
+  if(/^\d{6}$/.test(invite||'')) openRoomOnline(invite);
+},80);
+
+// ---------- ループ ----------
+let timeSyncT = 0;
+function animate(){
+  requestAnimationFrame(animate);
+  const dt = Math.min(clock.getDelta(), 0.05);
+  if (running){
+    // 時間はホストが管理して定期的に同期
+    if (mode !== 'online' || isHost){
+      timeLeft -= dt;
+      if (mode === 'online'){
+        timeSyncT -= dt;
+        if (timeSyncT <= 0){ timeSyncT = 1; netSend({ t:'tm', v:+timeLeft.toFixed(1) }); }
+      }
+      if (timeLeft <= 0){
+        if (mode === 'online') netSend({ t:'end' });
+        finishGame();
+      }
+    } else {
+      timeLeft -= dt;    // 受信間隔のあいだは自前で進める
+    }
+    updatePlayer(dt);
+    updateBots(dt);
+    updateRemote(dt);
+    animateMarkers();
+    updateProjectiles(dt);
+    updateBombs(dt);
+    updateParticles(dt);
+    updateHUD(dt);
+    if (mapOpen){
+      mapDrawT-=dt;
+      if (mapDrawT<=0){ mapDrawT=0.15; drawMap(); }
+    }
+  }
+  renderer.render(scene, camera);
+}
+
+// ---------- 起動 ----------
+function tryLandscape(){
+  if (!isTouch) return;
+  try {
+    const de = document.documentElement;
+    const fs = de.requestFullscreen ? de.requestFullscreen() : (de.webkitRequestFullscreen && de.webkitRequestFullscreen());
+    Promise.resolve(fs).then(() => {
+      if (screen.orientation && screen.orientation.lock) return screen.orientation.lock('landscape');
+    }).catch(()=>{ /* 固定できない環境でも縦横どちらでも遊べる */ });
+  } catch(e){}
+}
+
+document.getElementById('startBtn').addEventListener('click', () => {
+  mode = 'solo';
+  player.team = 'A';
+  closeNet();
+  startMatch();
+});
+document.getElementById('retryBtn').addEventListener('click', () => {
+  if (mode === 'online'){
+    if (!isHost) return;
+    netSend({ t:'go' });
+  }
+  startMatch();
+});
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+  updateOrientationUI();
+});
+addEventListener('orientationchange', updateOrientationUI);
+
+animate();
+</script>
+</body>
+</html>
