@@ -1010,6 +1010,66 @@
     .serverPill { padding:5px 6px; grid-template-columns:20px 1fr; } .serverPill small { font-size:5px; } .serverPill strong { font-size:6px; }
     .onlineReadyButton { min-height:30px; font-size:8px; box-shadow:0 3px 0 #3e0d75; }
   }
+
+  /* ---------- ブキ選択 / ブキHUD ---------- */
+  #weaponHud {
+    position:absolute; left:max(24px,env(safe-area-inset-left)); top:max(112px,calc(env(safe-area-inset-top) + 98px));
+    min-width:168px; display:flex; align-items:center; gap:9px; padding:7px 12px;
+    border:2px solid rgba(255,255,255,.2); border-radius:17px; color:#fff; background:rgba(8,12,22,.78);
+    box-shadow:0 5px 16px rgba(0,0,0,.28); backdrop-filter:blur(9px); pointer-events:none;
+  }
+  #weaponHudIcon { width:31px; height:31px; display:grid; place-items:center; border-radius:50%; background:linear-gradient(145deg,#ff9b18,#8c2aea); font-size:17px; }
+  #weaponHudName { display:block; font-size:11px; font-weight:1000; }
+  #weaponHudLoadout { display:block; margin-top:2px; color:#c8d0e1; font-size:7px; }
+  #weaponChargeHud {
+    position:absolute; left:50%; top:57%; width:190px; height:12px; padding:3px; overflow:hidden;
+    border:2px solid rgba(255,255,255,.82); border-radius:9px; background:rgba(6,9,18,.72);
+    transform:translate(-50%,-50%); opacity:0; transition:opacity .12s; pointer-events:none;
+  }
+  #weaponChargeFill { width:0; height:100%; border-radius:5px; background:linear-gradient(90deg,#53d9ff,#fff352,#ff7b19); box-shadow:0 0 13px #fff46a; }
+  #specialAnnouncement {
+    position:absolute; left:50%; top:24%; min-width:270px; padding:11px 24px; border:3px solid rgba(255,255,255,.72); border-radius:24px;
+    color:#fff; background:linear-gradient(110deg,rgba(255,111,11,.94),rgba(124,28,222,.94)); font-size:14px; font-weight:1000;
+    text-align:center; text-shadow:0 2px 0 rgba(0,0,0,.45); box-shadow:0 0 35px rgba(151,45,255,.55),0 7px 0 rgba(0,0,0,.35);
+    transform:translate(-50%,-35px) scale(.8); opacity:0; pointer-events:none; z-index:47;
+  }
+  #specialAnnouncement.show { animation:specialCall 2.25s ease both; }
+  .teamRoster.special-active { filter:drop-shadow(0 0 11px #fff45b) brightness(1.35); animation:rosterPulse .45s ease-in-out infinite alternate; }
+  @keyframes specialCall { 0%{opacity:0;transform:translate(-50%,-35px) scale(.72)} 12%,72%{opacity:1;transform:translate(-50%,0) scale(1)} 100%{opacity:0;transform:translate(-50%,-12px) scale(.92)} }
+  @keyframes rosterPulse { to { transform:scale(1.06); } }
+  #weaponPanel { display:none; z-index:96; padding:18px; background:rgba(3,6,14,.82); backdrop-filter:blur(12px); }
+  .weaponSelectCard {
+    width:min(1160px,96vw); max-height:94vh; overflow:auto; padding:22px; border:3px solid rgba(180,75,255,.42); border-radius:28px;
+    color:#fff; background:linear-gradient(145deg,rgba(13,18,32,.98),rgba(31,14,48,.98)); box-shadow:0 25px 70px rgba(0,0,0,.65);
+  }
+  .weaponSelectHeader { display:flex; align-items:flex-end; justify-content:space-between; gap:16px; }
+  .weaponSelectHeader h2 { font-size:clamp(26px,4vw,48px); line-height:1; letter-spacing:-.04em; }
+  .weaponSelectHeader h2 span { color:#ff9718; }
+  .weaponSelectHeader p { margin-top:6px; color:#c9d0e0; font-size:10px; }
+  #weaponClose { min-height:40px; padding:7px 18px; border:2px solid rgba(255,255,255,.22); border-radius:18px; color:#fff; background:#272d3d; font-weight:1000; }
+  .weaponGrid { display:grid; grid-template-columns:repeat(5,minmax(150px,1fr)); gap:11px; margin-top:18px; }
+  .weaponCard {
+    min-height:270px; display:flex; flex-direction:column; align-items:stretch; padding:14px; border:3px solid rgba(255,255,255,.12); border-radius:22px;
+    color:#fff; text-align:left; background:linear-gradient(160deg,#22283a,#101521); box-shadow:0 7px 0 rgba(0,0,0,.36); transition:transform .14s,border-color .14s;
+  }
+  .weaponCard:hover { transform:translateY(-4px); border-color:#ad54ff; }
+  .weaponCard.selected { border-color:#ffbc28; background:linear-gradient(160deg,#4c2511,#28133f); box-shadow:0 0 25px rgba(255,151,24,.28),0 7px 0 #6b3104; }
+  .weaponArt { height:94px; display:grid; place-items:center; border-radius:16px; font-size:52px; background:radial-gradient(circle,#3e315d,#151a29 72%); }
+  .weaponCard h3 { margin-top:12px; font-size:17px; }
+  .weaponRole { margin-top:4px; color:#aeb9cc; font-size:8px; line-height:1.45; }
+  .weaponStats { display:grid; gap:5px; margin-top:10px; }
+  .weaponStats span { display:grid; grid-template-columns:35px 1fr; gap:5px; align-items:center; color:#d4d9e5; font-size:7px; }
+  .weaponStats i { height:6px; overflow:hidden; border-radius:5px; background:#343b4c; }
+  .weaponStats i::before { content:''; display:block; width:var(--stat); height:100%; border-radius:inherit; background:linear-gradient(90deg,#51e48a,#ffcf27,#ff7220); }
+  .loadoutLine { margin-top:auto; padding-top:10px; color:#d7c4ee; font-size:7px; line-height:1.55; border-top:1px solid rgba(255,255,255,.1); }
+  @media (orientation:landscape) and (max-height:560px) {
+    #weaponHud { left:max(8px,env(safe-area-inset-left)); top:max(74px,calc(env(safe-area-inset-top) + 67px)); min-width:126px; padding:4px 7px; }
+    #weaponHudIcon { width:24px; height:24px; font-size:12px; } #weaponHudName { font-size:8px; } #weaponHudLoadout { font-size:5px; }
+    .weaponSelectCard { padding:11px; border-radius:18px; } .weaponSelectHeader h2 { font-size:25px; } .weaponSelectHeader p { font-size:7px; }
+    .weaponGrid { grid-template-columns:repeat(5,minmax(105px,1fr)); gap:7px; margin-top:9px; } .weaponCard { min-height:190px; padding:8px; border-radius:14px; }
+    .weaponArt { height:55px; border-radius:10px; font-size:31px; } .weaponCard h3 { margin-top:6px; font-size:11px; }
+    .weaponRole,.loadoutLine,.weaponStats span { font-size:5px; } .weaponStats { gap:3px; margin-top:5px; }
+  }
 </style>
 </head>
 <body>
@@ -1059,6 +1119,12 @@
     <div id="deathText">たおされた！</div>
     <div id="deathWeapon">インクシューター</div>
   </div>
+  <div id="weaponHud">
+    <span id="weaponHudIcon">🔫</span>
+    <span><b id="weaponHudName">インクシューター</b><small id="weaponHudLoadout">インクボム＋オーバードライブ</small></span>
+  </div>
+  <div id="weaponChargeHud"><div id="weaponChargeFill"></div></div>
+  <div id="specialAnnouncement" role="status" aria-live="polite"></div>
   <div id="crosshair"></div>
 </div>
 <div id="deathFx"></div>
@@ -1080,6 +1146,7 @@
 
 <div class="overlay" id="title">
   <div class="titleTopBar">
+    <button class="titleTopBtn" id="titleWeaponBtn">🔫 ブキ</button>
     <button class="titleTopBtn" id="titleSettingsBtn">⚙ 設定</button>
   </div>
 
@@ -1360,6 +1427,42 @@
   </div>
 </div>
 
+<div class="overlay" id="weaponPanel" aria-hidden="true">
+  <div class="weaponSelectCard">
+    <div class="weaponSelectHeader">
+      <div><h2><span>ブキ</span>をえらぶ</h2><p>メイン・サブ・スペシャルがセットになっています</p></div>
+      <button id="weaponClose">決定して戻る</button>
+    </div>
+    <div class="weaponGrid">
+      <button class="weaponCard" data-weapon="shooter">
+        <span class="weaponArt">🔫</span><h3>インクシューター</h3><span class="weaponRole">扱いやすい標準型。ジャンプ中は少し弾がブレる。</span>
+        <span class="weaponStats"><span>射程<i style="--stat:58%"></i></span><span>塗り<i style="--stat:65%"></i></span><span>機動<i style="--stat:72%"></i></span></span>
+        <span class="loadoutLine">SUB　インクボム<br>SPECIAL　オーバードライブ</span>
+      </button>
+      <button class="weaponCard" data-weapon="roller">
+        <span class="weaponArt">▰</span><h3>トレイルローラー</h3><span class="weaponRole">走りながら太く塗る。横振り・ジャンプ縦振りは近距離高威力。</span>
+        <span class="weaponStats"><span>射程<i style="--stat:28%"></i></span><span>塗り<i style="--stat:96%"></i></span><span>機動<i style="--stat:55%"></i></span></span>
+        <span class="loadoutLine">SUB　カーリングボム<br>SPECIAL　インクバリア</span>
+      </button>
+      <button class="weaponCard" data-weapon="charger">
+        <span class="weaponArt">➤</span><h3>ラインチャージャー</h3><span class="weaponRole">長押しでチャージ。離すと遠くまで細い塗り線を通す。</span>
+        <span class="weaponStats"><span>射程<i style="--stat:100%"></i></span><span>塗り<i style="--stat:48%"></i></span><span>機動<i style="--stat:35%"></i></span></span>
+        <span class="loadoutLine">SUB　スプリンクラー<br>SPECIAL　インクレイン</span>
+      </button>
+      <button class="weaponCard" data-weapon="slosher">
+        <span class="weaponArt">◒</span><h3>アークスロッシャー</h3><span class="weaponRole">山なりに大量のインクを飛ばし、壁越しと着弾地点を広く塗る。</span>
+        <span class="weaponStats"><span>射程<i style="--stat:68%"></i></span><span>塗り<i style="--stat:82%"></i></span><span>機動<i style="--stat:46%"></i></span></span>
+        <span class="loadoutLine">SUB　インクボム<br>SPECIAL　メガインク砲</span>
+      </button>
+      <button class="weaponCard" data-weapon="dualies">
+        <span class="weaponArt">⚯</span><h3>ツインマニューバー</h3><span class="weaponRole">二丁を交互に連射。移動＋ジャンプで横スライドし精度アップ。</span>
+        <span class="weaponStats"><span>射程<i style="--stat:52%"></i></span><span>塗り<i style="--stat:62%"></i></span><span>機動<i style="--stat:100%"></i></span></span>
+        <span class="loadoutLine">SUB　カーリングボム<br>SPECIAL　オーバードライブ</span>
+      </button>
+    </div>
+  </div>
+</div>
+
 <div class="overlay" id="result">
   <h1 id="resultTitle">FINISH!</h1>
   <div id="resultScore"><span class="a">0%</span><span>vs</span><span class="b">0%</span></div>
@@ -1403,6 +1506,35 @@ let isHost = false;
 let net = null;         // P2P接続（後で初期化）
 let activeMatchSettings = { teamSize:4, botFill:true, botDifficulty:'normal', stage:'ink_yard' };
 function netSend(msg){ if (net && net.ready) net.send(msg); }
+
+const WEAPON_LOADOUTS = {
+  shooter: {
+    name:'インクシューター', icon:'🔫', type:'shooter',
+    sub:'inkBomb', special:'overdrive', subName:'インクボム', specialName:'オーバードライブ'
+  },
+  roller: {
+    name:'トレイルローラー', icon:'▰', type:'roller',
+    sub:'curling', special:'barrier', subName:'カーリングボム', specialName:'インクバリア'
+  },
+  charger: {
+    name:'ラインチャージャー', icon:'➤', type:'charger',
+    sub:'sprinkler', special:'inkRain', subName:'スプリンクラー', specialName:'インクレイン'
+  },
+  slosher: {
+    name:'アークスロッシャー', icon:'◒', type:'slosher',
+    sub:'inkBomb', special:'megaCannon', subName:'インクボム', specialName:'メガインク砲'
+  },
+  dualies: {
+    name:'ツインマニューバー', icon:'⚯', type:'dualies',
+    sub:'curling', special:'overdrive', subName:'カーリングボム', specialName:'オーバードライブ'
+  }
+};
+let selectedWeaponKey='shooter';
+try{
+  const savedWeapon=localStorage.getItem('ink-selected-weapon');
+  if(savedWeapon&&WEAPON_LOADOUTS[savedWeapon]) selectedWeaponKey=savedWeapon;
+}catch(e){}
+function selectedLoadout(){ return WEAPON_LOADOUTS[selectedWeaponKey]||WEAPON_LOADOUTS.shooter; }
 
 const TEAM = {
   A: { main: 0xff7a00, light: 0xffb14e, dark: 0xc24f00, css:'#ff8a1e', cssLight:'#ffc37a' },
@@ -1908,11 +2040,62 @@ const player = {
   rollVZ: 0,
   superJump: null,
   special: 0,
+  charge: 0,
+  wasFiring: false,
+  dualieSlideT: 0,
+  precisionT: 0,
+  overdriveT: 0,
+  barrierT: 0,
+  specialPoseT: 0,
 };
 scene.add(player.group);
 let kills = 0, dmgFlash = 0, healFlash = 0;
 let shake = 0;                      // 発砲・被弾による画面揺れの強さ
 function addShake(v){ shake = Math.min(1.2, shake + v); }
+
+function applyWeaponVisual(entity,key){
+  if(!entity||!entity.gun)return;
+  const gun=entity.gun;
+  gun.position.set(.5,.95,.35);
+  gun.rotation.set(0,0,0);
+  gun.scale.set(1,1,1);
+  if(!entity.gunExtra){
+    entity.gunExtra=gun.clone(true);
+    entity.gunExtra.visible=false;
+    entity.group.add(entity.gunExtra);
+  }
+  entity.gunExtra.visible=false;
+  if(key==='roller'){
+    gun.position.set(.52,.72,.22); gun.rotation.x=-.42; gun.scale.set(1.35,1.35,2.2);
+  }else if(key==='charger'){
+    gun.position.set(.48,1.02,.48); gun.scale.set(.78,.78,2.3);
+  }else if(key==='slosher'){
+    gun.position.set(.5,1.05,.22); gun.rotation.z=-.28; gun.scale.set(1.55,1.55,1.15);
+  }else if(key==='dualies'){
+    gun.position.set(.48,.92,.36); gun.scale.set(.75,.75,.82);
+    entity.gunExtra.visible=true;
+    entity.gunExtra.position.set(-.48,.92,.36);
+    entity.gunExtra.rotation.set(0,0,0);
+    entity.gunExtra.scale.set(.75,.75,.82);
+  }
+  entity.weaponKey=key;
+}
+function updateWeaponUI(){
+  const w=selectedLoadout();
+  document.getElementById('weaponHudIcon').textContent=w.icon;
+  document.getElementById('weaponHudName').textContent=w.name;
+  document.getElementById('weaponHudLoadout').textContent=`${w.subName}＋${w.specialName}`;
+  document.getElementById('btnSub').innerHTML=`<span class="btnGlyph">${w.sub==='sprinkler'?'✹':w.sub==='curling'?'➤':'●'}</span>${w.subName.replace('インク','')}`;
+  document.getElementById('btnSpecial').innerHTML=`<span class="btnGlyph">★</span>${w.specialName}`;
+  document.querySelectorAll('.weaponCard').forEach(card=>card.classList.toggle('selected',card.dataset.weapon===selectedWeaponKey));
+  applyWeaponVisual(player,selectedWeaponKey);
+}
+function selectWeapon(key){
+  if(!WEAPON_LOADOUTS[key])return;
+  selectedWeaponKey=key;
+  try{localStorage.setItem('ink-selected-weapon',key);}catch(e){}
+  updateWeaponUI();
+}
 
 function applyKidTeamColor(entity, team){
   const palette = TEAM[team];
@@ -1971,6 +2154,7 @@ function updateRemote(dt){
   remote.group.visible = !remote.dead;
   remote.squid.visible = remote.swimming;
   for (const part of remote.humanParts) part.visible = !remote.swimming;
+  if(remote.gunExtra)remote.gunExtra.visible=!remote.swimming&&remote.weaponKey==='dualies';
   const remoteOwn = inkAt(remote.pos.x, remote.pos.z) === (remote.team === 'A' ? 1 : 2);
   setSquidStealth(remote, remote.swimming && remoteOwn ? 0.18 : 0.72);
   remote.ring.visible = !remote.swimming;
@@ -2060,8 +2244,11 @@ const projMat = {
 };
 
 function shoot(origin, dir, team, opts = {}){
+  const spread=opts.spread!=null?opts.spread:1.6;
+  const verticalSpread=opts.verticalSpread!=null?opts.verticalSpread:1.2;
+  const speed=opts.speed!=null?opts.speed:26;
   const vel = opts.vel ? opts.vel.clone()
-    : dir.clone().multiplyScalar(26).add(new THREE.Vector3((Math.random()-0.5)*1.6, (Math.random()-0.5)*1.2 + 2.2, (Math.random()-0.5)*1.6));
+    : dir.clone().multiplyScalar(speed).add(new THREE.Vector3((Math.random()-0.5)*spread, (Math.random()-0.5)*verticalSpread + (opts.lift!=null?opts.lift:2.2), (Math.random()-0.5)*spread));
   const r = opts.r != null ? opts.r : 1.55 + Math.random()*0.5;
   const m = new THREE.Mesh(projGeoA, projMat[team]);
   m.position.copy(origin);
@@ -2072,7 +2259,8 @@ function shoot(origin, dir, team, opts = {}){
     mesh: m, vel, team,
     fromPlayer: !!opts.fromPlayer,
     ghost: !!opts.ghost,     // ゴースト弾＝見た目だけ。塗りは相手からのイベントで反映
-    life: 2.4, r,
+    life: opts.life!=null?opts.life:2.4, r,
+    gravity: opts.gravity!=null?opts.gravity:34,
     damage: opts.damage != null ? opts.damage : (opts.fromPlayer ? 34 : 20),
     emerge: !!opts.emerge,
     sourceName: opts.sourceName || '',
@@ -2082,67 +2270,126 @@ function shoot(origin, dir, team, opts = {}){
     netSend({ t:'sh', m:team,
       x:+origin.x.toFixed(2), y:+origin.y.toFixed(2), z:+origin.z.toFixed(2),
       vx:+vel.x.toFixed(2), vy:+vel.y.toFixed(2), vz:+vel.z.toFixed(2), r:+r.toFixed(2),
-      d:opts.damage, e:opts.emerge ? 1 : 0, w:opts.weapon || (opts.emerge ? '飛び出しショット' : 'インクシューター') });
+      d:opts.damage, e:opts.emerge ? 1 : 0, g:opts.gravity!=null?opts.gravity:34, l:opts.life!=null?opts.life:2.4,
+      w:opts.weapon || (opts.emerge ? '飛び出しショット' : 'インクシューター') });
   }
 }
 
-// ---------- サブ武器：インクボム ----------
+// ---------- サブ武器：インクボム / カーリング / スプリンクラー ----------
 const bombs = [];
 const bombGeo = new THREE.SphereGeometry(0.34,16,12);
-function createBomb(team, origin, vel, ghost=false, fromPlayer=false, sourceName=''){
+const sprinklers = [];
+const sprinklerGeo = new THREE.CylinderGeometry(.3,.38,.7,12);
+function createBomb(team, origin, vel, ghost=false, fromPlayer=false, sourceName='',kind='inkBomb'){
   const mesh=new THREE.Mesh(bombGeo,new THREE.MeshStandardMaterial({
     color:TEAM[team].light, emissive:TEAM[team].main, emissiveIntensity:.65, roughness:.3
   }));
+  if(kind==='curling') mesh.scale.set(1.45,.65,1);
   mesh.position.copy(origin); mesh.castShadow=true; scene.add(mesh);
-  bombs.push({ mesh,vel:vel.clone(),team,ghost,fromPlayer,sourceName,fuse:1.25,bounced:false });
+  bombs.push({ mesh,vel:vel.clone(),team,ghost,fromPlayer,sourceName,kind,fuse:kind==='curling'?1.65:1.25,bounced:false,paintT:0 });
+}
+function createSprinkler(team,origin,ghost=false,fromPlayer=false,sourceName=''){
+  const mesh=new THREE.Mesh(sprinklerGeo,new THREE.MeshStandardMaterial({
+    color:TEAM[team].dark,emissive:TEAM[team].main,emissiveIntensity:.55,roughness:.28
+  }));
+  mesh.position.copy(origin); mesh.position.y=Math.max(.38,mesh.position.y); mesh.castShadow=true; scene.add(mesh);
+  sprinklers.push({mesh,team,ghost,fromPlayer,sourceName,life:7,paintT:0});
 }
 function throwSubWeapon(){
-  if (!running || player.dead || player.ink<0.28) return;
-  player.ink-=0.28;
+  const loadout=selectedLoadout();
+  const kind=loadout.sub;
+  const cost=kind==='sprinkler'?.34:kind==='curling'?.25:.28;
+  if (!running || player.dead || player.ink<cost) return;
+  player.ink-=cost;
   const dir=new THREE.Vector3(-Math.sin(camYaw),.38,-Math.cos(camYaw)).normalize();
   const origin=player.pos.clone().add(new THREE.Vector3(0,1.25,0));
-  const vel=dir.multiplyScalar(15).add(new THREE.Vector3(0,4.5,0));
-  createBomb(player.team,origin,vel,false,true);
+  if(kind==='sprinkler'){
+    const pos=player.pos.clone().add(new THREE.Vector3(-Math.sin(camYaw)*2,.38,-Math.cos(camYaw)*2));
+    pos.y=groundHeightAt(pos.x,pos.z,player.pos.y)+.38;
+    createSprinkler(player.team,pos,false,true);
+    netSend({t:'sb',k:kind,m:player.team,x:+pos.x.toFixed(2),y:+pos.y.toFixed(2),z:+pos.z.toFixed(2),vx:0,vy:0,vz:0});
+    return;
+  }
+  const vel=kind==='curling'
+    ? new THREE.Vector3(-Math.sin(camYaw)*15,0,-Math.cos(camYaw)*15)
+    : dir.multiplyScalar(15).add(new THREE.Vector3(0,4.5,0));
+  if(kind==='curling') origin.y=.36;
+  createBomb(player.team,origin,vel,false,true,'',kind);
   netSend({ t:'sb',m:player.team,x:+origin.x.toFixed(2),y:+origin.y.toFixed(2),z:+origin.z.toFixed(2),
-    vx:+vel.x.toFixed(2),vy:+vel.y.toFixed(2),vz:+vel.z.toFixed(2) });
+    vx:+vel.x.toFixed(2),vy:+vel.y.toFixed(2),vz:+vel.z.toFixed(2),k:kind });
 }
 function explodeBomb(b){
   const pos=b.mesh.position.clone();
-  burst(pos.clone().add(new THREE.Vector3(0,.35,0)),b.team,28,9);
+  const curling=b.kind==='curling';
+  const radius=curling?4.25:5.2;
+  burst(pos.clone().add(new THREE.Vector3(0,.35,0)),b.team,curling?22:28,curling?7:9);
   if (!b.ghost){
-    paint(pos.x,pos.z,5.2,b.team);
-    if (b.fromPlayer) addSpecial(.16);
+    paint(pos.x,pos.z,radius,b.team);
+    if (b.fromPlayer) addSpecial(curling?.12:.16);
     for (const bot of bots){
       if (!bot.active||bot.dead||bot.team===b.team) continue;
-      if (bot.pos.distanceTo(pos)<5.4) damageBot(bot,58,bot.pos.clone(),b.fromPlayer,b.team,false,'インクボム');
+      if (bot.pos.distanceTo(pos)<radius+.2) damageBot(bot,curling?46:58,bot.pos.clone(),b.fromPlayer,b.team,false,curling?'カーリングボム':'インクボム');
     }
   }
-  if (b.team!==player.team && !player.dead && player.pos.distanceTo(pos)<5.4){
-    damagePlayer(30,pos,b.sourceName||remotePlayerName(),'インクボム');
+  if (b.team!==player.team && !player.dead && player.pos.distanceTo(pos)<radius+.2){
+    damagePlayer(curling?24:30,pos,b.sourceName||remotePlayerName(),curling?'カーリングボム':'インクボム');
   }
 }
 function updateBombs(dt){
   for(let i=bombs.length-1;i>=0;i--){
     const b=bombs[i];
     const before=b.mesh.position.clone();
-    b.vel.y-=18*dt;
+    b.vel.y-=(b.kind==='curling'?0:18)*dt;
     b.mesh.position.addScaledVector(b.vel,dt);
     b.mesh.rotation.x+=dt*8; b.mesh.rotation.z+=dt*11;
     if (b.mesh.position.y<=.32){
       b.mesh.position.y=.32;
-      if (!b.bounced){ b.vel.y=Math.abs(b.vel.y)*.38; b.bounced=true; }
+      if (b.kind==='curling'){ b.vel.y=0; }
+      else if (!b.bounced){ b.vel.y=Math.abs(b.vel.y)*.38; b.bounced=true; }
       else b.vel.y=0;
-      b.vel.x*=Math.pow(.18,dt); b.vel.z*=Math.pow(.18,dt);
+      const drag=b.kind==='curling'?.82:.18;
+      b.vel.x*=Math.pow(drag,dt); b.vel.z*=Math.pow(drag,dt);
     }
     const hit=projectileObstacleHit(b.mesh.position);
     if (hit){
       b.mesh.position.copy(before);
-      b.vel.x*=-.42; b.vel.z*=-.42; b.vel.y=Math.max(2,Math.abs(b.vel.y)*.35);
+      const bounce=b.kind==='curling'?-.84:-.42;
+      b.vel.x*=bounce; b.vel.z*=bounce; b.vel.y=b.kind==='curling'?0:Math.max(2,Math.abs(b.vel.y)*.35);
+    }
+    if(b.kind==='curling'){
+      b.paintT-=dt;
+      if(b.paintT<=0){
+        b.paintT=.11;
+        if(!b.ghost){
+          paint(b.mesh.position.x,b.mesh.position.z,1.05,b.team);
+          if(b.fromPlayer)addSpecial(.006);
+        }
+        burst(b.mesh.position.clone(),b.team,2,1.5);
+      }
     }
     b.fuse-=dt;
     if (b.fuse<=0){
       explodeBomb(b);
       scene.remove(b.mesh); b.mesh.material.dispose(); bombs.splice(i,1);
+    }
+  }
+}
+function updateSprinklers(dt){
+  for(let i=sprinklers.length-1;i>=0;i--){
+    const s=sprinklers[i];
+    s.life-=dt; s.paintT-=dt; s.mesh.rotation.y+=dt*8;
+    if(s.paintT<=0){
+      s.paintT=.22;
+      const a=Math.random()*Math.PI*2,d=1.6+Math.random()*4.3;
+      const x=s.mesh.position.x+Math.cos(a)*d,z=s.mesh.position.z+Math.sin(a)*d;
+      burst(new THREE.Vector3(x,.45,z),s.team,3,2.3);
+      if(!s.ghost){
+        paint(x,z,1.15+Math.random()*.55,s.team);
+        if(s.fromPlayer)addSpecial(.009);
+      }
+    }
+    if(s.life<=0){
+      scene.remove(s.mesh); s.mesh.material.dispose(); sprinklers.splice(i,1);
     }
   }
 }
@@ -2221,6 +2468,10 @@ function addKill(victimName='相手',weapon='インクシューター'){
 function damagePlayer(dmg, hitPos, attackerName='対戦相手', weapon='インクシューター'){
   if (player.dead) return;
   const foe = foeTeam();
+  if(player.barrierT>0){
+    dmg*=.28;
+    burst(player.pos.clone().add(new THREE.Vector3(0,1,0)),player.team,4,2);
+  }
   player.hp -= dmg;
   dmgFlash = 0.9;
   addShake(0.34);
@@ -2253,6 +2504,12 @@ function revivePlayer(){
   player.climbGrace = 0;
   player.rollT = 0;
   player.rollCd = 0;
+  player.dualieSlideT = 0;
+  player.precisionT = 0;
+  player.charge = 0;
+  player.wasFiring = false;
+  player.barrierT = 0;
+  barrierMesh.visible = false;
   player.superJump = null;
   player.surfaceAttackT = 0;
   player.emergeWindow = 0;
@@ -2298,7 +2555,7 @@ addEventListener('keydown', e => {
     if (e.code==='KeyE') subQueued = true;
     if (e.code==='KeyR') specialQueued = true;
     if (e.code==='KeyM') toggleMap();
-    if (e.code==='Escape'){ closeMap(); closeSettings(); }
+    if (e.code==='Escape'){ closeMap(); closeSettings(); closeWeaponPanel(); }
   }
   if (['Space','KeyQ','KeyE','KeyR','KeyM'].includes(e.code)) e.preventDefault();
 });
@@ -2486,10 +2743,15 @@ function resetGame(){
   paintTex.needsUpdate = true;
   resetGrid();
   clearWallPaint();
-  player.pos.copy(mySpawn()); player.ink = 1; player.vy = 0;
+  player.pos.copy(mySpawn()); player.ink = 1; player.vy = 0; player.fireCd=0;
   player.climbing = false; player.surfaceAttackT = 0; player.emergeWindow = 0; player.enemyInkT = 0;
   player.climbSurface = null; player.climbGrace = 0;
   player.rollT = 0; player.rollCd = 0; player.superJump = null; player.special = 0;
+  player.charge=0; player.wasFiring=false; player.dualieSlideT=0; player.precisionT=0;
+  player.overdriveT=0; player.barrierT=0; player.specialPoseT=0; player.rollerTrailT=0;
+  barrierMesh.visible=false; specialEffects.length=0;
+  document.getElementById('weaponChargeHud').style.opacity='0';
+  document.getElementById('weaponChargeFill').style.width='0%';
   player.hp = 100; player.dead = false; player.respawnT = 0;
   player.group.visible = true;
   deadmsgEl.classList.remove('show');
@@ -2528,6 +2790,8 @@ function resetGame(){
   projectiles.length = 0;
   for (const b of bombs){ scene.remove(b.mesh); b.mesh.material.dispose(); }
   bombs.length = 0;
+  for (const s of sprinklers){ scene.remove(s.mesh); s.mesh.material.dispose(); }
+  sprinklers.length = 0;
   for (const p of particles) scene.remove(p.mesh);
   particles.length = 0;
   timeLeft = MATCH_TIME;
@@ -2537,6 +2801,7 @@ function resetGame(){
     splat(SPAWN_A.x + ox, SPAWN_A.z + oz, 2.5, 'A');
     splat(SPAWN_B.x + ox, SPAWN_B.z + oz, 2.5, 'B');
   }
+  updateWeaponUI();
 }
 
 // ---------- HUD ----------
@@ -2619,6 +2884,44 @@ function performQuickTurn(direction=0){
 
 const specialFill = document.getElementById('specialFill');
 const btnSpecial = document.getElementById('btnSpecial');
+const specialEffects=[];
+const barrierMesh=new THREE.Mesh(
+  new THREE.SphereGeometry(2.25,24,16),
+  new THREE.MeshBasicMaterial({color:TEAM.A.light,transparent:true,opacity:.2,side:THREE.DoubleSide,depthWrite:false})
+);
+barrierMesh.position.y=1.05; barrierMesh.visible=false; player.group.add(barrierMesh);
+let specialAudioCtx=null;
+function playSpecialSound(){
+  try{
+    const AC=window.AudioContext||window.webkitAudioContext;
+    if(!AC)return;
+    specialAudioCtx=specialAudioCtx||new AC();
+    const now=specialAudioCtx.currentTime;
+    const gain=specialAudioCtx.createGain();
+    gain.gain.setValueAtTime(.0001,now);
+    gain.gain.exponentialRampToValueAtTime(.24,now+.025);
+    gain.gain.exponentialRampToValueAtTime(.0001,now+.65);
+    gain.connect(specialAudioCtx.destination);
+    [196,294,440].forEach((freq,i)=>{
+      const osc=specialAudioCtx.createOscillator();
+      osc.type=i===2?'square':'sawtooth';
+      osc.frequency.setValueAtTime(freq,now+i*.06);
+      osc.frequency.exponentialRampToValueAtTime(freq*1.7,now+.5);
+      osc.connect(gain); osc.start(now+i*.06); osc.stop(now+.68);
+    });
+  }catch(e){}
+}
+function showSpecialAnnouncement(name,team,owner='YOU'){
+  const el=document.getElementById('specialAnnouncement');
+  el.textContent=`${owner}　★ ${name} 発動！`;
+  el.style.background=team==='A'
+    ?'linear-gradient(110deg,rgba(255,111,11,.96),rgba(148,36,172,.94))'
+    :'linear-gradient(110deg,rgba(106,31,255,.96),rgba(209,51,226,.94))';
+  el.classList.remove('show'); void el.offsetWidth; el.classList.add('show');
+  const roster=document.getElementById(`team${team}Status`);
+  roster.classList.add('special-active');
+  setTimeout(()=>roster.classList.remove('special-active'),2200);
+}
 function updateSpecialUI(){
   const value = Math.max(0, Math.min(1, player.special || 0));
   specialFill.style.width = (value*100).toFixed(0)+'%';
@@ -2629,23 +2932,83 @@ function addSpecial(amount){
   player.special = Math.min(1, player.special+amount);
   updateSpecialUI();
 }
+function createInkRain(team,center,ghost=false,sourceName=''){
+  specialEffects.push({type:'inkRain',team,center:center.clone(),ghost,sourceName,life:7,paintT:0,damageT:0});
+}
 function activateSpecial(){
   if (!running || player.dead || player.special < 1) return;
+  const loadout=selectedLoadout();
+  const type=loadout.special;
   player.special = 0;
   updateSpecialUI();
-  addShake(1);
+  player.specialPoseT=.85;
+  addShake(1.1);
+  playSpecialSound();
+  showSpecialAnnouncement(loadout.specialName,player.team,'YOU');
   const center = player.pos.clone();
-  paint(center.x, center.z, 6.5, player.team);
-  for (let i=0;i<8;i++){
-    const a = i/8*Math.PI*2;
-    paint(center.x+Math.cos(a)*6.5, center.z+Math.sin(a)*6.5, 3.2, player.team);
-  }
+  let effectPos=center;
   burst(center.clone().add(new THREE.Vector3(0,1,0)), player.team, 42, 12);
-  for (const b of bots){
-    if (!b.active || b.dead || b.team === player.team) continue;
-    if (b.pos.distanceTo(center) < 11) damageBot(b, 70, b.pos.clone(), true, player.team, false, 'スペシャル');
+  if(type==='overdrive'){
+    player.overdriveT=8;
+    player.ink=Math.min(1,player.ink+.45);
+  }else if(type==='barrier'){
+    player.barrierT=7;
+    barrierMesh.material.color.setHex(TEAM[player.team].light);
+    barrierMesh.visible=true;
+    paint(center.x,center.z,4.5,player.team);
+  }else if(type==='inkRain'){
+    const target=center.clone().add(new THREE.Vector3(-Math.sin(camYaw)*10,0,-Math.cos(camYaw)*10));
+    createInkRain(player.team,target,false);
+    effectPos=target;
+  }else if(type==='megaCannon'){
+    specialEffects.push({type:'megaCannon',team:player.team,life:1.15,shotT:0,shots:0});
   }
-  netSend({ t:'sx', m:player.team, x:+center.x.toFixed(2), y:+center.y.toFixed(2), z:+center.z.toFixed(2) });
+  netSend({ t:'sx',k:type,n:loadout.specialName,m:player.team,x:+effectPos.x.toFixed(2), y:+effectPos.y.toFixed(2), z:+effectPos.z.toFixed(2) });
+}
+function updateSpecialEffects(dt){
+  player.overdriveT=Math.max(0,player.overdriveT-dt);
+  player.barrierT=Math.max(0,player.barrierT-dt);
+  player.specialPoseT=Math.max(0,player.specialPoseT-dt);
+  barrierMesh.visible=player.barrierT>0&&!player.dead;
+  if(barrierMesh.visible){
+    barrierMesh.rotation.y+=dt*.9;
+    barrierMesh.material.opacity=.16+Math.sin(performance.now()*.008)*.06;
+  }
+  for(let i=specialEffects.length-1;i>=0;i--){
+    const fx=specialEffects[i];
+    fx.life-=dt;
+    if(fx.type==='inkRain'){
+      fx.paintT-=dt; fx.damageT-=dt;
+      if(fx.paintT<=0){
+        fx.paintT=.16;
+        const a=Math.random()*Math.PI*2,d=Math.sqrt(Math.random())*7.2;
+        const x=fx.center.x+Math.cos(a)*d,z=fx.center.z+Math.sin(a)*d;
+        burst(new THREE.Vector3(x,5+Math.random()*3,z),fx.team,4,2.2);
+        if(!fx.ghost){
+          paint(x,z,1.35+Math.random()*.8,fx.team);
+          addSpecial(.002);
+          for(const b of bots){
+            if(!b.active||b.dead||b.team===fx.team)continue;
+            if(Math.hypot(b.pos.x-x,b.pos.z-z)<1.8)damageBot(b,7,b.pos.clone(),true,fx.team,false,'インクレイン');
+          }
+        }
+      }
+      if(fx.ghost&&fx.team!==player.team&&fx.damageT<=0&&player.pos.distanceTo(fx.center)<7.4){
+        fx.damageT=.55; damagePlayer(4,player.pos.clone(),fx.sourceName||remotePlayerName(),'インクレイン');
+      }
+    }else if(fx.type==='megaCannon'&&fx.shots<3){
+      fx.shotT-=dt;
+      if(fx.shotT<=0){
+        fx.shotT=.28; fx.shots++;
+        const yaw=camYaw+(fx.shots-2)*.035;
+        const dir=new THREE.Vector3(-Math.sin(yaw),Math.sin(-camPitch*.28+.12),-Math.cos(yaw)).normalize();
+        const origin=player.pos.clone().add(new THREE.Vector3(dir.x*.9,1.35,dir.z*.9));
+        shoot(origin,dir,player.team,{fromPlayer:true,broadcast:true,damage:82,r:4.4,speed:34,lift:1.1,gravity:10,life:3.2,spread:.15,verticalSpread:.1,weapon:'メガインク砲'});
+        addShake(.75);
+      }
+    }
+    if(fx.life<=0||(fx.type==='megaCannon'&&fx.shots>=3&&fx.shotT<-.1))specialEffects.splice(i,1);
+  }
 }
 
 const mapPanel = document.getElementById('mapPanel');
@@ -2708,7 +3071,7 @@ function updateSuperJump(dt){
   if (stateT<=0 && net && net.ready){
     stateT=.05;
     netSend({t:'st',x:+player.pos.x.toFixed(2),z:+player.pos.z.toFixed(2),
-      h:+player.pos.y.toFixed(2),y:+player.group.rotation.y.toFixed(2),s:0,c:0});
+      h:+player.pos.y.toFixed(2),y:+player.group.rotation.y.toFixed(2),s:0,c:0,w:selectedWeaponKey});
   }
   if (p>=1){
     player.pos.copy(j.to);
@@ -2756,6 +3119,20 @@ function openSettings(){
 function closeSettings(){
   settingsPanel.style.display='none'; settingsPanel.setAttribute('aria-hidden','true');
 }
+const weaponPanel=document.getElementById('weaponPanel');
+function openWeaponPanel(){
+  if(running)return;
+  weaponPanel.style.display='flex'; weaponPanel.setAttribute('aria-hidden','false');
+  updateWeaponUI();
+}
+function closeWeaponPanel(){
+  weaponPanel.style.display='none'; weaponPanel.setAttribute('aria-hidden','true');
+}
+document.querySelectorAll('.weaponCard').forEach(card=>{
+  card.addEventListener('click',()=>selectWeapon(card.dataset.weapon));
+});
+document.getElementById('weaponClose').addEventListener('click',closeWeaponPanel);
+document.getElementById('titleWeaponBtn').addEventListener('click',openWeaponPanel);
 lookSensInput.addEventListener('input',()=>{
   lookSensitivity=Number(lookSensInput.value);
   lookSensOut.textContent=lookSensitivity.toFixed(2);
@@ -2821,6 +3198,143 @@ function updateCamera(dt){
   camera.lookAt(lx, ly, lz);
 }
 
+function weaponAimDirection(yaw=camYaw){
+  return new THREE.Vector3(-Math.sin(yaw),Math.sin(-camPitch*.55+.18),-Math.cos(yaw)).normalize();
+}
+function paintChargerLine(dir,power){
+  const distance=9+power*27;
+  for(let d=2;d<=distance;d+=1.65){
+    const x=player.pos.x+dir.x*d,z=player.pos.z+dir.z*d;
+    if(Math.abs(x)>=ARENA/2||Math.abs(z)>=ARENA/2)break;
+    paint(x,z,.42+power*.28,player.team);
+  }
+  addSpecial(.045+power*.09);
+}
+function fireRollerSwing(dir,vertical){
+  const count=vertical?3:6;
+  for(let i=0;i<count;i++){
+    const offset=vertical?(i-1)*.018:(i-(count-1)/2)*.105;
+    const yaw=camYaw+offset;
+    const shotDir=new THREE.Vector3(-Math.sin(yaw),vertical?.28:.16,-Math.cos(yaw)).normalize();
+    const origin=player.pos.clone().add(new THREE.Vector3(shotDir.x*.9,vertical?1.45:1.05,shotDir.z*.9));
+    shoot(origin,shotDir,player.team,{
+      fromPlayer:true,broadcast:true,damage:vertical?62:48,r:vertical?2.05:1.72,
+      speed:vertical?27:21,lift:vertical?2.6:1.6,gravity:vertical?24:31,life:1.55,
+      spread:.16,verticalSpread:.12,weapon:vertical?'ローラー縦振り':'ローラー横振り'
+    });
+  }
+  addShake(vertical?.56:.43);
+}
+function updateWeaponFire(dt,mlen,onAir){
+  const loadout=selectedLoadout();
+  const type=loadout.type;
+  const emerge=player.emergeWindow>0;
+  const dir=weaponAimDirection();
+  const origin=player.pos.clone().add(new THREE.Vector3(-Math.sin(camYaw)*.8,1.1,-Math.cos(camYaw)*.8));
+  const rateBoost=player.overdriveT>0?.58:1;
+  const chargeHud=document.getElementById('weaponChargeHud');
+  const chargeFill=document.getElementById('weaponChargeFill');
+
+  if(type==='charger'){
+    if(firing&&player.ink>.006){
+      player.charge=Math.min(1,player.charge+dt/1.15);
+      player.ink=Math.max(0,player.ink-dt*.075);
+      chargeHud.style.opacity='1';
+      chargeFill.style.width=(player.charge*100).toFixed(0)+'%';
+      if(player.charge>=1)addShake(.025);
+    }
+    if(!firing&&player.wasFiring&&player.charge>.06&&player.fireCd<=0){
+      const q=player.charge;
+      player.fireCd=.32;
+      const shotDir=weaponAimDirection();
+      shoot(origin,shotDir,player.team,{
+        fromPlayer:true,broadcast:true,damage:24+q*92,r:.65+q*.9,
+        speed:35+q*25,lift:.35,gravity:4.5,life:2.6+q*1.4,spread:.04,verticalSpread:.04,
+        weapon:'ラインチャージャー'
+      });
+      paintChargerLine(shotDir,q);
+      burst(origin.clone(),player.team,8+Math.round(q*10),4+q*4);
+      addShake(.25+q*.55);
+      player.charge=0;
+      chargeFill.style.width='0%';
+    }
+    if(!firing&&player.charge<=0)chargeHud.style.opacity='0';
+    player.wasFiring=firing;
+    return;
+  }
+  chargeHud.style.opacity='0';
+  player.charge=0;
+
+  if(type==='roller'){
+    player.rollerTrailT=(player.rollerTrailT||0)-dt;
+    if(firing&&!player.wasFiring&&player.fireCd<=0&&player.ink>.07){
+      const vertical=onAir;
+      player.ink-=vertical?.1:.075;
+      player.fireCd=vertical?.76:.62;
+      fireRollerSwing(dir,vertical);
+    }
+    if(firing&&mlen>.08&&!onAir&&player.ink>.012){
+      if(player.rollerTrailT<=0){
+        player.rollerTrailT=.09;
+        player.ink-=.012;
+        const x=player.pos.x-Math.sin(player.yaw)*.25,z=player.pos.z-Math.cos(player.yaw)*.25;
+        paint(x,z,1.72,player.team);
+        addSpecial(.006);
+        for(const b of bots){
+          if(!b.active||b.dead||b.team===player.team)continue;
+          if(b.pos.distanceTo(player.pos)<1.35)damageBot(b,44,b.pos.clone(),true,player.team,false,'トレイルローラー');
+        }
+      }
+    }
+    player.wasFiring=firing;
+    return;
+  }
+
+  if(firing&&player.fireCd<=0&&player.ink>.018){
+    if(type==='slosher'){
+      player.fireCd=.58*rateBoost;
+      player.ink=Math.max(0,player.ink-.075);
+      for(let i=0;i<3;i++){
+        const arcDir=weaponAimDirection(camYaw+(i-1)*.035);
+        shoot(origin,arcDir,player.team,{
+          fromPlayer:true,broadcast:true,damage:34,r:2.15+i*.18,
+          vel:arcDir.clone().multiplyScalar(16+i*2).add(new THREE.Vector3(0,9.2+i*1.2,0)),
+          gravity:22,life:2.5,weapon:'アークスロッシャー'
+        });
+      }
+      addShake(.42);
+    }else if(type==='dualies'){
+      player.fireCd=.072*rateBoost;
+      player.ink=Math.max(0,player.ink-.017);
+      player.dualShot=(player.dualShot||0)^1;
+      const side=player.dualShot?.34:-.34;
+      const sideVec=new THREE.Vector3(Math.cos(camYaw)*side,0,-Math.sin(camYaw)*side);
+      const spread=player.precisionT>0?.22:(onAir?2.3:.85);
+      shoot(origin.clone().add(sideVec),dir,player.team,{
+        fromPlayer:true,broadcast:true,emerge,damage:emerge?34:22,r:emerge?1.8:1.1,
+        speed:29,spread,verticalSpread:spread*.65,weapon:'ツインマニューバー'
+      });
+      addShake(emerge?.24:.1);
+    }else{
+      player.fireCd=(emerge?.28:.095)*rateBoost;
+      player.ink=Math.max(0,player.ink-(emerge?.055:.022));
+      const spread=onAir?3.1:1.25;
+      shoot(origin,dir,player.team,{
+        fromPlayer:true,broadcast:true,emerge,damage:emerge?44:34,r:emerge?2.25:undefined,
+        speed:emerge?31:27,spread:emerge?.2:spread,verticalSpread:emerge?.2:spread*.72,
+        weapon:loadout.name
+      });
+      addShake(emerge?.36:.16);
+    }
+    if(emerge){
+      player.emergeWindow=0;
+      burst(player.pos.clone().add(new THREE.Vector3(0,.45,0)),player.team,13,5);
+    }
+    if(Math.random()<.22)paint(player.pos.x+(Math.random()-.5),player.pos.z+(Math.random()-.5),.65,player.team);
+  }
+  player.wasFiring=firing;
+}
+
 function updatePlayer(dt){
   if (player.dead){
     jumpQueued = subQueued = specialQueued = false;
@@ -2861,6 +3375,7 @@ function updatePlayer(dt){
   let speed = 7.5;
   if (enemyInk) speed = 3.25;
   if (player.swimming) speed = ownInk ? 13.5 : 2.7;
+  if(player.overdriveT>0) speed*=1.24;
 
   const sin = Math.sin(camYaw), cos = Math.cos(camYaw);
   let vx = (mx * cos + mz * sin) * speed;
@@ -2868,7 +3383,12 @@ function updatePlayer(dt){
 
   player.rollCd = Math.max(0, player.rollCd-dt);
   if (jumpQueued){
-    if (player.swimming && ownInk && player.rollCd <= 0){
+    if(selectedWeaponKey==='dualies'&&!player.swimming&&mlen>.22&&player.rollCd<=0){
+      const dl=Math.hypot(vx,vz)||1;
+      player.rollVX=vx/dl*18.5; player.rollVZ=vz/dl*18.5;
+      player.dualieSlideT=.22; player.precisionT=.78; player.rollCd=.55;
+      addShake(.24); burst(player.pos.clone().add(new THREE.Vector3(0,.2,0)),player.team,7,3);
+    }else if (player.swimming && ownInk && player.rollCd <= 0){
       let dx = vx, dz = vz;
       if (Math.hypot(dx,dz) < 0.2){
         dx = Math.sin(player.yaw); dz = Math.cos(player.yaw);
@@ -2895,6 +3415,11 @@ function updatePlayer(dt){
     vx = player.rollVX;
     vz = player.rollVZ;
     player.swimming = true;
+  }
+  player.precisionT=Math.max(0,player.precisionT-dt);
+  if(player.dualieSlideT>0){
+    player.dualieSlideT=Math.max(0,player.dualieSlideT-dt);
+    vx=player.rollVX; vz=player.rollVZ;
   }
   player.pos.x += vx * dt;
   player.pos.z += vz * dt;
@@ -2981,24 +3506,10 @@ function updatePlayer(dt){
     player.surfaceAttackT = 0.34;
     player.emergeWindow = 0.42;
   }
-  if (firing && !player.swimming && player.fireCd <= 0 && player.ink > 0.02){
-    const emerge = player.emergeWindow > 0;
-    player.fireCd = emerge ? 0.28 : 0.095;
-    player.ink = Math.max(0, player.ink - (emerge ? 0.055 : 0.022));
-    const dir = new THREE.Vector3(-Math.sin(camYaw), Math.sin(-camPitch*0.55 + 0.18), -Math.cos(camYaw)).normalize();
-    const origin = player.pos.clone().add(new THREE.Vector3(-Math.sin(camYaw)*0.8, 1.1, -Math.cos(camYaw)*0.8));
-    shoot(origin, dir, player.team, {
-      fromPlayer:true, broadcast:true, emerge,
-      damage:emerge ? 44 : 34, r:emerge ? 2.25 : undefined,
-      vel:emerge ? dir.clone().multiplyScalar(31).add(new THREE.Vector3(0,2.2,0)) : undefined
-    });
-    if (emerge){
-      player.emergeWindow = 0;
-      burst(player.pos.clone().add(new THREE.Vector3(0,0.45,0)), player.team, 13, 5);
-    }
-    addShake(emerge ? 0.36 : 0.16);
-    if (Math.random() < 0.25) paint(player.pos.x + (Math.random()-0.5), player.pos.z + (Math.random()-0.5), 0.7, player.team);
-  }
+  const currentGround=groundHeightAt(player.pos.x,player.pos.z,player.pos.y);
+  const onAir=player.pos.y>currentGround+.2;
+  if(!player.swimming)updateWeaponFire(dt,mlen,onAir);
+  else player.wasFiring=firing;
 
   if (mlen > 0.05 && !firing) player.yaw = Math.atan2(vx, vz);
   if (firing) player.yaw = Math.atan2(-Math.sin(camYaw), -Math.cos(camYaw));
@@ -3008,6 +3519,7 @@ function updatePlayer(dt){
   const swimHidden = player.swimming && (ownInk || player.climbing);
   player.squid.visible = player.swimming;
   for (const part of player.humanParts) part.visible = !player.swimming;
+  if(player.gunExtra)player.gunExtra.visible=!player.swimming&&selectedWeaponKey==='dualies';
   setSquidStealth(player, swimHidden ? 0.34 : 0.78);
   player.ring.visible = !player.swimming;
   if (player.swimming){
@@ -3020,6 +3532,8 @@ function updatePlayer(dt){
   } else {
     player.squid.rotation.z = 0;
     player.group.position.y += Math.abs(Math.sin(performance.now()*0.012)) * (mlen>0.05?0.09:0);
+    player.gun.rotation.z=player.specialPoseT>0?-.85:0;
+    if(player.gunExtra)player.gunExtra.rotation.z=player.specialPoseT>0?.85:0;
   }
 
   inkStatus.style.opacity = (enemyInk || player.climbing) ? '1' : '0';
@@ -3031,7 +3545,7 @@ function updatePlayer(dt){
     stateT = 0.05;
     netSend({ t:'st', x:+player.pos.x.toFixed(2), z:+player.pos.z.toFixed(2),
               h:+player.pos.y.toFixed(2), y:+player.yaw.toFixed(2),
-              s: player.swimming ? 1 : 0, c:player.climbing ? 1 : 0 });
+              s: player.swimming ? 1 : 0, c:player.climbing ? 1 : 0, w:selectedWeaponKey });
   }
 
   updateCamera(dt);
@@ -3165,7 +3679,7 @@ function hitChar(p, cpos, radius=0.79){
 function updateProjectiles(dt){
   for (let i = projectiles.length-1; i >= 0; i--){
     const p = projectiles[i];
-    p.vel.y -= 34 * dt;
+    p.vel.y -= p.gravity * dt;
     p.mesh.position.addScaledVector(p.vel, dt);
     p.life -= dt;
     const pos = p.mesh.position;
@@ -3177,7 +3691,7 @@ function updateProjectiles(dt){
     // 潜行中も無敵ではないが、当たり判定が小さくなる。
     if (p.team !== player.team && !player.dead && hitChar(pos, player.pos, player.swimming ? 0.43 : 0.79)){
       damagePlayer(
-        p.emerge ? 20 : 13,
+        p.damage,
         pos.clone(),
         p.sourceName || (p.ghost ? remotePlayerName() : 'BOT'),
         p.weapon
@@ -3472,6 +3986,7 @@ function handleNet(m){
       if (remote){
         remote.tpos.set(m.x, Number.isFinite(m.h) ? m.h : 0, m.z);
         remote.tyaw = m.y; remote.swimming = !!m.s; remote.climbing = !!m.c;
+        if(m.w&&WEAPON_LOADOUTS[m.w]&&remote.weaponKey!==m.w)applyWeaponVisual(remote,m.w);
       }
       break;
     case 'sp':                                   // 相手の塗り（そのまま反映）
@@ -3483,15 +3998,23 @@ function handleNet(m){
     case 'sh':                                   // 相手の弾（見た目のみ／自分への当たり判定あり）
       shoot(new THREE.Vector3(m.x, m.y, m.z), null, m.m,
             { vel: new THREE.Vector3(m.vx, m.vy, m.vz), r:m.r, damage:m.d, emerge:!!m.e,
+              gravity:Number.isFinite(m.g)?m.g:34,life:Number.isFinite(m.l)?m.l:2.4,
               ghost:true, sourceName:remotePlayerName(), weapon:m.w||'インクシューター' });
       break;
     case 'sb':                                   // 相手のサブ武器
-      createBomb(m.m,new THREE.Vector3(m.x,m.y,m.z),new THREE.Vector3(m.vx,m.vy,m.vz),true,false,remotePlayerName());
+      if(m.k==='sprinkler'){
+        createSprinkler(m.m,new THREE.Vector3(m.x,m.y,m.z),true,false,remotePlayerName());
+      }else{
+        createBomb(m.m,new THREE.Vector3(m.x,m.y,m.z),new THREE.Vector3(m.vx,m.vy,m.vz),true,false,remotePlayerName(),m.k||'inkBomb');
+      }
       break;
-    case 'sx': {                                 // 相手のスペシャル衝撃波
+    case 'sx': {                                 // 相手のスペシャル
       const pos=new THREE.Vector3(m.x,m.y,m.z);
+      showSpecialAnnouncement(m.n||'スペシャル',m.m,remotePlayerName());
       burst(pos.clone().add(new THREE.Vector3(0,1,0)),m.m,38,11);
-      if (m.m!==player.team && !player.dead && player.pos.distanceTo(pos)<11){
+      if(m.k==='inkRain'){
+        createInkRain(m.m,pos,true,remotePlayerName());
+      }else if(!m.k&&m.m!==player.team&&!player.dead&&player.pos.distanceTo(pos)<11){
         damagePlayer(55,pos,remotePlayerName(),'スペシャル');
       }
       break;
@@ -3923,7 +4446,7 @@ async function createGasRoom(){
   const id=roomPlayerId(), now=Date.now();
   const room={
     status:'waiting',hostId:id,createdAt:now,updatedAt:now,settings,
-    players:{[id]:{name:roomPlayerName(),team:'A',ready:true,host:true,connected:true}},
+    players:{[id]:{name:roomPlayerName(),team:'A',ready:true,host:true,connected:true,weapon:selectedWeaponKey}},
     signaling:{}
   };
   await fbPut(`rooms/${code}`,room);
@@ -3942,7 +4465,7 @@ async function joinGasRoom(roomCode=''){
   if(humans.length>=2) throw new Error('ルームが満員です（v1は人間2人まで）');
   const id=roomPlayerId();
   const occupiedA=humans.some(p=>p.team==='A'), team=occupiedA?'B':'A';
-  const data={name:roomPlayerName(),team,ready:false,host:false,connected:false};
+  const data={name:roomPlayerName(),team,ready:false,host:false,connected:false,weapon:selectedWeaponKey};
   await fbPut(`rooms/${code}/players/${id}`,data);
   isHost=false; mode='online'; setPlayerTeam(team);
   room.players=room.players||{}; room.players[id]=data;
@@ -3991,7 +4514,8 @@ function makeLobbySlot(playerData,botName=''){
   div.className='lobbySlot';
   const host=playerData.host?'★ ':'';
   const state=playerData.connected?(playerData.ready?'READY':'接続済み'):(playerData.ready?'接続中':'準備中');
-  div.innerHTML=`<span class="slotIcon">●</span><span>${host}${escHTML(playerData.name)}</span><span class="slotType">HUMAN</span><span class="slotState ${playerData.ready&&playerData.connected?'ready':''}">${state}</span>`;
+  const weapon=WEAPON_LOADOUTS[playerData.weapon]||WEAPON_LOADOUTS.shooter;
+  div.innerHTML=`<span class="slotIcon" title="${weapon.name}">${weapon.icon}</span><span>${host}${escHTML(playerData.name)}</span><span class="slotType">HUMAN</span><span class="slotState ${playerData.ready&&playerData.connected?'ready':''}">${state}</span>`;
   return div;
 }
 function renderWaitingLobby(){
@@ -4159,6 +4683,7 @@ function syncTitlePlayerName(){
   document.getElementById('titlePlayerName').textContent=name;
 }
 syncTitlePlayerName();
+updateWeaponUI();
 document.getElementById('titleSettingsBtn').addEventListener('click',openSettings);
 document.getElementById('btnFriend').addEventListener('click',()=>{
   openRoomOnline();
@@ -4254,6 +4779,8 @@ function animate(){
     animateMarkers();
     updateProjectiles(dt);
     updateBombs(dt);
+    updateSprinklers(dt);
+    updateSpecialEffects(dt);
     updateParticles(dt);
     updateHUD(dt);
     if (mapOpen){
