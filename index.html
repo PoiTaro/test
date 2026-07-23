@@ -687,6 +687,181 @@
     .slotIcon { width:20px; height:20px; } #roomStatus { margin-top:7px; min-height:18px; font-size:11px; }
     .lobbyButtons { margin-top:7px; }
   }
+
+  /* ---------- オンライン入口 / 作成 / 参加：フルスクリーンUI ---------- */
+  #roomOnline {
+    align-items:stretch; justify-content:stretch; overflow:hidden;
+    background:
+      radial-gradient(circle at 80% 30%,rgba(116,33,227,.34),transparent 32%),
+      radial-gradient(circle at 16% 84%,rgba(255,133,0,.25),transparent 34%),
+      linear-gradient(120deg,#070a13 0 46%,#12172a 68%,#090b14 100%);
+  }
+  #roomOnline::before,#roomOnline::after {
+    content:''; position:absolute; z-index:0; width:34vw; height:34vw; border-radius:44% 56% 48% 52%;
+    filter:blur(1px); opacity:.3; pointer-events:none;
+  }
+  #roomOnline::before { left:-12vw; bottom:-19vw; background:#8125ea; transform:rotate(24deg); }
+  #roomOnline::after { right:-17vw; top:-22vw; background:#ff8b0b; transform:rotate(-18deg); }
+  #roomOnline .roomShell {
+    position:relative; z-index:1; width:100%; height:100%; max-height:none; padding:18px 26px;
+    border-radius:0; background:transparent; box-shadow:none; overflow:hidden;
+  }
+  #roomOnline .roomHeader {
+    min-height:70px; display:grid; grid-template-columns:150px 1fr minmax(210px,280px); align-items:center;
+    border-bottom:2px solid rgba(255,255,255,.08);
+  }
+  #roomOnline .roomTitle {
+    justify-self:start; font-size:clamp(34px,4.4vw,63px); letter-spacing:-.05em; font-style:italic;
+    text-shadow:0 5px 0 rgba(0,0,0,.42); transform:rotate(-2deg);
+  }
+  .roomBackBtn {
+    justify-self:start; min-height:40px; padding:7px 17px; border:2px solid rgba(255,255,255,.16); border-radius:20px;
+    color:#fff; background:rgba(16,20,33,.8); font-size:13px; font-weight:1000;
+    box-shadow:0 4px 0 rgba(0,0,0,.4);
+  }
+  .roomIdentityBar {
+    justify-self:end; display:grid; grid-template-columns:auto minmax(110px,1fr); gap:8px; align-items:center;
+    padding:6px 9px 6px 13px; border:2px solid rgba(255,255,255,.12); border-radius:16px;
+    color:#cdd5e7; background:rgba(15,19,31,.78); font-size:9px; font-weight:1000;
+  }
+  .roomIdentityBar input {
+    min-width:0; height:32px; padding:5px 10px; border:0; border-radius:10px;
+    color:#171b2b; background:#f5f7ff; font-size:13px; font-weight:1000;
+  }
+  #roomOnline .roomPanel { height:calc(100% - 78px); margin-top:8px; overflow:auto; }
+  .onlineIntroGrid {
+    min-height:100%; display:grid; grid-template-columns:minmax(330px,.9fr) minmax(370px,1.12fr) minmax(205px,.58fr);
+    gap:22px; align-items:center;
+  }
+  .roomChoiceColumn { display:grid; gap:12px; align-content:center; }
+  .onlineLead {
+    margin:0 0 8px 18px!important; max-width:none!important; color:#fff; opacity:1!important;
+    font-size:clamp(19px,2.1vw,30px)!important; font-weight:1000; line-height:1.25!important;
+    text-shadow:0 4px 0 #000;
+  }
+  .roomPortal {
+    position:relative; min-height:112px; display:grid; grid-template-columns:86px 1fr 30px; gap:13px; align-items:center;
+    padding:13px 18px 13px 10px; border:3px solid rgba(255,255,255,.15); border-radius:22px;
+    color:#fff; text-align:left; box-shadow:inset 0 3px 0 rgba(255,255,255,.26),0 8px 0 rgba(0,0,0,.42);
+    cursor:pointer; transition:transform .14s,filter .14s;
+  }
+  .roomPortal:hover { transform:translateX(8px); filter:brightness(1.08); }
+  .roomPortal.create { background:linear-gradient(110deg,#ff7910,#ffb817); }
+  .roomPortal.join { background:linear-gradient(110deg,#6a25df,#9c32ed); }
+  .portalIcon {
+    height:100%; min-height:82px; display:grid; place-items:center; border-right:2px solid rgba(255,255,255,.17);
+    font-size:32px; font-weight:1000;
+  }
+  .roomPortal b { display:block; font-size:clamp(21px,2.2vw,30px); }
+  .roomPortal small { display:block; margin-top:5px; font-size:12px; font-weight:800; line-height:1.4; }
+  .roomPortal i { font-size:46px; font-style:normal; font-weight:1000; }
+  .roomHowCard,.onlineSideCard,.createSetupCard,.setupInfoCard,.joinCodeCard,.joinCreateCard,.joinInfo {
+    border:2px solid rgba(255,255,255,.1); background:rgba(13,17,28,.86);
+    box-shadow:0 16px 48px rgba(0,0,0,.34),inset 0 2px 0 rgba(255,255,255,.07); backdrop-filter:blur(12px);
+  }
+  .roomHowCard { padding:22px; border-radius:27px; }
+  .roomCardLabel {
+    display:inline-block; padding:5px 18px; border-radius:15px; color:#fff; background:#252b3b;
+    font-size:12px; font-weight:1000;
+  }
+  .howSteps { display:grid; grid-template-columns:1fr 20px 1fr 20px 1fr; gap:5px; align-items:center; margin-top:22px; }
+  .howSteps div { text-align:center; }
+  .howSteps span { width:64px; height:64px; margin:auto; display:grid; place-items:center; border-radius:50%; background:#242a3b; font-size:31px; }
+  .howSteps b { display:block; margin-top:8px; font-size:11px; }
+  .howSteps i { color:#6c7485; font-style:normal; }
+  .onlineTip {
+    margin-top:20px; padding:12px 15px; display:grid; grid-template-columns:100px 1fr; gap:9px;
+    border-radius:16px; color:#d9e1f0; background:#171d2a; font-size:10px; line-height:1.5;
+    box-shadow:inset 0 0 0 2px rgba(255,255,255,.06);
+  }
+  .onlineTip b { color:#ffc438; font-size:12px; }
+  .onlineSideCard { min-height:330px; padding:22px 16px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px; border-radius:28px; text-align:center; }
+  .sideAvatar {
+    width:108px; height:108px; display:grid; place-items:center; border:5px solid #9b38f1; border-radius:47% 53% 42% 58%;
+    color:#fff; background:radial-gradient(circle at 35% 28%,#b566ff,#5520b7); font-size:55px;
+    box-shadow:0 0 35px rgba(137,47,237,.42);
+  }
+  .onlineSideCard b { font-size:18px; color:#dba7ff; }
+  .onlineSideCard span { color:#c3cada; font-size:10px; }
+  .serverPill { margin-top:12px; padding:8px 13px; border-radius:16px; color:#8bf0a4; background:#192723; font-size:9px; font-weight:1000; }
+  .setupTitle {
+    margin:8px 0 12px; font-size:clamp(27px,3.6vw,48px); font-weight:1000; letter-spacing:-.04em; text-shadow:0 5px 0 #000;
+  }
+  .setupTitle.orange { color:#ffb51c; } .setupTitle.purple { color:#b65cff; }
+  .roomSetupLayout { display:grid; grid-template-columns:minmax(560px,1.35fr) minmax(230px,.55fr); gap:22px; align-items:stretch; }
+  .createSetupCard { padding:20px; border-radius:26px; background:linear-gradient(145deg,rgba(111,52,0,.9),rgba(43,25,16,.9)); }
+  .setupEyebrow { margin-bottom:12px; color:#fff; font-size:13px; font-weight:1000; }
+  .setupEyebrow small { margin-left:7px; color:#d4c7b6; font-size:9px; }
+  .setupFields { display:grid; grid-template-columns:1fr 1fr; gap:8px 12px; }
+  #roomOnline .setupFields .roomField { width:100%; max-width:none; margin:0; grid-template-columns:92px minmax(120px,1fr); }
+  #roomOnline .roomField label { color:#fff; font-size:10px; }
+  #roomOnline .roomField select { width:100%; min-height:43px; border:2px solid rgba(255,255,255,.12); color:#fff; background:#2a241e; }
+  .roomPrimary,.roomSecondary {
+    min-height:52px; padding:10px 25px; border:0; border-radius:24px; color:#fff; font-size:16px; font-weight:1000;
+    box-shadow:inset 0 3px 0 rgba(255,255,255,.3),0 6px 0 rgba(0,0,0,.38);
+  }
+  .roomPrimary.create { background:linear-gradient(#ffbd20,#ff7610); }
+  .roomPrimary.join { background:linear-gradient(#b84fff,#6c1ed2); }
+  .createSetupCard > .roomPrimary { display:block; width:min(360px,70%); margin:18px auto 0; }
+  .roomSecondary { color:#e6eaf3; background:#282e3d; box-shadow:inset 0 0 0 2px rgba(255,255,255,.15),0 4px 0 rgba(0,0,0,.38); }
+  .setupInfoCard { padding:20px; border-radius:24px; }
+  .setupInfoCard h3 { margin:0 0 10px; font-size:14px; color:#ffd55f; }
+  .setupInfoCard h3:nth-of-type(2) { margin-top:20px; color:#c499ff; }
+  .setupInfoCard p { margin:7px 0; color:#d6dbea; font-size:11px; }
+  .setupInfoCard .roomSecondary { width:100%; margin-top:16px; font-size:12px; }
+  .joinSetupLayout { display:grid; grid-template-columns:minmax(400px,1fr) 64px minmax(280px,.7fr) minmax(215px,.5fr); gap:17px; align-items:center; }
+  .joinCodeCard { padding:26px; border-radius:26px; background:linear-gradient(145deg,rgba(63,23,104,.94),rgba(27,18,45,.94)); text-align:center; }
+  .joinCodeCard label { display:block; color:#e7d7f7; font-size:13px; font-weight:1000; text-align:left; }
+  #joinRoomCode {
+    width:100%; height:78px; margin-top:14px; padding-left:1em; border:3px solid rgba(255,255,255,.18); border-radius:17px;
+    color:#fff; background:#20172e; font:1000 clamp(25px,4vw,45px)/1 monospace; letter-spacing:.65em; text-align:center;
+    box-shadow:inset 0 5px 12px rgba(0,0,0,.35);
+  }
+  #joinRoomCode::placeholder { color:#79678d; opacity:.65; }
+  .joinCodeCard p { margin:12px 0 16px; color:#c5b8d1; font-size:10px; }
+  .joinCodeCard .roomPrimary { width:62%; }
+  .joinCodeCard .roomSecondary { display:block; width:48%; min-height:39px; margin:12px auto 0; font-size:11px; }
+  .joinOr { color:#fff; text-align:center; font-size:12px; font-weight:1000; }
+  .joinCreateCard { padding:22px; border-radius:25px; text-align:center; }
+  .joinCreateIcon { width:70px; height:70px; margin:auto; display:grid; place-items:center; border-radius:50%; color:#fff; background:#ff9415; font-size:38px; }
+  .joinCreateCard h3 { margin-top:12px; font-size:18px; }
+  .joinCreateCard p { margin:8px 0 17px; color:#bfc7d7; font-size:10px; line-height:1.5; }
+  .joinCreateCard .roomPrimary { width:100%; font-size:12px; }
+  .joinInfo { padding:19px; border-radius:22px; }
+  .joinInfo h3 { color:#85d8ff; font-size:15px; }
+  .joinInfo p { margin:11px 0; color:#d0d7e5; font-size:10px; line-height:1.45; }
+  #roomOnline #roomLobby { overflow:auto; }
+  #roomOnline #roomLobby .lobbyGrid { max-width:1100px; margin:8px auto 0; }
+  @media (orientation:landscape) and (max-height:560px) {
+    #roomOnline { padding:4px 8px; }
+    #roomOnline .roomShell { padding:5px 11px; }
+    #roomOnline .roomHeader { min-height:47px; grid-template-columns:100px 1fr 195px; }
+    #roomOnline .roomTitle { font-size:31px; }
+    .roomBackBtn { min-height:30px; padding:4px 11px; font-size:10px; }
+    .roomIdentityBar { padding:3px 5px 3px 8px; } .roomIdentityBar input { height:25px; font-size:10px; }
+    #roomOnline .roomPanel { height:calc(100% - 53px); margin-top:3px; }
+    .onlineIntroGrid { grid-template-columns:minmax(260px,.9fr) minmax(330px,1.12fr) minmax(170px,.54fr); gap:10px; }
+    .roomChoiceColumn { gap:7px; } .onlineLead { margin:0 0 2px 9px!important; font-size:15px!important; }
+    .roomPortal { min-height:70px; grid-template-columns:53px 1fr 20px; gap:8px; padding:7px 10px 7px 5px; border-radius:15px; }
+    .portalIcon { min-height:53px; font-size:21px; } .roomPortal b { font-size:17px; } .roomPortal small { margin-top:2px; font-size:8px; } .roomPortal i { font-size:30px; }
+    .roomHowCard { padding:12px; border-radius:18px; } .howSteps { margin-top:9px; } .howSteps span { width:42px; height:42px; font-size:20px; } .howSteps b { margin-top:4px; font-size:8px; }
+    .onlineTip { margin-top:8px; padding:7px 9px; grid-template-columns:65px 1fr; font-size:7px; } .onlineTip b { font-size:9px; }
+    .onlineSideCard { min-height:220px; padding:11px 8px; gap:6px; border-radius:18px; }
+    .sideAvatar { width:68px; height:68px; font-size:33px; border-width:3px; } .onlineSideCard b { font-size:12px; } .onlineSideCard span { font-size:7px; }
+    .setupTitle { margin:2px 0 5px; font-size:25px; }
+    .roomSetupLayout { grid-template-columns:minmax(500px,1.4fr) minmax(190px,.5fr); gap:10px; }
+    .createSetupCard,.setupInfoCard { padding:10px; border-radius:17px; }
+    .setupFields { gap:5px 8px; } #roomOnline .setupFields .roomField { grid-template-columns:72px minmax(100px,1fr); }
+    #roomOnline .roomField select { min-height:31px; padding:3px 7px; font-size:9px; }
+    .createSetupCard > .roomPrimary { min-height:36px; margin-top:8px; font-size:11px; }
+    .setupInfoCard h3 { margin-bottom:5px; font-size:10px; } .setupInfoCard h3:nth-of-type(2){margin-top:9px}.setupInfoCard p{margin:3px 0;font-size:8px}.setupInfoCard .roomSecondary{min-height:30px;margin-top:7px}
+    .joinSetupLayout { grid-template-columns:minmax(320px,1fr) 40px minmax(235px,.68fr) minmax(170px,.48fr); gap:8px; }
+    .joinCodeCard,.joinCreateCard,.joinInfo { padding:12px; border-radius:17px; }
+    #joinRoomCode { height:50px; margin-top:7px; font-size:27px; } .joinCodeCard p { margin:6px 0 8px; font-size:8px; }
+    .joinCodeCard .roomPrimary { min-height:35px; font-size:11px; } .joinCodeCard .roomSecondary { min-height:27px; margin-top:7px; font-size:8px; }
+    .joinCreateIcon { width:45px; height:45px; font-size:25px; } .joinCreateCard h3 { margin-top:6px; font-size:13px; } .joinCreateCard p { margin:4px 0 8px; font-size:8px; }
+    .joinInfo h3 { font-size:11px; } .joinInfo p { margin:6px 0; font-size:7px; }
+  }
 </style>
 </head>
 <body>
@@ -844,41 +1019,101 @@
 <div class="overlay" id="roomOnline" aria-hidden="true">
   <div class="roomShell">
     <div class="roomHeader">
+      <button class="roomBackBtn" id="roomTopBack">‹ 戻る</button>
       <div class="roomTitle">ONLINE BATTLE</div>
-      <button class="roomBtn dark" id="roomTopBack">タイトルへ戻る</button>
+      <div class="roomIdentityBar">
+        <label for="roomPlayerName">PLAYER</label>
+        <input id="roomPlayerName" maxlength="12" value="Player">
+      </div>
     </div>
 
     <section class="roomPanel" id="roomHome">
-      <div class="roomField"><label for="roomPlayerName">プレイヤー名</label><input id="roomPlayerName" maxlength="12" value="Player"></div>
-      <div class="roomActions">
-        <button class="roomBtn" id="roomCreateOpen">ルームを作る</button>
-        <button class="roomBtn alt" id="roomJoinOpen">ルームに参加</button>
-      </div>
-      <div class="roomHint">招待URLを開いた場合はルームコードが自動入力されます。初期版は人間2人まで、残り枠はbotで補充します。</div>
-      <div id="gasSetup">
-        <b>マッチングサーバー：GAS</b>
-        <div class="roomHint">ルーム作成・参加だけGoogle Apps Scriptを使い、対戦中はWebRTCで直接通信します。</div>
+      <div class="onlineIntroGrid">
+        <div class="roomChoiceColumn">
+          <p class="onlineLead">フレンドと一緒に<br>インクバトル！</p>
+          <button class="roomPortal create" id="roomCreateOpen">
+            <span class="portalIcon">◎</span>
+            <span><b>ルームを作る</b><small>対戦設定を選んでフレンドを招待！</small></span>
+            <i>›</i>
+          </button>
+          <button class="roomPortal join" id="roomJoinOpen">
+            <span class="portalIcon">●●</span>
+            <span><b>ルームに参加</b><small>6桁のルームコードを入力して参加！</small></span>
+            <i>›</i>
+          </button>
+        </div>
+
+        <div class="roomHowCard">
+          <div class="roomCardLabel">遊び方</div>
+          <div class="howSteps">
+            <div><span>🔫</span><b>インクを塗る</b></div>
+            <i>•••</i>
+            <div><span>◆</span><b>インクに潜る</b></div>
+            <i>•••</i>
+            <div><span>⚑</span><b>たくさん塗って勝利</b></div>
+          </div>
+          <div class="onlineTip"><b>💡 ヒント</b><span>敵のインクは危険！ 潜って近道を作り、チームで広く塗ろう！</span></div>
+        </div>
+
+        <div class="onlineSideCard">
+          <div class="sideAvatar">●</div>
+          <b>ONLINE READY</b>
+          <span>人間2人から開始できます</span>
+          <span>不足枠はBOTが自動補充</span>
+          <div class="serverPill">● GAS MATCHING</div>
+        </div>
       </div>
     </section>
 
     <section class="roomPanel" id="roomCreatePanel" style="display:none">
-      <div class="roomField"><label>ルール</label><select id="createRule"><option value="turf">ナワバリバトル</option></select></div>
-      <div class="roomField"><label>ステージ</label><select id="createStage"><option value="ink_yard">インクヤード</option><option value="random">ランダム</option></select></div>
-      <div class="roomField"><label>対戦人数</label><select id="createTeamSize"><option value="1">1対1</option><option value="2">2対2</option><option value="3">3対3</option><option value="4" selected>4対4</option></select></div>
-      <div class="roomField"><label>bot補充</label><select id="createBotFill"><option value="true" selected>ON</option><option value="false">OFF</option></select></div>
-      <div class="roomField"><label>bot難易度</label><select id="createBotDifficulty"><option value="easy">やさしい</option><option value="normal" selected>ふつう</option><option value="hard">つよい</option></select></div>
-      <div class="roomField"><label>開始方法</label><select id="createStartMode"><option value="host" selected>ホストが開始</option><option value="auto" disabled>人数が揃ったら自動開始（v2）</option><option value="timed" disabled>30秒後にbot補充（v2）</option></select></div>
-      <div class="roomActions">
-        <button class="roomBtn" id="roomCreateConfirm">この設定で作成</button>
-        <button class="roomBtn dark" id="roomCreateCancel">戻る</button>
+      <div class="setupTitle orange"><span>◆</span> ルームを作る</div>
+      <div class="roomSetupLayout">
+        <div class="createSetupCard">
+          <div class="setupEyebrow">対戦設定 <small>あとで確認できます</small></div>
+          <div class="setupFields">
+            <div class="roomField"><label>ルール</label><select id="createRule"><option value="turf">ナワバリバトル</option></select></div>
+            <div class="roomField"><label>ステージ</label><select id="createStage"><option value="ink_yard">インクヤード</option><option value="random">ランダム</option></select></div>
+            <div class="roomField"><label>対戦人数</label><select id="createTeamSize"><option value="1">1対1</option><option value="2">2対2</option><option value="3">3対3</option><option value="4" selected>4対4</option></select></div>
+            <div class="roomField"><label>BOT補充</label><select id="createBotFill"><option value="true" selected>ON</option><option value="false">OFF</option></select></div>
+            <div class="roomField"><label>BOT難易度</label><select id="createBotDifficulty"><option value="easy">やさしい</option><option value="normal" selected>ふつう</option><option value="hard">つよい</option></select></div>
+            <div class="roomField"><label>開始方法</label><select id="createStartMode"><option value="host" selected>ホストが開始</option><option value="auto" disabled>人数が揃ったら自動開始（v2）</option><option value="timed" disabled>30秒後にbot補充（v2）</option></select></div>
+          </div>
+          <button class="roomPrimary create" id="roomCreateConfirm">ルームを作成</button>
+        </div>
+        <aside class="setupInfoCard">
+          <h3>オンライン情報</h3>
+          <p>👥 人間2人からバトル開始！</p>
+          <p>🤖 足りない枠はBOTが補充します</p>
+          <h3>おすすめ設定</h3>
+          <p>✓ 4対4</p><p>✓ BOT補充：ON</p><p>✓ ホストが開始</p>
+          <button class="roomSecondary" id="roomCreateCancel">選び直す</button>
+        </aside>
       </div>
     </section>
 
     <section class="roomPanel" id="roomJoinPanel" style="display:none">
-      <div class="roomField"><label for="joinRoomCode">6桁ルームコード</label><input id="joinRoomCode" inputmode="numeric" maxlength="6" placeholder="482193"></div>
-      <div class="roomActions">
-        <button class="roomBtn alt" id="roomJoinConfirm">参加する</button>
-        <button class="roomBtn dark" id="roomJoinCancel">戻る</button>
+      <div class="setupTitle purple"><span>◆</span> ルームに参加</div>
+      <div class="joinSetupLayout">
+        <div class="joinCodeCard">
+          <label for="joinRoomCode">6桁のルームコードを入力</label>
+          <input id="joinRoomCode" inputmode="numeric" maxlength="6" placeholder="482193" autocomplete="one-time-code">
+          <p>フレンドから教えてもらったコードを入力してください</p>
+          <button class="roomPrimary join" id="roomJoinConfirm">参加する</button>
+          <button class="roomSecondary" id="roomJoinCancel">選び直す</button>
+        </div>
+        <div class="joinOr">または</div>
+        <div class="joinCreateCard">
+          <span class="joinCreateIcon">◎</span>
+          <h3>自分でルームを作る</h3>
+          <p>ルールと人数を決めて、フレンドを招待できます。</p>
+          <button class="roomPrimary create" id="roomJoinToCreate">ルーム作成へ</button>
+        </div>
+        <aside class="joinInfo">
+          <h3>ONLINE</h3>
+          <p>● 招待URLならコードを自動入力</p>
+          <p>● 最低2人からスタート</p>
+          <p>● 対戦中はWebRTCで直接通信</p>
+        </aside>
       </div>
     </section>
 
@@ -3707,6 +3942,7 @@ document.getElementById('btnOnline').addEventListener('click',e=>{
 document.getElementById('roomTopBack').addEventListener('click',()=>leaveRoom(true));
 document.getElementById('roomCreateOpen').addEventListener('click',()=>setRoomPanel('roomCreatePanel'));
 document.getElementById('roomJoinOpen').addEventListener('click',()=>setRoomPanel('roomJoinPanel'));
+document.getElementById('roomJoinToCreate').addEventListener('click',()=>setRoomPanel('roomCreatePanel'));
 document.getElementById('roomCreateCancel').addEventListener('click',()=>setRoomPanel('roomHome'));
 document.getElementById('roomJoinCancel').addEventListener('click',()=>setRoomPanel('roomHome'));
 document.getElementById('roomCreateConfirm').addEventListener('click',async()=>{
