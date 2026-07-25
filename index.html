@@ -1176,14 +1176,26 @@
 
   /* ---------- ブキ選択 / ブキHUD ---------- */
   #weaponHud {
+    --hud-accent:#ff7a00;
     position:absolute; left:max(24px,env(safe-area-inset-left)); top:max(112px,calc(env(safe-area-inset-top) + 98px));
-    min-width:168px; display:flex; align-items:center; gap:9px; padding:7px 12px;
-    border:2px solid rgba(255,255,255,.2); border-radius:17px; color:#fff; background:rgba(8,12,22,.78);
-    box-shadow:0 5px 16px rgba(0,0,0,.28); backdrop-filter:blur(9px); pointer-events:none;
+    min-width:238px; display:grid; grid-template-columns:56px 1fr; align-items:center; gap:11px; overflow:hidden; padding:7px 14px 7px 8px;
+    border:2px solid rgba(255,255,255,.2); border-radius:20px; color:#fff;
+    background:linear-gradient(135deg,rgba(23,29,45,.94),rgba(7,11,23,.91));
+    box-shadow:0 7px 0 rgba(4,7,14,.48),0 9px 22px rgba(0,0,0,.32),inset 0 0 0 1px rgba(255,255,255,.055);
+    backdrop-filter:blur(11px); pointer-events:none;
   }
-  #weaponHudIcon { width:31px; height:31px; display:grid; place-items:center; border-radius:50%; background:linear-gradient(145deg,#ff9b18,#8c2aea); font-size:17px; }
-  #weaponHudName { display:block; font-size:11px; font-weight:1000; }
-  #weaponHudLoadout { display:block; margin-top:2px; color:#c8d0e1; font-size:7px; }
+  #weaponHud::before { content:''; position:absolute; left:0; top:12%; bottom:12%; width:5px; border-radius:0 5px 5px 0; background:var(--hud-accent); box-shadow:0 0 15px var(--hud-accent); }
+  #weaponHud::after { content:''; position:absolute; left:10px; right:10px; top:1px; height:1px; background:linear-gradient(90deg,transparent,rgba(255,255,255,.5),transparent); }
+  .weaponHudArt { position:relative; width:54px; height:54px; overflow:hidden; border-radius:15px; background:#0a0717; box-shadow:inset 0 0 0 2px rgba(210,168,255,.42),0 0 13px rgba(123,37,239,.24); }
+  #weaponHudImage { display:block; width:100%; height:100%; object-fit:cover; }
+  .weaponHudMain {
+    position:absolute; left:4px; bottom:3px; padding:1px 4px; border-radius:5px; color:#121525;
+    background:#caff16; font-size:5px; font-weight:1000; letter-spacing:.05em; box-shadow:0 1px 3px rgba(0,0,0,.4);
+  }
+  .weaponHudCopy { min-width:0; text-align:left; }
+  .weaponHudKicker { display:block; margin-bottom:2px; color:var(--hud-accent); font-size:6px; font-weight:1000; letter-spacing:.14em; }
+  #weaponHudName { display:block; overflow:hidden; font-size:13px; line-height:1.12; font-weight:1000; white-space:nowrap; text-overflow:ellipsis; text-shadow:0 2px 0 rgba(0,0,0,.45); }
+  #weaponHudLoadout { display:block; margin-top:5px; overflow:hidden; color:#c8d0e1; font-size:7px; font-weight:750; white-space:nowrap; text-overflow:ellipsis; }
   #weaponChargeHud {
     position:absolute; left:50%; top:57%; width:190px; height:12px; padding:3px; overflow:hidden;
     border:2px solid rgba(255,255,255,.82); border-radius:9px; background:rgba(6,9,18,.72);
@@ -1307,8 +1319,9 @@
   .ui-confirm,.sub-sprinkler,.special-inkRain { background-position:0 100%; }
   .ui-back,.sub-utility,.special-megaCannon { background-position:100% 100%; }
   @media (orientation:landscape) and (max-height:620px) {
-    #weaponHud { left:max(8px,env(safe-area-inset-left)); top:max(74px,calc(env(safe-area-inset-top) + 67px)); min-width:126px; padding:4px 7px; }
-    #weaponHudIcon { width:24px; height:24px; font-size:12px; } #weaponHudName { font-size:8px; } #weaponHudLoadout { font-size:5px; }
+    #weaponHud { left:max(8px,env(safe-area-inset-left)); top:max(74px,calc(env(safe-area-inset-top) + 67px)); min-width:168px; grid-template-columns:38px 1fr; gap:6px; padding:4px 8px 4px 6px; border-radius:13px; box-shadow:0 4px 0 rgba(4,7,14,.48),0 6px 14px rgba(0,0,0,.28); }
+    .weaponHudArt { width:36px; height:36px; border-radius:9px; }.weaponHudMain { left:2px; bottom:2px; padding:0 2px; font-size:3px; }
+    .weaponHudKicker { margin-bottom:1px; font-size:4px; }#weaponHudName { font-size:8px; } #weaponHudLoadout { margin-top:2px; font-size:5px; }
     #weaponPanel { padding:6px max(8px,env(safe-area-inset-right)) 6px max(8px,env(safe-area-inset-left)); }
     .weaponSelectCard { width:100%; height:100%; padding:8px 11px; border-radius:16px; }
     .weaponTitleWrap { gap:7px; }.weaponTitleMark { width:38px; height:38px; border-radius:10px; }
@@ -1380,8 +1393,8 @@
     <div id="deathWeapon">インクシューター</div>
   </div>
   <div id="weaponHud">
-    <span id="weaponHudIcon">🔫</span>
-    <span><b id="weaponHudName">インクシューター</b><small id="weaponHudLoadout">インクボム＋オーバードライブ</small></span>
+    <span class="weaponHudArt"><img id="weaponHudImage" alt="装備中の武器"><i class="weaponHudMain">MAIN</i></span>
+    <span class="weaponHudCopy"><i class="weaponHudKicker">EQUIPPED WEAPON</i><b id="weaponHudName">インクシューター</b><small id="weaponHudLoadout">SUB インクボム　|　SP オーバードライブ</small></span>
   </div>
   <div id="weaponChargeHud"><div id="weaponChargeFill"></div></div>
   <div id="specialAnnouncement" role="status" aria-live="polite"></div>
@@ -2446,15 +2459,20 @@ function applyWeaponVisual(entity,key){
 }
 function updateWeaponUI(){
   const w=selectedLoadout();
-  document.getElementById('weaponHudIcon').textContent=w.icon;
   document.getElementById('weaponHudName').textContent=w.name;
-  document.getElementById('weaponHudLoadout').textContent=`${w.subName}＋${w.specialName}`;
+  document.getElementById('weaponHudLoadout').textContent=`SUB ${w.subName}　|　SP ${w.specialName}`;
   document.getElementById('btnSub').innerHTML=`<span class="btnAbilitySprite subSprite sub-${w.sub}"></span>${w.subName.replace('インク','')}`;
   document.getElementById('btnSpecial').innerHTML=`<span class="btnAbilitySprite specialSprite special-${w.special}"></span>${w.specialName}`;
   document.querySelectorAll('.weaponCard').forEach(card=>card.classList.toggle('selected',card.dataset.weapon===selectedWeaponKey));
   const selectedCard=document.querySelector(`.weaponCard[data-weapon="${selectedWeaponKey}"]`);
   const selectedImage=selectedCard&&selectedCard.querySelector('.weaponImage');
-  if(selectedImage) document.getElementById('weaponSetImg').src=selectedImage.src;
+  if(selectedImage){
+    document.getElementById('weaponSetImg').src=selectedImage.src;
+    const hudImage=document.getElementById('weaponHudImage');
+    hudImage.src=selectedImage.src;
+    hudImage.alt=w.name;
+  }
+  document.getElementById('weaponHud').style.setProperty('--hud-accent',TEAM[player.team].css);
   document.getElementById('weaponSetName').textContent=w.name;
   document.getElementById('weaponSetSub').textContent=w.subName;
   document.getElementById('weaponSetSpecial').textContent=w.specialName;
@@ -2484,6 +2502,7 @@ function setPlayerTeam(team){
   if (!TEAM[team]) return;
   player.team = team;
   applyKidTeamColor(player, team);
+  document.getElementById('weaponHud').style.setProperty('--hud-accent',TEAM[team].css);
 }
 
 function mySpawn(){ return player.team === 'A' ? SPAWN_A : SPAWN_B; }
