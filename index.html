@@ -2491,6 +2491,7 @@ const player = {
   special: 0,
   charge: 0,
   wasFiring: false,
+  launchPaintT: 0,
   dualieSlideT: 0,
   precisionT: 0,
   overdriveT: 0,
@@ -2714,7 +2715,7 @@ function shoot(origin, dir, team, opts = {}){
   const speed=opts.speed!=null?opts.speed:26;
   const vel = opts.vel ? opts.vel.clone()
     : dir.clone().multiplyScalar(speed).add(new THREE.Vector3((Math.random()-0.5)*spread, (Math.random()-0.5)*verticalSpread + (opts.lift!=null?opts.lift:2.2), (Math.random()-0.5)*spread));
-  const r = opts.r != null ? opts.r : 1.55 + Math.random()*0.5;
+  const r = opts.r != null ? opts.r : 1.9 + Math.random()*0.55;
   const m = new THREE.Mesh(projGeoA, projMat[team]);
   m.position.copy(origin);
   m.scale.setScalar(0.85 + Math.random()*0.35);
@@ -2728,6 +2729,7 @@ function shoot(origin, dir, team, opts = {}){
     gravity: opts.gravity!=null?opts.gravity:34,
     damage: opts.damage != null ? opts.damage : (opts.fromPlayer ? 34 : 20),
     emerge: !!opts.emerge,
+    midPainted: false,
     sourceName: opts.sourceName || '',
     weapon: opts.weapon || (opts.emerge ? '飛び出しショット' : 'インクシューター'),
   });
@@ -3229,7 +3231,7 @@ function resetGame(){
   player.climbing = false; player.surfaceAttackT = 0; player.emergeWindow = 0; player.enemyInkT = 0;
   player.climbSurface = null; player.climbGrace = 0;
   player.rollT = 0; player.rollCd = 0; player.superJump = null; player.special = 0;
-  player.charge=0; player.wasFiring=false; player.dualieSlideT=0; player.precisionT=0;
+  player.charge=0; player.wasFiring=false; player.launchPaintT=0; player.dualieSlideT=0; player.precisionT=0;
   player.overdriveT=0; player.barrierT=0; player.specialPoseT=0; player.rollerTrailT=0;
   barrierMesh.visible=false; specialEffects.length=0;
   document.getElementById('weaponChargeHud').style.opacity='0';
@@ -3686,12 +3688,29 @@ function updateCamera(dt){
 function weaponAimDirection(yaw=camYaw){
   return new THREE.Vector3(-Math.sin(yaw),Math.sin(-camPitch*.55+.18),-Math.cos(yaw)).normalize();
 }
+function paintWeaponLaunch(type,power=1){
+  if ((player.launchPaintT||0)>0) return;
+  const config = {
+    shooter: { radius:1.42, length:2.8, step:2.15, cooldown:.13 },
+    dualies: { radius:1.32, length:2.65, step:2.05, cooldown:.13 },
+    slosher: { radius:1.72, length:3.4, step:2.45, cooldown:.26 },
+    charger: { radius:.9+power*.38, length:2.6+power*1.3, step:2, cooldown:.18 },
+    roller: { radius:1.9, length:2.8, step:2.2, cooldown:.18 }
+  }[type] || { radius:1.4, length:2.7, step:1.3, cooldown:.12 };
+  player.launchPaintT=config.cooldown;
+  const fx=-Math.sin(camYaw),fz=-Math.cos(camYaw);
+  for(let d=0;d<=config.length;d+=config.step){
+    const taper=1-d/Math.max(config.length,1);
+    paint(player.pos.x+fx*d,player.pos.z+fz*d,config.radius*(.82+taper*.18),player.team);
+  }
+  addSpecial(.004);
+}
 function paintChargerLine(dir,power){
   const distance=9+power*27;
-  for(let d=2;d<=distance;d+=1.65){
+  for(let d=.55;d<=distance;d+=1.35){
     const x=player.pos.x+dir.x*d,z=player.pos.z+dir.z*d;
     if(Math.abs(x)>=ARENA/2||Math.abs(z)>=ARENA/2)break;
-    paint(x,z,.42+power*.28,player.team);
+    paint(x,z,.72+power*.4,player.team);
   }
   addSpecial(.045+power*.09);
 }
@@ -3703,7 +3722,7 @@ function fireRollerSwing(dir,vertical){
     const shotDir=new THREE.Vector3(-Math.sin(yaw),vertical?.28:.16,-Math.cos(yaw)).normalize();
     const origin=player.pos.clone().add(new THREE.Vector3(shotDir.x*.9,vertical?1.45:1.05,shotDir.z*.9));
     shoot(origin,shotDir,player.team,{
-      fromPlayer:true,broadcast:true,damage:vertical?62:48,r:vertical?2.05:1.72,
+      fromPlayer:true,broadcast:true,damage:vertical?62:48,r:vertical?2.4:2.05,
       speed:vertical?27:21,lift:vertical?2.6:1.6,gravity:vertical?24:31,life:1.55,
       spread:.16,verticalSpread:.12,weapon:vertical?'ローラー縦振り':'ローラー横振り'
     });
@@ -3719,6 +3738,7 @@ function updateWeaponFire(dt,mlen,onAir){
   const rateBoost=player.overdriveT>0?.58:1;
   const chargeHud=document.getElementById('weaponChargeHud');
   const chargeFill=document.getElementById('weaponChargeFill');
+  player.launchPaintT=Math.max(0,(player.launchPaintT||0)-dt);
 
   if(type==='charger'){
     if(firing&&player.ink>.006){
@@ -3733,10 +3753,11 @@ function updateWeaponFire(dt,mlen,onAir){
       player.fireCd=.32;
       const shotDir=weaponAimDirection();
       shoot(origin,shotDir,player.team,{
-        fromPlayer:true,broadcast:true,damage:24+q*92,r:.65+q*.9,
+        fromPlayer:true,broadcast:true,damage:24+q*92,r:.85+q*1.1,
         speed:35+q*25,lift:.35,gravity:4.5,life:2.6+q*1.4,spread:.04,verticalSpread:.04,
         weapon:'ラインチャージャー'
       });
+      paintWeaponLaunch('charger',q);
       paintChargerLine(shotDir,q);
       burst(origin.clone(),player.team,8+Math.round(q*10),4+q*4);
       addShake(.25+q*.55);
@@ -3756,6 +3777,7 @@ function updateWeaponFire(dt,mlen,onAir){
       const vertical=onAir;
       player.ink-=vertical?.1:.075;
       player.fireCd=vertical?.76:.62;
+      paintWeaponLaunch('roller',vertical?1.15:1);
       fireRollerSwing(dir,vertical);
     }
     if(firing&&mlen>.08&&!onAir&&player.ink>.012){
@@ -3763,7 +3785,7 @@ function updateWeaponFire(dt,mlen,onAir){
         player.rollerTrailT=.09;
         player.ink-=.012;
         const x=player.pos.x-Math.sin(player.yaw)*.25,z=player.pos.z-Math.cos(player.yaw)*.25;
-        paint(x,z,1.72,player.team);
+        paint(x,z,2.05,player.team);
         addSpecial(.006);
         for(const b of bots){
           if(!b.active||b.dead||b.team===player.team)continue;
@@ -3782,11 +3804,12 @@ function updateWeaponFire(dt,mlen,onAir){
       for(let i=0;i<3;i++){
         const arcDir=weaponAimDirection(camYaw+(i-1)*.035);
         shoot(origin,arcDir,player.team,{
-          fromPlayer:true,broadcast:true,damage:34,r:2.15+i*.18,
+          fromPlayer:true,broadcast:true,damage:34,r:2.55+i*.2,
           vel:arcDir.clone().multiplyScalar(16+i*2).add(new THREE.Vector3(0,9.2+i*1.2,0)),
           gravity:22,life:2.5,weapon:'アークスロッシャー'
         });
       }
+      paintWeaponLaunch('slosher');
       addShake(.42);
     }else if(type==='dualies'){
       player.fireCd=.072*rateBoost;
@@ -3796,26 +3819,27 @@ function updateWeaponFire(dt,mlen,onAir){
       const sideVec=new THREE.Vector3(Math.cos(camYaw)*side,0,-Math.sin(camYaw)*side);
       const spread=player.precisionT>0?.22:(onAir?2.3:.85);
       shoot(origin.clone().add(sideVec),dir,player.team,{
-        fromPlayer:true,broadcast:true,emerge,damage:emerge?34:22,r:emerge?1.8:1.1,
+        fromPlayer:true,broadcast:true,emerge,damage:emerge?34:22,r:emerge?2.15:1.38,
         speed:29,spread,verticalSpread:spread*.65,weapon:'ツインマニューバー'
       });
+      paintWeaponLaunch('dualies');
       addShake(emerge?.24:.1);
     }else{
       player.fireCd=(emerge?.28:.095)*rateBoost;
       player.ink=Math.max(0,player.ink-(emerge?.055:.022));
       const spread=onAir?3.1:1.25;
       shoot(origin,dir,player.team,{
-        fromPlayer:true,broadcast:true,emerge,damage:emerge?44:34,r:emerge?2.25:undefined,
+        fromPlayer:true,broadcast:true,emerge,damage:emerge?44:34,r:emerge?2.7:undefined,
         speed:emerge?31:27,spread:emerge?.2:spread,verticalSpread:emerge?.2:spread*.72,
         weapon:loadout.name
       });
+      paintWeaponLaunch('shooter');
       addShake(emerge?.36:.16);
     }
     if(emerge){
       player.emergeWindow=0;
       burst(player.pos.clone().add(new THREE.Vector3(0,.45,0)),player.team,13,5);
     }
-    if(Math.random()<.22)paint(player.pos.x+(Math.random()-.5),player.pos.z+(Math.random()-.5),.65,player.team);
   }
   player.wasFiring=firing;
 }
@@ -4173,6 +4197,14 @@ function updateProjectiles(dt){
     // 弾の向き（進行方向へ伸ばす）
     p.mesh.scale.y = 1 + Math.min(0.8, p.vel.length()*0.012);
     p.mesh.lookAt(pos.x + p.vel.x, pos.y + p.vel.y, pos.z + p.vel.z);
+
+    // 発射地点と着弾点の間にも一度塗りを置き、射線が途切れないようにする。
+    if (!p.ghost && p.fromPlayer && !p.midPainted && pos.y<=.9 &&
+        Math.abs(pos.x)<ARENA/2 && Math.abs(pos.z)<ARENA/2){
+      p.midPainted=true;
+      paint(pos.x,pos.z,Math.max(.9,p.r*.72),p.team);
+      addSpecial(.003);
+    }
 
     let dead = false;
     // 潜行中も無敵ではないが、当たり判定が小さくなる。
