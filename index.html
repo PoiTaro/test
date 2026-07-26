@@ -780,11 +780,31 @@
   }
   .tbtn::before { content:''; position:absolute; left:18%; top:10%; width:42%; height:18%; border-radius:50%; background:rgba(255,255,255,.52); transform:rotate(-18deg); pointer-events:none; }
   .btnGlyph { display:block; margin-bottom:-2px; font-size:1.35em; line-height:.8; }
-  .tbtn:active { transform:scale(.92); filter:brightness(1.12); }
-  #btnFire { right:max(28px,calc(env(safe-area-inset-right) + 16px)); bottom:max(34px,calc(env(safe-area-inset-bottom) + 18px)); width:122px; height:122px; font-size:25px; background:radial-gradient(circle at 40% 35%,#ffb936,#ff7610 55%,#e74000 78%); }
-  #btnSwim { right:max(166px,calc(env(safe-area-inset-right) + 154px)); bottom:max(28px,calc(env(safe-area-inset-bottom) + 16px)); width:80px; height:80px; font-size:15px; background:radial-gradient(circle at 40% 34%,#8ee9ff,#249fe8 56%,#0862c6); }
-  #btnJump { right:max(145px,calc(env(safe-area-inset-right) + 133px)); bottom:max(124px,calc(env(safe-area-inset-bottom) + 112px)); width:72px; height:72px; font-size:14px; background:radial-gradient(circle at 40% 34%,#c8ff7d,#62ce39 56%,#2b9c2e); }
-  #btnSub { right:max(42px,calc(env(safe-area-inset-right) + 30px)); bottom:max(178px,calc(env(safe-area-inset-bottom) + 166px)); width:66px; height:66px; font-size:12px; background:radial-gradient(circle at 40% 34%,#ffe56f,#f39b14 58%,#d26c00); }
+  .tbtn:active { transform:scale(.9); filter:brightness(1.12) drop-shadow(0 5px 5px rgba(0,0,0,.48)); }
+  #btnFire,#btnSwim,#btnJump,#btnSub {
+    border:0; border-radius:0; box-shadow:none; overflow:visible;
+    background-color:transparent;
+    background-image:url('assets/hud-action-splash-sheet-v1.png');
+    background-repeat:no-repeat; background-size:200% 200%;
+    filter:drop-shadow(0 7px 6px rgba(0,0,0,.48));
+  }
+  #btnFire::before,#btnSwim::before,#btnJump::before,#btnSub::before { display:none; }
+  #btnFire {
+    right:max(18px,calc(env(safe-area-inset-right) + 8px)); bottom:max(24px,calc(env(safe-area-inset-bottom) + 12px));
+    width:142px; height:142px; font-size:28px; background-position:0 0;
+  }
+  #btnSwim {
+    right:max(164px,calc(env(safe-area-inset-right) + 152px)); bottom:max(24px,calc(env(safe-area-inset-bottom) + 12px));
+    width:98px; height:98px; font-size:15px; background-position:100% 0;
+  }
+  #btnJump {
+    right:max(151px,calc(env(safe-area-inset-right) + 139px)); bottom:max(126px,calc(env(safe-area-inset-bottom) + 114px));
+    width:90px; height:90px; font-size:13px; background-position:0 100%;
+  }
+  #btnSub {
+    right:max(38px,calc(env(safe-area-inset-right) + 26px)); bottom:max(185px,calc(env(safe-area-inset-bottom) + 173px));
+    width:78px; height:78px; font-size:11px; background-position:100% 100%;
+  }
   #btnSpecial { right:max(236px,calc(env(safe-area-inset-right) + 224px)); bottom:max(30px,calc(env(safe-area-inset-bottom) + 18px)); width:72px; height:72px; border-color:#fff266; }
   #btnMap,#btnSettings {
     top:max(20px,env(safe-area-inset-top)); border:4px solid #101522; background:linear-gradient(#2c3749,#111827);
@@ -821,10 +841,10 @@
     #stick { left:max(22px,calc(env(safe-area-inset-left) + 10px));bottom:max(18px,calc(env(safe-area-inset-bottom) + 8px));width:118px;height:118px; }
     #knob { width:48px;height:48px;border-width:3px; }
     .stickArrow { font-size:11px; }
-    #btnFire { right:max(18px,calc(env(safe-area-inset-right) + 8px));bottom:max(18px,calc(env(safe-area-inset-bottom) + 8px));width:94px;height:94px;font-size:20px; }
-    #btnSwim { right:max(124px,calc(env(safe-area-inset-right) + 114px));bottom:max(12px,calc(env(safe-area-inset-bottom) + 4px));width:62px;height:62px;font-size:12px; }
-    #btnJump { right:max(112px,calc(env(safe-area-inset-right) + 102px));bottom:max(82px,calc(env(safe-area-inset-bottom) + 72px));width:57px;height:57px;font-size:11px; }
-    #btnSub { right:max(23px,calc(env(safe-area-inset-right) + 13px));bottom:max(121px,calc(env(safe-area-inset-bottom) + 111px));width:52px;height:52px;font-size:9px; }
+    #btnFire { right:max(10px,calc(env(safe-area-inset-right) + 2px));bottom:max(10px,calc(env(safe-area-inset-bottom) + 2px));width:110px;height:110px;font-size:21px; }
+    #btnSwim { right:max(119px,calc(env(safe-area-inset-right) + 109px));bottom:max(8px,env(safe-area-inset-bottom));width:74px;height:74px;font-size:11px; }
+    #btnJump { right:max(111px,calc(env(safe-area-inset-right) + 101px));bottom:max(82px,calc(env(safe-area-inset-bottom) + 72px));width:68px;height:68px;font-size:10px; }
+    #btnSub { right:max(20px,calc(env(safe-area-inset-right) + 10px));bottom:max(119px,calc(env(safe-area-inset-bottom) + 109px));width:60px;height:60px;font-size:8px; }
     #btnSpecial { right:max(184px,calc(env(safe-area-inset-right) + 174px));bottom:max(12px,calc(env(safe-area-inset-bottom) + 4px));width:58px;height:58px;font-size:9px; }
     #btnMap,#btnSettings { top:max(7px,env(safe-area-inset-top));border-width:3px; }
     #btnMap { right:max(9px,env(safe-area-inset-right));height:38px;padding:0 15px;font-size:11px; }
