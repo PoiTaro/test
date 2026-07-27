@@ -25,6 +25,12 @@
   .formalCopy,.noticeCopy,.helpCopy,.descriptionCopy {
     font-family:var(--font-formal); font-weight:700;
   }
+  .modeSub,.stageName,.matchHint,.profileMeta,#titleWeaponBtn,
+  .resultAction,.resultSectionTitle,.resultRibbon,.resultStat span,
+  #titleSettingsBtn,.ruleBadges span,#mapCard .panelText {
+    font-family:var(--font-formal); font-weight:700;
+  }
+  #title .titleTagline { font-family:var(--font-game); }
   #game { position:fixed; inset:0; }
   canvas { display:block; }
 
@@ -815,6 +821,7 @@
   .jumpGlyph::before { content:'↑'; font-weight:1000; }
   .swimGlyph::before { content:'≋'; font-weight:1000; transform:scaleX(1.12); }
   .abilityButtonLabel { display:block; margin-top:1px; font-size:.78em; line-height:1; }
+  .btnText { display:inline-block; position:relative; }
   #btnFire {
     right:max(18px,calc(env(safe-area-inset-right) + 8px)); bottom:max(24px,calc(env(safe-area-inset-bottom) + 12px));
     width:142px; height:142px; font-size:28px; background-position:0 0;
@@ -861,6 +868,7 @@
     #midBadge { width:29px;height:29px;border-width:3px;font-size:14px; }
     .covlabel { font-size:13px; }
     #kills { top:max(8px,env(safe-area-inset-top));left:max(9px,env(safe-area-inset-left));padding:3px 11px 3px 4px;border-width:3px;font-size:12px; }
+    #kills .killCountLabel { display:inline-block; translate:3px 0; }
     .splatMark { width:26px;height:26px;font-size:20px; }
     #resourceHud { width:min(300px,36vw);bottom:max(7px,env(safe-area-inset-bottom)); }
     .inkLine { padding:3px 4px 3px 9px;border-width:2px; }
@@ -874,8 +882,13 @@
     .stickArrow { font-size:11px; }
     #btnFire { right:max(10px,calc(env(safe-area-inset-right) + 2px));bottom:max(10px,calc(env(safe-area-inset-bottom) + 2px));width:110px;height:110px;font-size:21px; }
     #btnSwim { right:max(119px,calc(env(safe-area-inset-right) + 109px));bottom:max(8px,env(safe-area-inset-bottom));width:74px;height:74px;font-size:11px; }
-    #btnJump { right:max(111px,calc(env(safe-area-inset-right) + 101px));bottom:max(82px,calc(env(safe-area-inset-bottom) + 72px));width:68px;height:68px;font-size:10px; }
-    #btnSub { right:max(20px,calc(env(safe-area-inset-right) + 10px));bottom:max(119px,calc(env(safe-area-inset-bottom) + 109px));width:60px;height:60px;font-size:8px; }
+    #btnJump { right:max(111px,calc(env(safe-area-inset-right) + 101px));bottom:max(82px,calc(env(safe-area-inset-bottom) + 72px));width:72px;height:65px;font-size:10px;translate:12px 17px; }
+    #btnSub { right:max(20px,calc(env(safe-area-inset-right) + 10px));bottom:max(119px,calc(env(safe-area-inset-bottom) + 109px));width:68px;height:64px;font-size:8px;translate:-1px 25px; }
+    #btnJump .btnText { translate:6px -15px; }
+    #btnSub .btnAbilitySprite { display:none; }
+    #btnSub .abilityButtonLabel { width:54px; translate:0 -10px; }
+    #btnFire .btnText { translate:9px 10px; }
+    #btnSwim .btnText { translate:0 -3px; }
     #btnSpecial { right:-20px;bottom:-9px;width:50px;height:50px;font-size:7px; }
     #btnSpecial .btnAbilitySprite { width:27px;height:27px;border-radius:8px; }
     #btnSpecial .abilityButtonLabel { font-size:7px; }
@@ -1444,7 +1457,7 @@
 <div id="game"></div>
 
 <div id="hud">
-  <div id="kills"><span class="splatMark">✹</span><span>SPLAT ×0</span></div>
+  <div id="kills"><span class="splatMark">✹</span><span class="killCountLabel">たおした×0</span></div>
   <div id="topBattleHud">
     <div id="battleTopRow">
       <div id="teamAStatus" class="teamRoster">
@@ -1510,10 +1523,10 @@
   <span class="stickArrow down">▼</span><span class="stickArrow left">◀</span>
   <div id="knob"></div>
 </div>
-<button id="btnFire" class="tbtn touchonly">FIRE</button>
-<button id="btnSwim" class="tbtn touchonly"><span class="btnGlyph swimGlyph" aria-hidden="true"></span>SWIM</button>
-<button id="btnJump" class="tbtn touchonly"><span class="btnGlyph jumpGlyph" aria-hidden="true"></span>JUMP</button>
-<button id="btnSub" class="tbtn touchonly"><span class="btnGlyph">●</span>BOMB</button>
+<button id="btnFire" class="tbtn touchonly"><span class="btnText">FIRE</span></button>
+<button id="btnSwim" class="tbtn touchonly"><span class="btnGlyph swimGlyph" aria-hidden="true"></span><span class="btnText">SWIM</span></button>
+<button id="btnJump" class="tbtn touchonly"><span class="btnGlyph jumpGlyph" aria-hidden="true"></span><span class="btnText">JUMP</span></button>
+<button id="btnSub" class="tbtn touchonly"><span class="btnAbilitySprite subSprite sub-inkBomb" aria-hidden="true"></span><span class="btnText abilityButtonLabel">BOMB</span></button>
 <button id="btnSettings" aria-label="操作設定">⚙</button>
 <button id="btnMap">MAP</button>
 
@@ -1532,17 +1545,17 @@
     <button class="modeCard online" id="btnOnline">
       <span class="modeTitle">オンラインで遊ぶ</span>
       <span class="modeSub">ルームを作成・参加して対戦！</span>
-      <span class="modeIcon">◎</span>
+      <span class="modeIcon" aria-hidden="true"></span>
     </button>
     <button class="modeCard friend" id="btnFriend">
       <span class="modeTitle">フレンドと遊ぶ</span>
       <span class="modeSub">6桁のルームコードを入力して参加</span>
-      <span class="modeIcon">♟</span>
+      <span class="modeIcon" aria-hidden="true"></span>
     </button>
     <button class="modeCard solo" id="startBtn">
       <span class="modeTitle">ひとりで遊ぶ</span>
       <span class="modeSub">CPUと自由にインクバトル</span>
-      <span class="modeIcon">◉</span>
+      <span class="modeIcon" aria-hidden="true"></span>
     </button>
   </main>
 
@@ -2563,7 +2576,7 @@ function updateWeaponUI(){
   document.getElementById('weaponHudName').textContent=w.name;
   document.getElementById('weaponHudLoadout').textContent=`SUB ${w.subName}　|　SP ${w.specialName}`;
   const subButton=document.getElementById('btnSub');
-  subButton.innerHTML=`<span class="btnAbilitySprite subSprite sub-${w.sub}"></span><span class="abilityButtonLabel">${w.sub==='inkBomb'?'BOMB':'SUB'}</span>`;
+  subButton.innerHTML=`<span class="btnAbilitySprite subSprite sub-${w.sub}" aria-hidden="true"></span><span class="btnText abilityButtonLabel">${w.sub==='inkBomb'?'BOMB':'SUB'}</span>`;
   subButton.setAttribute('aria-label',w.subName);
   const specialButton=document.getElementById('btnSpecial');
   specialButton.innerHTML=`<span class="btnAbilitySprite specialSprite special-${w.special}"></span><span class="abilityButtonLabel">SP</span>`;
@@ -2975,7 +2988,7 @@ function damageBot(b, dmg, hitPos, byPlayer, killerTeam, byRemote, weapon='イ�
 
 function addKill(victimName='相手',weapon='インクシューター'){
   kills++;
-  document.querySelector('#kills span:last-child').textContent = 'SPLAT ×' + kills;
+  document.querySelector('#kills span:last-child').textContent = 'たおした×' + kills;
   showKillNotice(victimName,weapon);
   // 撃破ボーナス：HPとインクが回復する
   if (!player.dead){
@@ -3284,7 +3297,7 @@ function resetGame(){
   updateSpecialUI();
   kills = 0; matchDistance = 0; specialUses = 0;
   dmgFlash = 0; healFlash = 0; shake = 0; stateT = 0; botSyncT = 0;
-  document.querySelector('#kills span:last-child').textContent = 'SPLAT ×0';
+  document.querySelector('#kills span:last-child').textContent = 'たおした×0';
   // 自陣が背後になる向きにカメラを合わせる
   camYaw = player.team === 'A' ? Math.PI * 0.75 : Math.PI * -0.25;
   camPitch = 0.38;
