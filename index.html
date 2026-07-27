@@ -337,6 +337,19 @@
   .stagePreview::before { left:25px; transform:skewY(-15deg); }
   .stagePreview::after { right:28px; transform:skewY(14deg); }
   .stageName { margin-top:7px; text-align:center; font-weight:1000; }
+  .titleStageSwitch {
+    display:block;margin:8px auto 0;padding:7px 16px;border:1px solid rgba(255,255,255,.22);
+    border-radius:999px;background:rgba(255,255,255,.1);color:#fff;font:700 12px "Noto Sans JP",sans-serif;
+    cursor:pointer;box-shadow:0 4px 12px #0005;
+  }
+  .titleStageSwitch:hover { background:#ff8a1e;transform:translateY(-1px); }
+  .stagePreview.saltSpire {
+    background:
+      linear-gradient(152deg,transparent 44%,#ff8a1e 45% 53%,transparent 54%),
+      linear-gradient(28deg,transparent 44%,#7c3bff 45% 53%,transparent 54%),
+      radial-gradient(circle at 50% 48%,#3a414b 0 13%,#d6d8db 14% 23%,#25303c 24% 31%,transparent 32%),
+      linear-gradient(#6fc8ee 0 34%,#176f9e 35% 100%);
+  }
   .ruleBadges { display:flex; gap:7px; margin-top:12px; }
   .ruleBadges span { flex:1; padding:6px; border-radius:12px; text-align:center; background:rgba(255,255,255,.11); font-size:10px; font-weight:900; }
   .titleBottom {
@@ -1563,8 +1576,9 @@
     <div class="ruleEyebrow">RULE</div>
     <h2>ナワバリバトル</h2>
     <p>3分間でより多くの面積を塗ったチームの勝ち！</p>
-    <div class="stagePreview" aria-label="インクヤードのプレビュー"></div>
-    <div class="stageName">インクヤード</div>
+    <div class="stagePreview saltSpire" id="titleStagePreview" aria-label="ソルトスパイア・ビーコンのプレビュー"></div>
+    <div class="stageName" id="titleStageName">ソルトスパイア・ビーコン</div>
+    <button class="titleStageSwitch" id="titleStageSwitch">ステージ変更</button>
     <div class="ruleBadges"><span>最大 4対4</span><span>BOT補充</span></div>
   </aside>
 
@@ -1700,7 +1714,7 @@
           <div class="setupEyebrow">対戦設定 <small>あとで確認できます</small></div>
           <div class="setupFields">
             <div class="roomField"><label>ルール</label><select id="createRule"><option value="turf">ナワバリバトル</option></select></div>
-            <div class="roomField"><label>ステージ</label><select id="createStage"><option value="ink_yard">インクヤード</option><option value="random">ランダム</option></select></div>
+            <div class="roomField"><label>ステージ</label><select id="createStage"><option value="salt_spire_beacon" selected>ソルトスパイア・ビーコン</option><option value="ink_yard">インクヤード</option><option value="random">ランダム</option></select></div>
             <div class="roomField"><label>対戦人数</label><select id="createTeamSize"><option value="1">1対1</option><option value="2">2対2</option><option value="3">3対3</option><option value="4" selected>4対4</option></select></div>
             <div class="roomField"><label>BOT補充</label><select id="createBotFill"><option value="true" selected>ON</option><option value="false">OFF</option></select></div>
             <div class="roomField"><label>BOT難易度</label><select id="createBotDifficulty"><option value="easy">やさしい</option><option value="normal" selected>ふつう</option><option value="hard">つよい</option></select></div>
@@ -1752,7 +1766,7 @@
           <h3>ルーム設定</h3>
           <div class="settingSummary">
             <div>ルール<b id="lobbyRule">ナワバリ</b></div>
-            <div>ステージ<b id="lobbyStage">インクヤード</b></div>
+            <div>ステージ<b id="lobbyStage">ソルトスパイア・ビーコン</b></div>
             <div>対戦人数<b id="lobbyTeamSize">4対4</b></div>
             <div>bot補充<b id="lobbyBotFill">ON</b></div>
             <div>bot難易度<b id="lobbyBotDifficulty">ふつう</b></div>
@@ -1977,16 +1991,20 @@ if (typeof THREE === 'undefined'){
 }
 
 // ---------- 基本設定 ----------
-const ARENA = 80;                 // ステージ一辺
+let ARENA = 80;                   // 互換用：現在のステージの長辺
+let ARENA_W = 80;                 // 現在のステージ幅（X）
+let ARENA_D = 80;                 // 現在のステージ奥行き（Z）
 const TEX = 1024;                 // 塗りテクスチャ解像度
 const GRID = 160;                 // 塗り判定グリッド
 const MATCH_TIME = 180;
+const STAGE_PROTOCOL_VERSION = 2;
+const STAGE_VERSION = 1;
 
 // ---------- モード ----------
 let mode = 'solo';      // 'solo' | 'online'
 let isHost = false;
 let net = null;         // P2P接続（後で初期化）
-let activeMatchSettings = { teamSize:4, botFill:true, botDifficulty:'normal', stage:'ink_yard' };
+let activeMatchSettings = { teamSize:4, botFill:true, botDifficulty:'normal', stage:'salt_spire_beacon' };
 function netSend(msg){ if (net && net.ready) net.send(msg); }
 
 const WEAPON_LOADOUTS = {
@@ -2042,9 +2060,9 @@ updateOrientationUI();
 
 // ---------- レンダラー / シーン ----------
 const renderer = new THREE.WebGLRenderer({ antialias:true, powerPreference:'high-performance' });
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, isTouch ? 1.35 : 2));
 renderer.setSize(innerWidth, innerHeight);
-renderer.shadowMap.enabled = true;
+renderer.shadowMap.enabled = !isTouch;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.outputEncoding = THREE.sRGBEncoding;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -2102,7 +2120,7 @@ const camera = new THREE.PerspectiveCamera(66, innerWidth/innerHeight, 0.1, 500)
 scene.add(new THREE.HemisphereLight(0xcfe6ff, 0xffd9a8, 0.75));
 const sun = new THREE.DirectionalLight(0xfff2dd, 1.35);
 sun.position.set(45, 70, 25);
-sun.castShadow = true;
+sun.castShadow = !isTouch;
 sun.shadow.mapSize.set(2048, 2048);
 sun.shadow.camera.left = -60; sun.shadow.camera.right = 60;
 sun.shadow.camera.top = 60;  sun.shadow.camera.bottom = -60;
@@ -2117,20 +2135,36 @@ scene.add(rim);
 const paintCv = document.createElement('canvas');
 paintCv.width = paintCv.height = TEX;
 const pctx = paintCv.getContext('2d');
+const stageMaskCv=document.createElement('canvas');
+stageMaskCv.width=stageMaskCv.height=GRID;
+const stageMaskCtx=stageMaskCv.getContext('2d');
 const paintTex = new THREE.CanvasTexture(paintCv);
 paintTex.encoding = THREE.sRGBEncoding;
 paintTex.anisotropy = renderer.capabilities.getMaxAnisotropy();
 
-function drawBaseFloor(){
-  pctx.fillStyle = '#c9ced6';
+function drawBaseFloor(stageId=''){
+  const salt=stageId==='salt_spire_beacon';
+  pctx.fillStyle = salt?'#a7afb6':'#c9ced6';
   pctx.fillRect(0,0,TEX,TEX);
   // タイル
-  pctx.strokeStyle = 'rgba(90,100,120,.35)';
-  pctx.lineWidth = 3;
-  const step = TEX/10;
-  for (let i=0;i<=10;i++){
+  pctx.strokeStyle = salt?'rgba(38,46,56,.42)':'rgba(90,100,120,.35)';
+  pctx.lineWidth = salt?2:3;
+  const divisions=salt?16:10,step = TEX/divisions;
+  for (let i=0;i<=divisions;i++){
     pctx.beginPath(); pctx.moveTo(i*step,0); pctx.lineTo(i*step,TEX); pctx.stroke();
     pctx.beginPath(); pctx.moveTo(0,i*step); pctx.lineTo(TEX,i*step); pctx.stroke();
+  }
+  if(salt){
+    // 潮風で傷んだ金属床。全面共通の軽量な手続きテクスチャとして共有する。
+    for(let i=0;i<140;i++){
+      const x=Math.random()*TEX,y=Math.random()*TEX,r=3+Math.random()*15;
+      pctx.fillStyle=`rgba(${125+Math.random()*45},${64+Math.random()*25},35,${.025+Math.random()*.06})`;
+      pctx.beginPath();pctx.arc(x,y,r,0,Math.PI*2);pctx.fill();
+    }
+    pctx.fillStyle='rgba(255,255,255,.2)';
+    for(let y=step/2;y<TEX;y+=step)for(let x=step/2;x<TEX;x+=step){
+      pctx.beginPath();pctx.arc(x,y,2.2,0,Math.PI*2);pctx.fill();
+    }
   }
   // ノイズ
   for (let i=0;i<2600;i++){
@@ -2141,25 +2175,34 @@ function drawBaseFloor(){
     pctx.fill();
   }
   // センターライン
-  pctx.fillStyle = 'rgba(255,255,60,.5)';
-  pctx.fillRect(0, TEX/2-5, TEX, 10);
+  pctx.fillStyle = salt?'rgba(239,177,31,.38)':'rgba(255,255,60,.5)';
+  pctx.fillRect(0, TEX/2-(salt?3:5), TEX, salt?6:10);
 }
 
 // 塗り判定グリッド
-let grid, countA, countB;
+let grid, paintMask, paintableCellCount, countA, countB;
 function resetGrid(){
   grid = new Int8Array(GRID*GRID);
+  paintMask = new Uint8Array(GRID*GRID);
+  paintMask.fill(1);
+  paintableCellCount = GRID*GRID;
   countA = 0; countB = 0;
 }
 resetGrid();
 drawBaseFloor();
 paintTex.needsUpdate = true;
 
-function worldToTex(x, z){ return [ (x/ARENA + 0.5) * TEX, (z/ARENA + 0.5) * TEX ]; }
+function worldToTex(x, z){ return [ (x/ARENA_W + 0.5) * TEX, (z/ARENA_D + 0.5) * TEX ]; }
+function worldToGrid(x, z){
+  return [
+    Math.round((x/ARENA_W + 0.5)*GRID),
+    Math.round((z/ARENA_D + 0.5)*GRID)
+  ];
+}
 
 function splat(x, z, radius, team){
   const [cx, cy] = worldToTex(x, z);
-  const pr = radius / ARENA * TEX;
+  const pr = radius / Math.min(ARENA_W,ARENA_D) * TEX;
   const col = TEAM[team];
   // メインの塊（放射グラデ）
   const blobs = 5 + Math.floor(Math.random()*4);
@@ -2185,14 +2228,16 @@ function splat(x, z, radius, team){
   paintTex.needsUpdate = true;
 
   // グリッド更新
-  const gx = Math.round((x/ARENA + 0.5)*GRID), gz = Math.round((z/ARENA + 0.5)*GRID);
-  const gr2 = Math.max(1, Math.round(radius/ARENA*GRID*0.85));
+  const [gx,gz] = worldToGrid(x,z);
+  const grx = Math.max(1, Math.round(radius/ARENA_W*GRID*0.85));
+  const grz = Math.max(1, Math.round(radius/ARENA_D*GRID*0.85));
   const t = team === 'A' ? 1 : 2;
-  for (let dz=-gr2; dz<=gr2; dz++) for (let dx=-gr2; dx<=gr2; dx++){
-    if (dx*dx+dz*dz > gr2*gr2) continue;
+  for (let dz=-grz; dz<=grz; dz++) for (let dx=-grx; dx<=grx; dx++){
+    if ((dx*dx)/(grx*grx)+(dz*dz)/(grz*grz) > 1) continue;
     const ix = gx+dx, iz = gz+dz;
     if (ix<0||iz<0||ix>=GRID||iz>=GRID) continue;
     const idx = iz*GRID+ix, prev = grid[idx];
+    if (!paintMask[idx]) continue;
     if (prev === t) continue;
     if (prev === 1) countA--; else if (prev === 2) countB--;
     grid[idx] = t;
@@ -2201,8 +2246,9 @@ function splat(x, z, radius, team){
 }
 
 function inkAt(x, z){
-  const ix = Math.round((x/ARENA + 0.5)*GRID), iz = Math.round((z/ARENA + 0.5)*GRID);
+  const [ix,iz] = worldToGrid(x,z);
   if (ix<0||iz<0||ix>=GRID||iz>=GRID) return 0;
+  if (!paintMask[iz*GRID+ix]) return 0;
   return grid[iz*GRID+ix];
 }
 
@@ -2213,42 +2259,88 @@ function paint(x, z, r, team){
 }
 
 // ---------- ステージ ----------
+// ステージは描画・塗装面・地面・壁コリジョンを分けて管理する。
+// これにより、平面のインクヤードと立体的なソルトスパイアを同じゲーム処理で切り替えられる。
 const floorMat = new THREE.MeshStandardMaterial({ map: paintTex, roughness: 0.42, metalness: 0.05 });
-const floor = new THREE.Mesh(new THREE.PlaneGeometry(ARENA, ARENA), floorMat);
-floor.rotation.x = -Math.PI/2;
-floor.receiveShadow = true;
-scene.add(floor);
-
-// 外周の地面
-{
-  const outer = new THREE.Mesh(
-    new THREE.PlaneGeometry(600, 600),
-    new THREE.MeshStandardMaterial({ color: 0x6fae6a, roughness: 1 })
-  );
-  outer.rotation.x = -Math.PI/2;
-  outer.position.y = -0.05;
-  outer.receiveShadow = true;
-  scene.add(outer);
-}
-
-// 障害物とコリジョン
 const obstacles = [];
+const groundSurfaces = [];
+const projectileColliders = obstacles;
+const SPAWN_A = new THREE.Vector3(-32, 0, -32);
+const SPAWN_B = new THREE.Vector3( 32, 0,  32);
+let activeStage = null;
+let activeStageRoot = null;
+const stageRailPostMatrices=[];
+
 const wallMat = new THREE.MeshStandardMaterial({ color: 0xe8eef4, roughness: 0.6 });
 const accentMatA = new THREE.MeshStandardMaterial({ color: TEAM.A.main, roughness: 0.5 });
 const accentMatB = new THREE.MeshStandardMaterial({ color: TEAM.B.main, roughness: 0.5 });
 
-function addBox(x, z, w, h, d, mat, solid=true, ry=0){
+function surfaceLocal(surface,x,z){
+  const dx=x-surface.x,dz=z-surface.z;
+  const c=Math.cos(surface.yaw||0),s=Math.sin(surface.yaw||0);
+  return {x:dx*c-dz*s,z:dx*s+dz*c};
+}
+function surfaceContains(surface,x,z){
+  if(surface.type==='ring'){
+    const d=Math.hypot(x-surface.x,z-surface.z);
+    return d>=surface.inner&&d<=surface.outer;
+  }
+  if(surface.type==='circle') return Math.hypot(x-surface.x,z-surface.z)<=surface.r;
+  const p=surfaceLocal(surface,x,z);
+  return Math.abs(p.x)<=surface.hw&&Math.abs(p.z)<=surface.hd;
+}
+function surfaceHeight(surface,x,z){
+  if(surface.type!=='ramp') return surface.y;
+  const p=surfaceLocal(surface,x,z);
+  const t=Math.max(0,Math.min(1,(surface.hd-p.z)/(surface.hd*2)));
+  return THREE.MathUtils.lerp(surface.yStart,surface.yEnd,t);
+}
+function registerGround(surface){ groundSurfaces.push(surface); return surface; }
+
+function mapWorldPaintUV(mesh){
+  const geometry=mesh.geometry;
+  if(!geometry.attributes.uv||!geometry.attributes.position)return;
+  mesh.updateMatrixWorld(true);
+  const pos=geometry.attributes.position,uv=geometry.attributes.uv;
+  const v=new THREE.Vector3();
+  for(let i=0;i<pos.count;i++){
+    v.fromBufferAttribute(pos,i).applyMatrix4(mesh.matrixWorld);
+    uv.setXY(i,v.x/ARENA_W+.5,.5-v.z/ARENA_D);
+  }
+  uv.needsUpdate=true;
+}
+function stageAdd(mesh){
+  (activeStageRoot||scene).add(mesh);
+  return mesh;
+}
+function addPaintPlane(x,z,w,d,y,yaw=0,material=floorMat){
+  const m=new THREE.Mesh(new THREE.PlaneGeometry(w,d),material);
+  m.position.set(x,y,z);
+  m.rotation.set(-Math.PI/2,yaw,0);
+  m.receiveShadow=true;
+  stageAdd(m);
+  mapWorldPaintUV(m);
+  if(material===floorMat&&activeStage)activeStage.paintableMeshes.push(m);
+  return m;
+}
+function addBox(x, z, w, h, d, mat, solid=true, ry=0, opts={}){
+  const baseY=opts.baseY||0;
   const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
-  m.position.set(x, h/2, z);
+  m.position.set(x, baseY+h/2, z);
   m.rotation.y = ry;
   m.castShadow = m.receiveShadow = true;
-  scene.add(m);
+  stageAdd(m);
   if (solid){
     const o = {
       id: obstacles.length, x, z, hw: w/2 + 0.55, hd: d/2 + 0.55,
-      wallHw: w/2, wallHd: d/2, h, mesh:m, paintable:ry === 0
+      wallHw: w/2, wallHd: d/2, h:baseY+h, yMin:baseY, mesh:m,
+      paintable:opts.paintable!==false&&ry===0
     };
     obstacles.push(o);
+    if(opts.walkable!==false&&o.paintable){
+      registerGround({type:'rect',x,z,hw:w/2,hd:d/2,y:o.h,yaw:ry,paintable:true});
+      addPaintPlane(x,z,w,d,o.h+.012,ry);
+    }
   }
   return m;
 }
@@ -2317,42 +2409,8 @@ function clearWallPaint(){
   }
   wallPaints.length = 0;
 }
-
-// 外壁
-{
-  const wm = new THREE.MeshStandardMaterial({ color: 0xb9c6d4, roughness: 0.8 });
-  const t = 2, h = 3.2;
-  addBox(0, -ARENA/2 - t/2, ARENA + t*2, h, t, wm);
-  addBox(0,  ARENA/2 + t/2, ARENA + t*2, h, t, wm);
-  addBox(-ARENA/2 - t/2, 0, t, h, ARENA, wm);
-  addBox( ARENA/2 + t/2, 0, t, h, ARENA, wm);
-}
-
-// 中央・左右の構造物（点対称配置）
-addBox(0, 0, 10, 2.4, 10, wallMat);
-addBox(0, 0, 4.5, 4.6, 4.5, new THREE.MeshStandardMaterial({ color: 0xf6c944, roughness: 0.45 }));
-for (const s of [1, -1]){
-  const am = s === 1 ? accentMatB : accentMatA;
-  addBox( 14*s,  14*s, 7, 3.0, 7, wallMat);
-  addBox(-16*s,  10*s, 5, 2.2, 12, wallMat);
-  addBox( 26*s,  -4*s, 6, 1.6, 6, am);
-  addBox(  6*s,  26*s, 12, 2.6, 4, wallMat);
-  addBox(-28*s, -24*s, 5, 1.4, 5, am);
-  // 円柱タワー
-  const cyl = new THREE.Mesh(new THREE.CylinderGeometry(2.4, 2.8, 6.5, 24), am);
-  cyl.position.set(-6*s, 3.25, -20*s);
-  cyl.castShadow = cyl.receiveShadow = true;
-  scene.add(cyl);
-  obstacles.push({ x:-6*s, z:-20*s, hw:3.3, hd:3.3, h:6.5 });
-}
-
-// 左右の近道を区切る壁。正面から回り込むか、インクを縦に塗って越える。
-for (const s of [-1, 1]){
-  addBox(22*s, 1*s, 2.6, 4.4, 13, wallMat);
-}
-
 // スポーンパッド
-function spawnPad(x, z, team){
+function spawnPad(x, z, y, team){
   const g = new THREE.Group();
   const base = new THREE.Mesh(new THREE.CylinderGeometry(4, 4.4, 0.5, 32),
     new THREE.MeshStandardMaterial({ color: TEAM[team].dark, roughness: 0.4 }));
@@ -2362,14 +2420,317 @@ function spawnPad(x, z, team){
   ring.rotation.x = Math.PI/2; ring.position.y = 0.58;
   base.castShadow = base.receiveShadow = true;
   g.add(base, ring);
-  g.position.set(x, 0, z);
-  scene.add(g);
+  g.position.set(x, y, z);
+  stageAdd(g);
   return g;
 }
-const SPAWN_A = new THREE.Vector3(-32, 0, -32);
-const SPAWN_B = new THREE.Vector3( 32, 0,  32);
-spawnPad(SPAWN_A.x, SPAWN_A.z, 'A');
-spawnPad(SPAWN_B.x, SPAWN_B.z, 'B');
+
+function makeHazardTexture(){
+  const cv=document.createElement('canvas');cv.width=256;cv.height=64;
+  const c=cv.getContext('2d');
+  c.fillStyle='#f3b51b';c.fillRect(0,0,256,64);
+  c.strokeStyle='#1a1d25';c.lineWidth=24;
+  for(let x=-80;x<340;x+=54){c.beginPath();c.moveTo(x,64);c.lineTo(x+70,0);c.stroke();}
+  const t=new THREE.CanvasTexture(cv);t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.set(3,1);t.encoding=THREE.sRGBEncoding;
+  return t;
+}
+function makeSignTexture(title,accent='#f0b323'){
+  const cv=document.createElement('canvas');cv.width=512;cv.height=256;
+  const c=cv.getContext('2d');
+  c.fillStyle='#111723';c.fillRect(0,0,512,256);
+  c.fillStyle=accent;c.fillRect(0,0,512,28);
+  c.fillStyle='rgba(255,255,255,.08)';
+  for(let i=0;i<9;i++)c.fillRect(30+i*58,52+(i%2)*98,28,28);
+  c.fillStyle='#fff';c.font='900 66px sans-serif';c.textAlign='center';c.fillText(title,256,142);
+  c.fillStyle='#a8b4c5';c.font='700 24px sans-serif';c.fillText('OFFSHORE WORKS • 07',256,190);
+  const t=new THREE.CanvasTexture(cv);t.encoding=THREE.sRGBEncoding;return t;
+}
+function addDeckRect(x,z,w,d,y,opts={}){
+  const baseY=opts.baseY==null?-3.15:opts.baseY;
+  const h=Math.max(.3,y-baseY);
+  const baseMat=opts.baseMat||STAGE_MATERIALS.darkMetal;
+  const base=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),baseMat);
+  base.position.set(x,baseY+h/2,z);base.castShadow=base.receiveShadow=true;stageAdd(base);
+  obstacles.push({
+    id:obstacles.length,x,z,hw:w/2+.35,hd:d/2+.35,wallHw:w/2,wallHd:d/2,
+    h:y,yMin:baseY,mesh:base,paintable:false
+  });
+  const topMat=opts.paintable===false?(opts.topMat||STAGE_MATERIALS.grate):floorMat;
+  addPaintPlane(x,z,w,d,y+.018,opts.yaw||0,topMat);
+  registerGround({type:'rect',x,z,hw:w/2,hd:d/2,y,yaw:opts.yaw||0,paintable:opts.paintable!==false});
+  return base;
+}
+function rampGeometry(x,z,width,length,yStart,yEnd,yaw){
+  const hw=width/2,hd=length/2,c=Math.cos(yaw),s=Math.sin(yaw);
+  const world=(lx,lz,y)=>[x+lx*c+lz*s,y,z-lx*s+lz*c];
+  const a=world(-hw, hd,yStart),b=world(hw,hd,yStart),c1=world(hw,-hd,yEnd),d=world(-hw,-hd,yEnd);
+  const g=new THREE.BufferGeometry();
+  g.setAttribute('position',new THREE.Float32BufferAttribute([...a,...b,...c1,...a,...c1,...d],3));
+  g.setAttribute('uv',new THREE.Float32BufferAttribute(new Array(12).fill(0),2));
+  g.computeVertexNormals();
+  return g;
+}
+function addRamp(x,z,width,length,yStart,yEnd,yaw=0,opts={}){
+  const m=new THREE.Mesh(rampGeometry(x,z,width,length,yStart,yEnd,yaw),opts.paintable===false?STAGE_MATERIALS.grate:floorMat);
+  m.receiveShadow=true;stageAdd(m);mapWorldPaintUV(m);
+  if(opts.paintable!==false&&activeStage)activeStage.paintableMeshes.push(m);
+  registerGround({type:'ramp',x,z,hw:width/2,hd:length/2,yStart,yEnd,y:Math.max(yStart,yEnd),yaw,paintable:opts.paintable!==false});
+  return m;
+}
+function addRampBetween(a,b,width,yStart,yEnd,opts={}){
+  const x=(a[0]+b[0])/2,z=(a[1]+b[1])/2;
+  const dx=b[0]-a[0],dz=b[1]-a[1],length=Math.hypot(dx,dz);
+  // ramp local +Z points from b back to a; yStart belongs to a.
+  const yaw=Math.atan2(dx,dz)+Math.PI;
+  return addRamp(x,z,width,length,yStart,yEnd,yaw,opts);
+}
+function addRailLine(x1,z1,x2,z2,y){
+  const dx=x2-x1,dz=z2-z1,len=Math.hypot(dx,dz),yaw=Math.atan2(dx,dz);
+  const rail=new THREE.Mesh(new THREE.BoxGeometry(.18,.18,len),STAGE_MATERIALS.rail);
+  rail.position.set((x1+x2)/2,y+1.18,(z1+z2)/2);rail.rotation.y=yaw;stageAdd(rail);
+  const count=Math.max(2,Math.ceil(len/4));
+  for(let i=0;i<count;i++){
+    const t=i/(count-1),matrix=new THREE.Matrix4();
+    matrix.makeTranslation(THREE.MathUtils.lerp(x1,x2,t),y+.62,THREE.MathUtils.lerp(z1,z2,t));
+    stageRailPostMatrices.push(matrix);
+  }
+}
+function flushRailPosts(){
+  if(!stageRailPostMatrices.length)return;
+  const posts=new THREE.InstancedMesh(new THREE.BoxGeometry(.18,1.25,.18),STAGE_MATERIALS.rail,stageRailPostMatrices.length);
+  stageRailPostMatrices.forEach((m,i)=>posts.setMatrixAt(i,m));
+  posts.instanceMatrix.needsUpdate=true;posts.castShadow=!isTouch;stageAdd(posts);
+  stageRailPostMatrices.length=0;
+}
+function addContainer(x,z,y,color,yaw=0){
+  const mat=new THREE.MeshStandardMaterial({color,roughness:.68,metalness:.24});
+  if(activeStage)activeStage.disposableMaterials.push(mat);
+  const m=new THREE.Mesh(new THREE.BoxGeometry(7,2.8,3.2),mat);
+  m.position.set(x,y+1.4,z);m.rotation.y=yaw;m.castShadow=m.receiveShadow=true;stageAdd(m);
+  obstacles.push({id:obstacles.length,x,z,hw:3.8,hd:2.1,wallHw:3.5,wallHd:1.6,h:y+2.8,yMin:y,mesh:m,paintable:false});
+  for(const sx of [-1,1]){
+    const rib=new THREE.Mesh(new THREE.BoxGeometry(.14,2.55,3.28),STAGE_MATERIALS.rail);
+    rib.position.set(x+sx*2.7*Math.cos(yaw),y+1.4,z-sx*2.7*Math.sin(yaw));rib.rotation.y=yaw;stageAdd(rib);
+  }
+}
+function addStageSign(x,y,z,yaw,title,accent){
+  const mat=new THREE.MeshBasicMaterial({map:makeSignTexture(title,accent),side:THREE.DoubleSide});
+  const m=new THREE.Mesh(new THREE.PlaneGeometry(7,3.5),mat);
+  m.position.set(x,y,z);m.rotation.y=yaw;stageAdd(m);
+  if(activeStage){
+    activeStage.disposableTextures.push(mat.map);
+    activeStage.disposableMaterials.push(mat);
+  }
+}
+
+const STAGE_MATERIALS={
+  darkMetal:new THREE.MeshStandardMaterial({color:0x242a33,roughness:.68,metalness:.38}),
+  rail:new THREE.MeshStandardMaterial({color:0x151a22,roughness:.42,metalness:.72}),
+  concrete:new THREE.MeshStandardMaterial({color:0xb8bec5,roughness:.82,metalness:.02}),
+  rust:new THREE.MeshStandardMaterial({color:0x9b4e27,roughness:.88,metalness:.18}),
+  tower:new THREE.MeshStandardMaterial({color:0xd2d7dc,roughness:.62,metalness:.28}),
+  grate:new THREE.MeshStandardMaterial({color:0x59616b,roughness:.42,metalness:.75,transparent:true,opacity:.82}),
+  ocean:new THREE.MeshStandardMaterial({color:0x176f9e,roughness:.2,metalness:.08,transparent:true,opacity:.94}),
+  hazard:new THREE.MeshStandardMaterial({map:makeHazardTexture(),roughness:.72,metalness:.12})
+};
+
+function makeRuntime(id,config){
+  return {
+    id,version:STAGE_VERSION,root:activeStageRoot,config,
+    spawnA:SPAWN_A,spawnB:SPAWN_B,paintTexture:paintTex,paintMask,
+    paintableMeshes:[],groundSurfaces,solidColliders:obstacles,projectileColliders,
+    killZones:[],botGraph:{routes:[]},disposableMaterials:[],disposableTextures:[]
+  };
+}
+function buildInkYard(){
+  ARENA_W=ARENA_D=ARENA=80;
+  scene.fog.near=70;scene.fog.far=210;
+  SPAWN_A.set(-32,0,-32);SPAWN_B.set(32,0,32);
+  const rt=makeRuntime('ink_yard',{name:'インクヤード',width:80,depth:80,seaLevel:-20,killY:-30,clampBounds:true,maxPlayableY:7});
+  activeStage=rt;
+  const floor=addPaintPlane(0,0,80,80,.01);
+  registerGround({type:'rect',x:0,z:0,hw:40,hd:40,y:0,yaw:0,paintable:true});
+  rt.paintableMeshes.push(floor);
+  const outer=new THREE.Mesh(new THREE.PlaneGeometry(600,600),new THREE.MeshStandardMaterial({color:0x6fae6a,roughness:1}));
+  outer.rotation.x=-Math.PI/2;outer.position.y=-.05;outer.receiveShadow=true;stageAdd(outer);
+  const wm=new THREE.MeshStandardMaterial({color:0xb9c6d4,roughness:.8}),t=2,h=3.2;
+  addBox(0,-41,84,h,t,wm,true,0,{walkable:false});
+  addBox(0,41,84,h,t,wm,true,0,{walkable:false});
+  addBox(-41,0,t,h,80,wm,true,0,{walkable:false});
+  addBox(41,0,t,h,80,wm,true,0,{walkable:false});
+  addBox(0,0,10,2.4,10,wallMat);
+  addBox(0,0,4.5,4.6,4.5,new THREE.MeshStandardMaterial({color:0xf6c944,roughness:.45}));
+  for(const s of [1,-1]){
+    const am=s===1?accentMatB:accentMatA;
+    addBox(14*s,14*s,7,3,7,wallMat);
+    addBox(-16*s,10*s,5,2.2,12,wallMat);
+    addBox(26*s,-4*s,6,1.6,6,am);
+    addBox(6*s,26*s,12,2.6,4,wallMat);
+    addBox(-28*s,-24*s,5,1.4,5,am);
+    const cyl=new THREE.Mesh(new THREE.CylinderGeometry(2.4,2.8,6.5,20),am);
+    cyl.position.set(-6*s,3.25,-20*s);cyl.castShadow=cyl.receiveShadow=true;stageAdd(cyl);
+    obstacles.push({id:obstacles.length,x:-6*s,z:-20*s,hw:3.3,hd:3.3,wallHw:2.8,wallHd:2.8,h:6.5,yMin:0,mesh:cyl,paintable:false});
+  }
+  for(const s of [-1,1])addBox(22*s,s,2.6,4.4,13,wallMat);
+  spawnPad(SPAWN_A.x,SPAWN_A.z,0,'A');spawnPad(SPAWN_B.x,SPAWN_B.z,0,'B');
+  rt.botGraph.routes=[
+    [[-32,-32],[-14,-14],[0,0],[14,14],[32,32]],
+    [[-32,-32],[-27,-8],[-20,18],[8,27],[32,32]],
+    [[-32,-32],[-8,-27],[18,-20],[27,8],[32,32]]
+  ];
+  return rt;
+}
+
+function buildSaltSpire(){
+  ARENA_W=112;ARENA_D=104;ARENA=112;
+  SPAWN_A.set(0,1.45,43);SPAWN_B.set(0,1.45,-43);
+  const rt=makeRuntime('salt_spire_beacon',{
+    name:'ソルトスパイア・ビーコン',width:112,depth:104,seaLevel:-3.2,killY:-5.5,
+    clampBounds:false,maxPlayableY:8,stageVersion:STAGE_VERSION,spawnYawA:Math.PI,spawnYawB:0
+  });
+  activeStage=rt;
+  rt.killZones.push({type:'belowY',y:-5.5,respawnSeconds:2,awardsKill:false});
+  scene.fog.near=82;scene.fog.far=235;
+  const ocean=new THREE.Mesh(new THREE.PlaneGeometry(260,260,1,1),STAGE_MATERIALS.ocean);
+  ocean.rotation.x=-Math.PI/2;ocean.position.y=-3.2;ocean.receiveShadow=true;stageAdd(ocean);
+
+  // スポーンと中央メインルート
+  addDeckRect(0,43,18,12,1.45,{baseMat:STAGE_MATERIALS.darkMetal});
+  addDeckRect(0,-43,18,12,1.45,{baseMat:STAGE_MATERIALS.darkMetal});
+  addDeckRect(0,34,14,8,1.45);addDeckRect(0,-34,14,8,1.45);
+  addRamp(0,25,12,18,1.45,3,0);addRamp(0,-25,12,18,1.45,3,Math.PI);
+  addDeckRect(0,12,13,9,3);addDeckRect(0,-12,13,9,3);
+
+  // 中央リングと非塗装のビーコン塔
+  const ringBase=new THREE.Mesh(new THREE.CylinderGeometry(15.5,17,6.15,32,1,true),STAGE_MATERIALS.darkMetal);
+  ringBase.position.y=-.075;ringBase.castShadow=ringBase.receiveShadow=true;stageAdd(ringBase);
+  const ringTop=new THREE.Mesh(new THREE.RingGeometry(3.8,15.5,48,1),floorMat);
+  ringTop.rotation.x=-Math.PI/2;ringTop.position.y=3.02;ringTop.receiveShadow=true;stageAdd(ringTop);mapWorldPaintUV(ringTop);
+  registerGround({type:'ring',x:0,z:0,inner:3.8,outer:15.5,y:3,paintable:true});
+  rt.paintableMeshes.push(ringTop);
+  const tower=new THREE.Mesh(new THREE.CylinderGeometry(3.1,3.1,11.5,24),STAGE_MATERIALS.tower);
+  tower.position.y=8.75;tower.castShadow=tower.receiveShadow=true;stageAdd(tower);
+  obstacles.push({id:obstacles.length,x:0,z:0,hw:3.65,hd:3.65,wallHw:3.1,wallHd:3.1,h:14.5,yMin:3,mesh:tower,paintable:false});
+  for(let i=0;i<3;i++){
+    const band=new THREE.Mesh(new THREE.TorusGeometry(3.18,.13,8,32),i===1?STAGE_MATERIALS.hazard:STAGE_MATERIALS.rail);
+    band.rotation.x=Math.PI/2;band.position.y=5.1+i*3.2;stageAdd(band);
+  }
+  const beacon=new THREE.PointLight(0xffc739,1.4,34,2);
+  beacon.position.set(0,14.2,0);stageAdd(beacon);
+
+  // 西側高所ルート（北西→中央→南東）と対称側の観測デッキ
+  for(const [x,z] of [[-33,20],[33,-20],[33,20],[-33,-20]])addDeckRect(x,z,16,15,4.8);
+  addRampBetween([0,37],[-27,25],10,1.45,4.8);
+  addRampBetween([0,-37],[27,-25],10,1.45,4.8);
+  addRampBetween([-30,14],[-15,5],9,4.8,3);
+  addRampBetween([30,-14],[15,-5],9,4.8,3);
+  addRampBetween([30,14],[15,5],8,4.8,3);
+  addRampBetween([-30,-14],[-15,-5],8,4.8,3);
+  addDeckRect(-38,8,10,10,4.8);addDeckRect(38,-8,10,10,4.8);
+
+  // 東側低所フランク。遮蔽を使いながら中央の裏へ回れる。
+  addDeckRect(44,0,12,34,1.1);addDeckRect(-44,0,12,34,1.1);
+  addDeckRect(40,29,12,10,1.25);addDeckRect(-40,-29,12,10,1.25);
+  addRampBetween([5,38],[38,30],9,1.45,1.25);
+  addRampBetween([-5,-38],[-38,-30],9,1.45,1.25);
+  addRampBetween([43,1],[15,2],8,1.1,3);
+  addRampBetween([-43,-1],[-15,-2],8,1.1,3);
+
+  // 塗れないグレーチング。高所と中央を短く接続する。
+  addRampBetween([-28,8],[-15,3],5,4.8,3,{paintable:false});
+  addRampBetween([28,-8],[15,-3],5,4.8,3,{paintable:false});
+  addRampBetween([28,8],[15,3],5,4.8,3,{paintable:false});
+  addRampBetween([-28,-8],[-15,-3],5,4.8,3,{paintable:false});
+
+  // 腰高カバー、コンテナ、ハザード帯
+  for(const [x,z,flip] of [[-4,29,1],[4,-29,-1],[-29,21,1],[29,-21,-1],[39,4,1],[-39,-4,-1]]){
+    addBox(x,z,flip===1?7:5,1.45,3.2,STAGE_MATERIALS.concrete,true,0,{baseY:surfaceHeightAtPoint(x,z),paintable:true});
+  }
+  addContainer(34,25,4.8,0xd96332,.18);addContainer(-34,-25,4.8,0x477fa8,.18+Math.PI);
+  addContainer(46,1,1.1,0xc69c27,Math.PI/2);addContainer(-46,-1,1.1,0x4e687d,Math.PI/2);
+  for(const [x,z,y,w,d] of [[0,16,3,12,.8],[0,-16,3,12,.8],[-33,12.2,4.8,16,.8],[33,-12.2,4.8,16,.8]]){
+    const h=new THREE.Mesh(new THREE.BoxGeometry(w,.12,d),STAGE_MATERIALS.hazard);
+    h.position.set(x,y+.08,z);stageAdd(h);
+  }
+
+  // 外周手すりと、オリジナルの産業サイン
+  addRailLine(-9,49,9,49,1.45);addRailLine(-9,-49,9,-49,1.45);
+  addRailLine(-50,25,-50,-5,1.1);addRailLine(50,-25,50,5,1.1);
+  addRailLine(-41,27,-27,27,4.8);addRailLine(41,-27,27,-27,4.8);
+  addStageSign(-42,7.3,20,Math.PI/2,'SALT 07','#ff8b2f');
+  addStageSign(42,7.3,-20,-Math.PI/2,'TIDELINE','#6f43ff');
+  flushRailPosts();
+  spawnPad(0,43,1.45,'A');spawnPad(0,-43,1.45,'B');
+
+  rt.botGraph.routes=[
+    [[0,43],[0,32],[0,22],[0,12],[0,0],[0,-12],[0,-22],[0,-32],[0,-43]],
+    [[0,43],[-18,34],[-34,23],[-38,8],[-30,0],[-38,-8],[-34,-23],[-18,-34],[0,-43]],
+    [[0,43],[18,34],[36,25],[44,10],[31,0],[44,-10],[36,-25],[18,-34],[0,-43]]
+  ];
+  return rt;
+}
+
+function surfaceHeightAtPoint(x,z,currentY=999){
+  let found=-Infinity;
+  for(const s of groundSurfaces){
+    if(!surfaceContains(s,x,z))continue;
+    const h=surfaceHeight(s,x,z);
+    if(h<=currentY+.75&&h>found)found=h;
+  }
+  return found;
+}
+function rebuildPaintMask(){
+  paintMask=new Uint8Array(GRID*GRID);
+  paintableCellCount=0;
+  for(let iz=0;iz<GRID;iz++)for(let ix=0;ix<GRID;ix++){
+    const x=(ix/(GRID-1)-.5)*ARENA_W,z=(iz/(GRID-1)-.5)*ARENA_D;
+    let ok=false;
+    for(const s of groundSurfaces){
+      if(s.paintable&&surfaceContains(s,x,z)){ok=true;break;}
+    }
+    const idx=iz*GRID+ix;
+    if(ok){paintMask[idx]=1;paintableCellCount++;}
+  }
+  stageMaskCtx.clearRect(0,0,GRID,GRID);
+  stageMaskCtx.fillStyle='rgba(9,15,24,.82)';
+  for(let iz=0;iz<GRID;iz++)for(let ix=0;ix<GRID;ix++){
+    if(!paintMask[iz*GRID+ix])stageMaskCtx.fillRect(ix,iz,1,1);
+  }
+  if(activeStage)activeStage.paintMask=paintMask;
+}
+function resolveStageId(id){
+  if(id==='random')return Math.random()<.5?'salt_spire_beacon':'ink_yard';
+  return id==='ink_yard'?'ink_yard':'salt_spire_beacon';
+}
+function disposeStage(runtime){
+  if(!runtime||!runtime.root)return;
+  runtime.root.traverse(o=>{if(o.geometry)o.geometry.dispose();});
+  for(const m of runtime.disposableMaterials||[])m.dispose();
+  for(const t of runtime.disposableTextures||[])t.dispose();
+}
+function loadStage(id){
+  const resolved=resolveStageId(id);
+  if(activeStage&&activeStage.id===resolved)return activeStage;
+  clearWallPaint();
+  if(activeStageRoot){
+    scene.remove(activeStageRoot);
+    disposeStage(activeStage);
+  }
+  activeStageRoot=new THREE.Group();
+  activeStageRoot.name='stage:'+resolved;
+  scene.add(activeStageRoot);
+  obstacles.length=0;groundSurfaces.length=0;
+  stageRailPostMatrices.length=0;
+  grid=new Int8Array(GRID*GRID);countA=countB=0;
+  activeStage=resolved==='ink_yard'?buildInkYard():buildSaltSpire();
+  activeStage.root=activeStageRoot;
+  drawBaseFloor(resolved);
+  rebuildPaintMask();
+  paintTex.needsUpdate=true;
+  return activeStage;
+}
+
+loadStage(activeMatchSettings.stage);
 
 // ---------- キャラクター ----------
 function makeToonMat(color, emissive=0x000000, ei=0){
@@ -2504,6 +2865,42 @@ function createKid(team, role = 'bot'){
   };
 }
 
+function simplifyKidForMobile(entity,team){
+  if(!isTouch||!entity||entity._mobileSimple)return entity;
+  entity._mobileSimple=true;
+  const originalParts=entity.humanParts.slice();
+  originalParts.forEach(part=>{part.visible=false;});
+  const c=TEAM[team],simple=new THREE.Group();
+  const bodyMat=makeToonMat(c.main,c.main,.18);
+  const darkMat=makeToonMat(c.dark);
+  const body=new THREE.Mesh(new THREE.SphereGeometry(.47,10,8),bodyMat);
+  body.scale.y=1.18;body.position.y=.72;
+  const eyeMat=new THREE.MeshBasicMaterial({color:0xffffff});
+  for(const sx of [-1,1]){
+    const eye=new THREE.Mesh(new THREE.SphereGeometry(.09,7,5),eyeMat);
+    eye.position.set(sx*.16,.86,.4);simple.add(eye);
+  }
+  const footGeo=new THREE.SphereGeometry(.16,7,5);
+  for(const sx of [-1,1]){
+    const foot=new THREE.Mesh(footGeo,darkMat);
+    foot.scale.set(1.25,.55,1.6);foot.position.set(sx*.24,.13,.02);simple.add(foot);
+  }
+  const gun=new THREE.Group();
+  const barrel=new THREE.Mesh(new THREE.CylinderGeometry(.1,.14,.62,8),makeToonMat(0xe7eef5));
+  barrel.rotation.x=Math.PI/2;
+  const grip=new THREE.Mesh(new THREE.BoxGeometry(.13,.22,.25),bodyMat);
+  grip.position.y=-.16;gun.add(barrel,grip);gun.position.set(.46,.8,.34);
+  simple.add(body,gun);entity.group.add(simple);
+  entity.gun=gun;
+  entity.humanParts=[simple];
+  entity.teamMaterials.push(
+    {material:bodyMat,color:'main',emissive:'main'},
+    {material:darkMat,color:'dark'},
+    {material:grip.material,color:'main',emissive:'main'}
+  );
+  return entity;
+}
+
 // ---------- プレイヤー ----------
 const player = {
   ...createKid('A', 'self'),
@@ -2513,6 +2910,7 @@ const player = {
   hp: 100,
   dead: false,
   respawnT: 0,
+  respawnEnd: 0,
   swimming: false,
   fireCd: 0,
   yaw: Math.PI * 0.75,
@@ -2630,8 +3028,9 @@ function foeTeam(){ return player.team === 'A' ? 'B' : 'A'; }
 let remote = null;
 function ensureRemote(team){
   if (remote){ scene.remove(remote.group); remote = null; }
+  const visual=simplifyKidForMobile(createKid(team, 'bot'),team);
   const r = {
-    ...createKid(team, 'bot'), team,
+    ...visual, team,
     pos: (team === 'A' ? SPAWN_A : SPAWN_B).clone(),
     tpos: (team === 'A' ? SPAWN_A : SPAWN_B).clone(),
     yaw: 0, tyaw: 0, hp: 100, dead: false, swimming: false,
@@ -2677,8 +3076,9 @@ let camYaw = Math.PI * 0.75, camPitch = 0.38;
 // ---------- ボット ----------
 const bots = [];
 function makeBot(team, spawn, offset){
+  const visual=simplifyKidForMobile(createKid(team, 'bot'),team);
   const b = {
-    ...createKid(team, 'bot'),
+    ...visual,
     team,
     pos: spawn.clone().add(offset),
     home: spawn.clone(),
@@ -2693,17 +3093,50 @@ function makeBot(team, spawn, offset){
     retarget: 0,
     yaw: 0,
     enemyInkT: 0,
+    routeIndex: -1,
+    routeStep: -1,
+    stuckT: 0,
+    lastProgressPos: spawn.clone().add(offset),
   };
   b.group.position.copy(b.pos);
   scene.add(b.group);
   pickBotTarget(b);
   bots.push(b);
 }
+function projectBotWaypoint(point,routeIndex=0){
+  let y=groundHeightAt(point[0],point[1],999);
+  if(Number.isFinite(y))return new THREE.Vector3(point[0],y,point[1]);
+  const start=routeIndex/Math.max(1,activeStage?.botGraph?.routes?.length||1)*Math.PI*2;
+  for(let r=4;r<=10;r+=1){
+    for(let i=0;i<12;i++){
+      const a=start+i*Math.PI/6,x=point[0]+Math.cos(a)*r,z=point[1]+Math.sin(a)*r;
+      y=groundHeightAt(x,z,999);
+      if(Number.isFinite(y))return new THREE.Vector3(x,y,z);
+    }
+  }
+  return new THREE.Vector3(point[0],0,point[1]);
+}
 function pickBotTarget(b){
+  const routes=activeStage&&activeStage.botGraph&&activeStage.botGraph.routes;
+  if(routes&&routes.length){
+    if(b.routeIndex<0)b.routeIndex=Math.floor(Math.random()*routes.length);
+    const route=routes[b.routeIndex%routes.length];
+    const dir=b.team==='A'?1:-1;
+    if(b.routeStep<0)b.routeStep=b.team==='A'?Math.min(1,route.length-1):Math.max(0,route.length-2);
+    else b.routeStep+=dir;
+    if(b.routeStep<0||b.routeStep>=route.length){
+      b.routeIndex=(b.routeIndex+1)%routes.length;
+      b.routeStep=b.team==='A'?0:routes[b.routeIndex].length-1;
+    }
+    const point=routes[b.routeIndex][b.routeStep];
+    b.target.copy(projectBotWaypoint(point,b.routeIndex));
+    b.retarget=8;
+    return;
+  }
   // 未塗装 or 敵色エリアを狙う
   for (let tries=0; tries<14; tries++){
-    const x = (Math.random()-0.5) * (ARENA-10);
-    const z = (Math.random()-0.5) * (ARENA-10);
+    const x = (Math.random()-0.5) * (ARENA_W-10);
+    const z = (Math.random()-0.5) * (ARENA_D-10);
     const ink = inkAt(x, z);
     const own = b.team === 'A' ? 1 : 2;
     if (ink !== own || tries === 13){
@@ -2769,7 +3202,7 @@ function shoot(origin, dir, team, opts = {}){
     mesh: m, vel, team,
     fromPlayer: !!opts.fromPlayer,
     ghost: !!opts.ghost,     // ゴースト弾＝見た目だけ。塗りは相手からのイベントで反映
-    life: opts.life!=null?opts.life:2.4, r,
+    life: opts.life!=null?opts.life:(isTouch&&!opts.fromPlayer?1.3:2.4), r,
     gravity: opts.gravity!=null?opts.gravity:34,
     damage: opts.damage != null ? opts.damage : (opts.fromPlayer ? 34 : 20),
     emerge: !!opts.emerge,
@@ -2816,7 +3249,9 @@ function throwSubWeapon(){
   const origin=player.pos.clone().add(new THREE.Vector3(0,1.25,0));
   if(kind==='sprinkler'){
     const pos=player.pos.clone().add(new THREE.Vector3(-Math.sin(camYaw)*2,.38,-Math.cos(camYaw)*2));
-    pos.y=groundHeightAt(pos.x,pos.z,player.pos.y)+.38;
+    const ground=groundHeightAt(pos.x,pos.z,player.pos.y+.8);
+    if(!Number.isFinite(ground))return;
+    pos.y=ground+.38;
     createSprinkler(player.team,pos,false,true);
     netSend({t:'sb',k:kind,m:player.team,x:+pos.x.toFixed(2),y:+pos.y.toFixed(2),z:+pos.z.toFixed(2),vx:0,vy:0,vz:0});
     return;
@@ -2824,7 +3259,11 @@ function throwSubWeapon(){
   const vel=kind==='curling'
     ? new THREE.Vector3(-Math.sin(camYaw)*15,0,-Math.cos(camYaw)*15)
     : dir.multiplyScalar(15).add(new THREE.Vector3(0,4.5,0));
-  if(kind==='curling') origin.y=.36;
+  if(kind==='curling'){
+    const ground=groundHeightAt(origin.x,origin.z,player.pos.y+.8);
+    if(!Number.isFinite(ground))return;
+    origin.y=ground+.36;
+  }
   createBomb(player.team,origin,vel,false,true,'',kind);
   netSend({ t:'sb',m:player.team,x:+origin.x.toFixed(2),y:+origin.y.toFixed(2),z:+origin.z.toFixed(2),
     vx:+vel.x.toFixed(2),vy:+vel.y.toFixed(2),vz:+vel.z.toFixed(2),k:kind });
@@ -2853,8 +3292,9 @@ function updateBombs(dt){
     b.vel.y-=(b.kind==='curling'?0:18)*dt;
     b.mesh.position.addScaledVector(b.vel,dt);
     b.mesh.rotation.x+=dt*8; b.mesh.rotation.z+=dt*11;
-    if (b.mesh.position.y<=.32){
-      b.mesh.position.y=.32;
+    const bombGround=groundHeightAt(b.mesh.position.x,b.mesh.position.z,b.mesh.position.y);
+    if (Number.isFinite(bombGround)&&b.mesh.position.y<=bombGround+.32){
+      b.mesh.position.y=bombGround+.32;
       if (b.kind==='curling'){ b.vel.y=0; }
       else if (!b.bounced){ b.vel.y=Math.abs(b.vel.y)*.38; b.bounced=true; }
       else b.vel.y=0;
@@ -3018,6 +3458,7 @@ function damagePlayer(dmg, hitPos, attackerName='対戦相手', weapon='イン�
     player.dead = true;
     updateSpecialUI();
     player.respawnT = 2.6;
+    player.respawnEnd = performance.now()+2600;
     player.group.visible = false;
     firing = false;
     paint(player.pos.x, player.pos.z, 3.4, foe);
@@ -3027,11 +3468,33 @@ function damagePlayer(dmg, hitPos, attackerName='対戦相手', weapon='イン�
   }
 }
 
+function fallPlayer(){
+  if(player.dead)return;
+  closeMap();closeSettings();
+  player.dead=true;
+  player.hp=0;
+  player.respawnT=2;
+  player.respawnEnd=performance.now()+2000;
+  player.group.visible=false;
+  firing=false;wantSwim=false;
+  deathTextEl.textContent='海に落ちた！';
+  deathWeaponEl.textContent='落下';
+  deathWeaponImageEl.removeAttribute('src');
+  deathCountdownEl.textContent='02';
+  deadmsgEl.style.setProperty('--death-accent','#34b9dd');
+  deadmsgEl.classList.remove('show');deathFxEl.classList.remove('show');
+  void deadmsgEl.offsetWidth;
+  deadmsgEl.classList.add('show');deathFxEl.classList.add('show');
+  // 落下は相手の撃破数に含めない。
+  netSend({t:'dd',w:'落下',c:0});
+}
+
 function revivePlayer(){
   player.dead = false;
   updateSpecialUI();
   player.hp = 100;
   player.ink = 1;
+  player.respawnEnd=0;
   player.pos.copy(mySpawn());
   player.vy = 0;
   player.climbing = false;
@@ -3063,7 +3526,7 @@ const partMat = {
 };
 function burst(pos, team, n=10, power=5){
   for (let i=0;i<n;i++){
-    if (particles.length > 240) break;
+    if (particles.length > (isTouch?72:240)) break;
     const m = new THREE.Mesh(partGeo, partMat[team]);
     m.position.copy(pos);
     scene.add(m);
@@ -3219,7 +3682,7 @@ bindTouchAction('btnSpecial', () => specialQueued = true);
 function collideObstacles(pos, r){
   let contact = null;
   for (const o of obstacles){
-    if (pos.y >= o.h - 0.12) continue;
+    if (pos.y >= o.h - 0.12 || pos.y < (o.yMin==null?-999:o.yMin)-.2) continue;
     const dx = pos.x - o.x, dz = pos.z - o.z;
     const px = o.hw - Math.abs(dx), pz = o.hd - Math.abs(dz);
     if (px > 0 && pz > 0){
@@ -3234,26 +3697,24 @@ function collideObstacles(pos, r){
       }
     }
   }
-  const lim = ARENA/2 - 1.2;
-  pos.x = Math.max(-lim, Math.min(lim, pos.x));
-  pos.z = Math.max(-lim, Math.min(lim, pos.z));
+  if (!activeStage || activeStage.config.clampBounds){
+    const limX = ARENA_W/2 - 1.2,limZ=ARENA_D/2-1.2;
+    pos.x = Math.max(-limX, Math.min(limX, pos.x));
+    pos.z = Math.max(-limZ, Math.min(limZ, pos.z));
+  }
   return contact;
 }
 
 function groundHeightAt(x, z, currentY){
-  let h = 0;
-  for (const o of obstacles){
-    if (!o.paintable) continue;
-    if (Math.abs(x-o.x) <= o.wallHw+0.38 && Math.abs(z-o.z) <= o.wallHd+0.38 && currentY >= o.h-0.45){
-      h = Math.max(h, o.h);
-    }
-  }
-  return h;
+  return surfaceHeightAtPoint(x,z,currentY);
+}
+function getGroundHeight(x,z,currentY=999){
+  return groundHeightAt(x,z,currentY);
 }
 
 function projectileObstacleHit(p){
-  for (const o of obstacles){
-    if (p.y < 0 || p.y > o.h + 0.2) continue;
+  for (const o of projectileColliders){
+    if (p.y < (o.yMin==null?0:o.yMin) || p.y > o.h + 0.2) continue;
     const dx = p.x-o.x, dz = p.z-o.z;
     if (Math.abs(dx) > o.hw || Math.abs(dz) > o.hd) continue;
     if (!o.paintable) return { o, paintable:false };
@@ -3274,9 +3735,10 @@ let running = false, timeLeft = MATCH_TIME, stateT = 0, botSyncT = 0;
 const clock = new THREE.Clock();
 
 function resetGame(){
-  drawBaseFloor();
+  drawBaseFloor(activeStage?.id||'');
   paintTex.needsUpdate = true;
   resetGrid();
+  rebuildPaintMask();
   clearWallPaint();
   player.pos.copy(mySpawn()); player.ink = 1; player.vy = 0; player.fireCd=0;
   player.climbing = false; player.surfaceAttackT = 0; player.emergeWindow = 0; player.enemyInkT = 0;
@@ -3287,7 +3749,7 @@ function resetGame(){
   barrierMesh.visible=false; specialEffects.length=0;
   document.getElementById('weaponChargeHud').style.opacity='0';
   document.getElementById('weaponChargeFill').style.width='0%';
-  player.hp = 100; player.dead = false; player.respawnT = 0;
+  player.hp = 100; player.dead = false; player.respawnT = 0; player.respawnEnd=0;
   player.group.visible = true;
   deadmsgEl.classList.remove('show');
   deathFxEl.classList.remove('show');
@@ -3299,7 +3761,12 @@ function resetGame(){
   dmgFlash = 0; healFlash = 0; shake = 0; stateT = 0; botSyncT = 0;
   document.querySelector('#kills span:last-child').textContent = 'たおした×0';
   // 自陣が背後になる向きにカメラを合わせる
-  camYaw = player.team === 'A' ? Math.PI * 0.75 : Math.PI * -0.25;
+  camYaw = activeStage?.id==='salt_spire_beacon'
+    ? (player.team==='A'?0:Math.PI)
+    : (player.team === 'A' ? Math.PI * 0.75 : Math.PI * -0.25);
+  if(activeStage?.id==='salt_spire_beacon'){
+    player.yaw=player.team==='A'?activeStage.config.spawnYawA:activeStage.config.spawnYawB;
+  }
   camPitch = 0.38;
 
   assignBotRoster();
@@ -3352,7 +3819,7 @@ const inkPctEl = document.getElementById('inkPct');
 let hudTimer = 0;
 
 function pct(){
-  const total = GRID*GRID;
+  const total = Math.max(1,paintableCellCount||GRID*GRID);
   return [countA/total*100, countB/total*100];
 }
 
@@ -3550,7 +4017,7 @@ const mapCanvas = document.getElementById('mapCanvas');
 const mapCtx = mapCanvas.getContext('2d');
 let mapOpen = false, mapDrawT = 0;
 function mapXY(pos){
-  return { x:(pos.x/ARENA+0.5)*mapCanvas.width, y:(pos.z/ARENA+0.5)*mapCanvas.height };
+  return { x:(pos.x/ARENA_W+0.5)*mapCanvas.width, y:(pos.z/ARENA_D+0.5)*mapCanvas.height };
 }
 function getJumpTargets(){
   const targets = [{ pos:mySpawn().clone(), label:'SPAWN' }];
@@ -3563,6 +4030,7 @@ function getJumpTargets(){
 function drawMap(){
   mapCtx.clearRect(0,0,mapCanvas.width,mapCanvas.height);
   mapCtx.drawImage(paintCv,0,0,mapCanvas.width,mapCanvas.height);
+  mapCtx.drawImage(stageMaskCv,0,0,mapCanvas.width,mapCanvas.height);
   mapCtx.strokeStyle='rgba(255,255,255,.8)';
   mapCtx.lineWidth=8;
   mapCtx.strokeRect(4,4,mapCanvas.width-8,mapCanvas.height-8);
@@ -3704,6 +4172,27 @@ document.getElementById('btnSettings').addEventListener('click',openSettings);
 document.getElementById('btnSettingsClose').addEventListener('click',closeSettings);
 gyroBtn.addEventListener('click',toggleGyro);
 
+function resolveCameraCollision(target,desired){
+  const dir=desired.clone().sub(target),probe=new THREE.Vector3();
+  let safe=desired;
+  for(let step=2;step<=12;step++){
+    const t=step/12;
+    probe.copy(target).addScaledVector(dir,t);
+    let blocked=false;
+    for(const o of obstacles){
+      if(probe.y<(o.yMin==null?0:o.yMin)||probe.y>o.h+.45)continue;
+      if(Math.abs(probe.x-o.x)<o.hw+.18&&Math.abs(probe.z-o.z)<o.hd+.18){blocked=true;break;}
+    }
+    const g=groundHeightAt(probe.x,probe.z,probe.y+1);
+    if(Number.isFinite(g)&&probe.y<g+.35)blocked=true;
+    if(blocked){
+      safe=target.clone().addScaledVector(dir,Math.max(.12,t-.12));
+      break;
+    }
+  }
+  return safe;
+}
+
 function updateCamera(dt){
   const camDist = 7.2, camH = 2.2;
   let cx = player.pos.x + Math.sin(camYaw) * camDist * Math.cos(camPitch);
@@ -3716,7 +4205,9 @@ function updateCamera(dt){
     cz = player.pos.z + s.nz*4.8;
     cy = player.pos.y + 2.7;
   }
-  camera.position.lerp(tmpV.set(cx, cy, cz), 1 - Math.pow(0.0001, dt));
+  const lookTarget=new THREE.Vector3(player.pos.x,player.pos.y+1.25,player.pos.z);
+  const desired=resolveCameraCollision(lookTarget,tmpV.set(cx,cy,cz));
+  camera.position.lerp(desired, 1 - Math.pow(0.0001, dt));
 
   // 画面揺れ（発砲・被弾）
   shake = Math.max(0, shake - dt * 3.2);
@@ -3757,7 +4248,7 @@ function paintChargerLine(dir,power){
   const distance=9+power*27;
   for(let d=.55;d<=distance;d+=1.35){
     const x=player.pos.x+dir.x*d,z=player.pos.z+dir.z*d;
-    if(Math.abs(x)>=ARENA/2||Math.abs(z)>=ARENA/2)break;
+    if(Math.abs(x)>=ARENA_W/2||Math.abs(z)>=ARENA_D/2)break;
     paint(x,z,.72+power*.4,player.team);
   }
   addSpecial(.045+power*.09);
@@ -3895,7 +4386,9 @@ function updateWeaponFire(dt,mlen,onAir){
 function updatePlayer(dt){
   if (player.dead){
     jumpQueued = subQueued = specialQueued = false;
-    player.respawnT -= dt;
+    player.respawnT=player.respawnEnd
+      ? Math.max(0,(player.respawnEnd-performance.now())/1000)
+      : Math.max(0,player.respawnT-dt);
     deathCountdownEl.textContent=Math.max(0,Math.ceil(player.respawnT)).toString().padStart(2,'0');
     if (player.respawnT <= 0) revivePlayer();
     updateCamera(dt);
@@ -3920,10 +4413,11 @@ function updatePlayer(dt){
   const mlen = Math.hypot(mx, mz);
   if (mlen > 1){ mx /= mlen; mz /= mlen; }
 
+  const footGround=groundHeightAt(player.pos.x,player.pos.z,player.pos.y+.8);
   const onInk = inkAt(player.pos.x, player.pos.z);
   const ownVal = player.team === 'A' ? 1 : 2;
   const ownInk = onInk === ownVal;
-  const enemyInk = onInk !== 0 && !ownInk && player.pos.y < 0.35;
+  const enemyInk = onInk !== 0 && !ownInk && Number.isFinite(footGround) && player.pos.y < footGround+0.35;
   const wasSwimming = player.swimming;
   player.surfaceAttackT = Math.max(0, player.surfaceAttackT-dt);
   player.emergeWindow = Math.max(0, player.emergeWindow-dt);
@@ -4026,14 +4520,19 @@ function updatePlayer(dt){
       player.climbGrace = 0;
     }
     const groundY = groundHeightAt(player.pos.x, player.pos.z, player.pos.y);
-    if (player.pos.y <= groundY+0.08 && player.vy <= 0){
+    if (Number.isFinite(groundY)&&player.pos.y <= groundY+0.08 && player.vy <= 0){
       player.pos.y = groundY;
       player.vy = 0;
-    } else if (player.pos.y > groundY+0.02){
+    } else {
       player.vy -= 20*dt;
       player.pos.y += player.vy*dt;
-      if (player.pos.y < groundY){ player.pos.y = groundY; player.vy = 0; }
+      if (Number.isFinite(groundY)&&player.pos.y < groundY){ player.pos.y = groundY; player.vy = 0; }
     }
+  }
+  if(player.pos.y<=(activeStage?.config.killY??-5.5)){
+    fallPlayer();
+    updateCamera(dt);
+    return;
   }
 
   // 敵インクは強く減速し、約3HP/秒の小さな継続ダメージを与える。
@@ -4066,7 +4565,7 @@ function updatePlayer(dt){
     player.emergeWindow = 0.42;
   }
   const currentGround=groundHeightAt(player.pos.x,player.pos.z,player.pos.y);
-  const onAir=player.pos.y>currentGround+.2;
+  const onAir=!Number.isFinite(currentGround)||player.pos.y>currentGround+.2;
   if(!player.swimming)updateWeaponFire(dt,mlen,onAir);
   else player.wasFiring=firing;
 
@@ -4131,7 +4630,7 @@ function interpBots(dt){
     while (d < -Math.PI) d += Math.PI*2;
     b.group.rotation.y += d * k;
     b.group.visible = !b.dead;
-    b.group.position.y = Math.abs(Math.sin(performance.now()*0.011 + b.pos.x)) * 0.08;
+    b.group.position.y = b.pos.y + Math.abs(Math.sin(performance.now()*0.011 + b.pos.x)) * 0.08;
   }
 }
 
@@ -4148,6 +4647,7 @@ function updateBots(dt){
         b.dead = false;
         b.hp = 100;
         b.pos.copy(b.home).add(b.homeOff);
+    b.routeIndex=-1;b.routeStep=-1;b.stuckT=0;b.edgeBlockedT=0;b.lastProgressPos.copy(b.pos);
         b.group.visible = true;
         b.group.position.copy(b.pos);
         pickBotTarget(b);
@@ -4166,9 +4666,44 @@ function updateBots(dt){
     const difficulty=mode==='online'?activeMatchSettings.botDifficulty:'normal';
     const moveMul=difficulty==='easy'?.82:(difficulty==='hard'?1.16:1);
     const speed = (onOwn ? 8.5 : (onEnemy ? 3.4 : 6.2))*moveMul;
+    const beforeMove=b.pos.clone();
     b.pos.x += toT.x * speed * dt;
     b.pos.z += toT.z * speed * dt;
     collideObstacles(b.pos, 0.6);
+    const botGround=groundHeightAt(b.pos.x,b.pos.z,b.pos.y+1.2);
+    if(Number.isFinite(botGround)){
+      b.pos.y=botGround;
+      b.edgeBlockedT=0;
+    }else{
+      // 経路の縁で海へ直進しない。短時間解決しなければ次の安全な経路点へ復帰する。
+      b.pos.copy(beforeMove);
+      b.edgeBlockedT=(b.edgeBlockedT||0)+dt;
+      if(b.edgeBlockedT>.55){
+        const safe=projectBotWaypoint([b.target.x,b.target.z],b.routeIndex);
+        b.pos.copy(safe);
+        b.edgeBlockedT=0;
+        pickBotTarget(b);
+      }
+    }
+    if(b.pos.y<=(activeStage?.config.killY??-5.5)){
+      b.dead=true;b.respawnT=2;b.group.visible=false;continue;
+    }
+    b.stuckT+=dt;
+    if(b.stuckT>=.75){
+      const moved=Math.hypot(b.pos.x-b.lastProgressPos.x,b.pos.z-b.lastProgressPos.z);
+      if(moved<.55){
+        b.routeIndex=(b.routeIndex+1)%Math.max(1,activeStage?.botGraph?.routes?.length||1);
+        b.routeStep=-1;pickBotTarget(b);
+        // 2回続けて動けない場合は直前の安全な経路点へ戻す。
+        b.stuckCount=(b.stuckCount||0)+1;
+        if(b.stuckCount>=2){
+          const safeY=groundHeightAt(b.target.x,b.target.z,999);
+          b.pos.set(b.target.x,Number.isFinite(safeY)?safeY:b.home.y,b.target.z);
+          b.stuckCount=0;
+        }
+      }else b.stuckCount=0;
+      b.lastProgressPos.copy(b.pos);b.stuckT=0;
+    }
     if (onEnemy){
       b.enemyInkT -= dt;
       if (b.enemyInkT <= 0){
@@ -4182,7 +4717,7 @@ function updateBots(dt){
     b.yaw = Math.atan2(toT.x, toT.z);
     b.group.position.copy(b.pos);
     b.group.rotation.y += (b.yaw - b.group.rotation.y) * Math.min(1, dt*8);
-    b.group.position.y = Math.abs(Math.sin(performance.now()*0.011 + b.pos.x)) * 0.08;
+    b.group.position.y = b.pos.y + Math.abs(Math.sin(performance.now()*0.011 + b.pos.x)) * 0.08;
 
     // 近くに敵チームのキャラがいれば狙い撃つ
     let aimAt = null, best = 13;
@@ -4195,7 +4730,7 @@ function updateBots(dt){
     b.fireCd -= dt;
     if (b.fireCd <= 0){
       const fireMul=difficulty==='easy'?1.42:(difficulty==='hard'?.76:1);
-      b.fireCd = (0.16 + Math.random()*0.1)*fireMul;
+      b.fireCd = (0.16 + Math.random()*0.1)*fireMul*(isTouch?1.35:1);
       let dir;
       if (aimAt){
         dir = new THREE.Vector3(aimAt.x - b.pos.x, 1.1, aimAt.z - b.pos.z);
@@ -4222,7 +4757,7 @@ function updateBots(dt){
       const arr = [];
       bots.forEach((b, i) => {
         if (!b.active) return;
-        arr.push([i, +b.pos.x.toFixed(1), +b.pos.z.toFixed(1), +b.yaw.toFixed(2), b.dead ? 1 : 0]);
+        arr.push([i,+b.pos.x.toFixed(1),+b.pos.y.toFixed(1),+b.pos.z.toFixed(1),+b.yaw.toFixed(2),b.dead?1:0]);
       });
       netSend({ t:'bs', a: arr });
     }
@@ -4242,13 +4777,13 @@ function updateProjectiles(dt){
     p.mesh.position.addScaledVector(p.vel, dt);
     p.life -= dt;
     const pos = p.mesh.position;
+    const shotGround=groundHeightAt(pos.x,pos.z,pos.y+.35);
     // 弾の向き（進行方向へ伸ばす）
     p.mesh.scale.y = 1 + Math.min(0.8, p.vel.length()*0.012);
     p.mesh.lookAt(pos.x + p.vel.x, pos.y + p.vel.y, pos.z + p.vel.z);
 
     // 発射地点と着弾点の間にも一度塗りを置き、射線が途切れないようにする。
-    if (!p.ghost && p.fromPlayer && !p.midPainted && pos.y<=.9 &&
-        Math.abs(pos.x)<ARENA/2 && Math.abs(pos.z)<ARENA/2){
+    if (!p.ghost && p.fromPlayer && !p.midPainted && Number.isFinite(shotGround) && pos.y<=shotGround+.9){
       p.midPainted=true;
       paint(pos.x,pos.z,Math.max(.9,p.r*.72),p.team);
       addSpecial(.003);
@@ -4288,14 +4823,14 @@ function updateProjectiles(dt){
       }
     }
 
-    if (!dead && pos.y <= 0.14){
-      if (Math.abs(pos.x) < ARENA/2 && Math.abs(pos.z) < ARENA/2){
+    if (!dead && Number.isFinite(shotGround) && pos.y <= shotGround + 0.14){
+      if (paintMask[worldToGrid(pos.x,pos.z)[1]*GRID+worldToGrid(pos.x,pos.z)[0]]){
         // ゴースト弾は塗らない（相手から届く塗りイベントで反映される）
         if (!p.ghost){
           paint(pos.x, pos.z, p.r, p.team);
           if (p.fromPlayer) addSpecial(0.018+p.r*0.006);
         }
-        burst(new THREE.Vector3(pos.x, 0.2, pos.z), p.team, 6, 4);
+        burst(new THREE.Vector3(pos.x, shotGround+0.2, pos.z), p.team, 6, 4);
       }
       dead = true;
     } else if (!dead){
@@ -4443,11 +4978,28 @@ function finishGame(){
   renderLB();
 }
 
+function prepareStageForMatch(){
+  const stageId=resolveStageId(activeMatchSettings.stage);
+  activeMatchSettings.stage=stageId;
+  loadStage(stageId);
+  for(const b of bots){
+    const spawn=b.team==='A'?SPAWN_A:SPAWN_B;
+    b.home.copy(spawn);
+    b.pos.copy(spawn).add(b.homeOff);
+    b.pos.y=spawn.y;
+    b.tpos.copy(b.pos);
+    b.routeIndex=-1;b.routeStep=-1;b.stuckT=0;b.stuckCount=0;b.edgeBlockedT=0;
+    b.lastProgressPos.copy(b.pos);
+  }
+  updateStageUI(stageId);
+}
+
 function startMatch(){
   resultEl.style.display = 'none';
   resultEl.setAttribute('aria-hidden','true');
   document.getElementById('title').style.display = 'none';
   hideNetUI();
+  prepareStageForMatch();
   applyKidTeamColor(player, player.team);
   resetGame();
   running = true;
@@ -4552,7 +5104,11 @@ function attachChannel(dc){
     net.ready = true;
     setNetStatus('接続できました！ 対戦開始します…');
     if (isHost){
-      setTimeout(() => { netSend({ t:'go' }); startMatch(); }, 700);
+      setTimeout(() => {
+        activeMatchSettings.stage=resolveStageId(activeMatchSettings.stage);
+        netSend({t:'go',pv:STAGE_PROTOCOL_VERSION,stageId:activeMatchSettings.stage,stageVersion:STAGE_VERSION});
+        startMatch();
+      }, 700);
     }
   };
   dc.onclose = () => {
@@ -4570,9 +5126,14 @@ function handleNet(m){
   switch (m.t){
     case 'go':                                   // ホストからの開始合図
       if (!isHost){
+        if(m.pv&&m.pv!==STAGE_PROTOCOL_VERSION){
+          alert('ゲームの通信バージョンが一致しません。両方の端末でページを再読み込みしてください。');
+          break;
+        }
         if (roomSession && roomSession.room && roomSession.room.settings){
           activeMatchSettings={...activeMatchSettings,...roomSession.room.settings};
         }
+        if(m.stageId)activeMatchSettings.stage=m.stageId;
         hideRoomOnlineForMatch();
         startMatch();
       }
@@ -4616,10 +5177,13 @@ function handleNet(m){
     }
     case 'bs':                                   // ホストからのボット位置
       if (!isHost && Array.isArray(m.a)){
-        for (const [i, x, z, y, d] of m.a){
+        for (const item of m.a){
+          const modern=item.length>=6;
+          const i=item[0],x=item[1],h=modern?item[2]:0,z=modern?item[3]:item[2];
+          const y=modern?item[4]:item[3],d=modern?item[5]:item[4];
           const b = bots[i];
           if (!b) continue;
-          b.tpos.set(x, 0, z);
+          b.tpos.set(x, h, z);
           b.yaw = y;
           b.dead = !!d;
         }
@@ -5041,6 +5605,7 @@ async function createGasRoom(){
   const id=roomPlayerId(), now=Date.now();
   const room={
     status:'waiting',hostId:id,createdAt:now,updatedAt:now,settings,
+    protocolVersion:STAGE_PROTOCOL_VERSION,stageVersion:STAGE_VERSION,
     players:{[id]:{name:roomPlayerName(),team:'A',ready:true,host:true,connected:true,weapon:selectedWeaponKey}},
     signaling:{}
   };
@@ -5055,6 +5620,7 @@ async function joinGasRoom(roomCode=''){
   const room=await fbGet(`rooms/${code}`);
   if(!room) throw new Error('ルームが見つかりません');
   if(room.status!=='waiting') throw new Error('このルームはすでに対戦中です');
+  if(room.protocolVersion&&room.protocolVersion!==STAGE_PROTOCOL_VERSION) throw new Error('ゲームのバージョンが違うため参加できません');
   if(Date.now()-(room.createdAt||0)>30*60*1000) throw new Error('ルームの有効期限が切れています');
   const humans=Object.values(room.players||{});
   if(humans.length>=2) throw new Error('ルームが満員です（v1は人間2人まで）');
@@ -5118,7 +5684,9 @@ function renderWaitingLobby(){
   if(!room) return;
   const s=room.settings||{};
   document.getElementById('lobbyRule').textContent=settingLabel(s.rule,{turf:'ナワバリ'});
-  document.getElementById('lobbyStage').textContent=settingLabel(s.stage,{ink_yard:'インクヤード',random:'ランダム'});
+  document.getElementById('lobbyStage').textContent=settingLabel(s.stage,{
+    salt_spire_beacon:'ソルトスパイア・ビーコン',ink_yard:'インクヤード',random:'ランダム'
+  });
   document.getElementById('lobbyTeamSize').textContent=`${s.teamSize||4}対${s.teamSize||4}`;
   document.getElementById('lobbyBotFill').textContent=s.botFill?'ON':'OFF';
   document.getElementById('lobbyBotDifficulty').textContent=settingLabel(s.botDifficulty,{easy:'やさしい',normal:'ふつう',hard:'つよい'});
@@ -5257,6 +5825,7 @@ function startRoomPolling(){
 async function startLobbyMatch(){
   if(!isHost||!net||!net.ready||!roomSession.room) return;
   activeMatchSettings={...activeMatchSettings,...roomSession.room.settings};
+  activeMatchSettings.stage=resolveStageId(activeMatchSettings.stage);
   roomSession.started=true;
   await fbPatch(`rooms/${roomSession.code}`,{status:'starting',updatedAt:Date.now()});
   setRoomStatus('READY… 3','good');
@@ -5264,7 +5833,7 @@ async function startLobbyMatch(){
   setTimeout(()=>setRoomStatus('READY… 1','good'),2000);
   setTimeout(async()=>{
     setRoomStatus('GO!','good');
-    netSend({t:'go'});
+    netSend({t:'go',pv:STAGE_PROTOCOL_VERSION,stageId:activeMatchSettings.stage,stageVersion:STAGE_VERSION});
     await fbPatch(`rooms/${roomSession.code}`,{status:'playing',updatedAt:Date.now()}).catch(()=>{});
     hideRoomOnlineForMatch();
     startMatch();
@@ -5277,9 +5846,28 @@ function syncTitlePlayerName(){
   try{ name=localStorage.getItem('ink-player-name')||'Player'; }catch(e){}
   document.getElementById('titlePlayerName').textContent=name;
 }
+function updateStageUI(stageId){
+  const id=resolveStageId(stageId);
+  const isSalt=id==='salt_spire_beacon';
+  const name=isSalt?'ソルトスパイア・ビーコン':'インクヤード';
+  const nameEl=document.getElementById('titleStageName');
+  const preview=document.getElementById('titleStagePreview');
+  if(nameEl)nameEl.textContent=name;
+  if(preview){
+    preview.classList.toggle('saltSpire',isSalt);
+    preview.setAttribute('aria-label',`${name}のプレビュー`);
+  }
+  const switchBtn=document.getElementById('titleStageSwitch');
+  if(switchBtn)switchBtn.title=`現在：${name}`;
+}
 syncTitlePlayerName();
+updateStageUI(activeMatchSettings.stage);
 updateWeaponUI();
 document.getElementById('titleSettingsBtn').addEventListener('click',openSettings);
+document.getElementById('titleStageSwitch').addEventListener('click',()=>{
+  activeMatchSettings.stage=activeMatchSettings.stage==='salt_spire_beacon'?'ink_yard':'salt_spire_beacon';
+  updateStageUI(activeMatchSettings.stage);
+});
 document.getElementById('btnFriend').addEventListener('click',()=>{
   openRoomOnline();
   setRoomPanel('roomJoinPanel');
@@ -5407,7 +5995,7 @@ document.getElementById('startBtn').addEventListener('click', () => {
 document.getElementById('retryBtn').addEventListener('click', () => {
   if (mode === 'online'){
     if (!isHost) return;
-    netSend({ t:'go' });
+    netSend({t:'go',pv:STAGE_PROTOCOL_VERSION,stageId:activeMatchSettings.stage,stageVersion:STAGE_VERSION});
   }
   startMatch();
 });
