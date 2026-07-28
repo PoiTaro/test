@@ -2144,39 +2144,100 @@ paintTex.anisotropy = renderer.capabilities.getMaxAnisotropy();
 
 function drawBaseFloor(stageId=''){
   const salt=stageId==='salt_spire_beacon';
-  pctx.fillStyle = salt?'#a7afb6':'#c9ced6';
+  pctx.fillStyle = salt?'#65717b':'#c9ced6';
   pctx.fillRect(0,0,TEX,TEX);
-  // タイル
-  pctx.strokeStyle = salt?'rgba(38,46,56,.42)':'rgba(90,100,120,.35)';
-  pctx.lineWidth = salt?2:3;
-  const divisions=salt?16:10,step = TEX/divisions;
-  for (let i=0;i<=divisions;i++){
-    pctx.beginPath(); pctx.moveTo(i*step,0); pctx.lineTo(i*step,TEX); pctx.stroke();
-    pctx.beginPath(); pctx.moveTo(0,i*step); pctx.lineTo(TEX,i*step); pctx.stroke();
-  }
   if(salt){
-    // 潮風で傷んだ金属床。全面共通の軽量な手続きテクスチャとして共有する。
-    for(let i=0;i<140;i++){
-      const x=Math.random()*TEX,y=Math.random()*TEX,r=3+Math.random()*15;
-      pctx.fillStyle=`rgba(${125+Math.random()*45},${64+Math.random()*25},35,${.025+Math.random()*.06})`;
+    // Paintable surfaces share one atlas, but each height band receives a
+    // distinct industrial finish. This keeps one paint material and one draw
+    // texture while removing the uniform grey-box appearance.
+    for(const surface of groundSurfaces){
+      pctx.save();
+      traceGroundSurface(pctx,surface);
+      pctx.clip();
+      const kind=surface.kind||(surface.type==='circle'?'center':(surface.y>=4.2?'metal':(surface.y<=1.5?'dock':'concrete')));
+      const palettes={
+        center:['#707d87','#54616b'],
+        metal:['#52606c','#37444f'],
+        dock:['#7a7f79','#5e6868'],
+        ramp:['#66727b','#4e5b65'],
+        concrete:['#7d878d','#626d74']
+      };
+      const colors=palettes[kind]||palettes.concrete;
+      pctx.fillStyle=colors[0];pctx.fillRect(0,0,TEX,TEX);
+      pctx.strokeStyle=colors[1];pctx.lineWidth=2;
+      const plate=kind==='metal'?42:64;
+      for(let x=0;x<=TEX;x+=plate){pctx.beginPath();pctx.moveTo(x,0);pctx.lineTo(x,TEX);pctx.stroke();}
+      for(let y=0;y<=TEX;y+=plate){pctx.beginPath();pctx.moveTo(0,y);pctx.lineTo(TEX,y);pctx.stroke();}
+      if(kind==='metal'||kind==='ramp'){
+        pctx.strokeStyle='rgba(232,242,244,.13)';pctx.lineWidth=1;
+        for(let x=-TEX;x<TEX*2;x+=24){
+          pctx.beginPath();pctx.moveTo(x,0);pctx.lineTo(x+TEX,TEX);pctx.stroke();
+        }
+      }
+      pctx.restore();
+    }
+    // Salt wear, rust freckles and fastener dots remain shared across surfaces.
+    for(let i=0;i<190;i++){
+      const x=Math.random()*TEX,y=Math.random()*TEX,r=2+Math.random()*10;
+      pctx.fillStyle=`rgba(${145+Math.random()*45},${67+Math.random()*28},32,${.035+Math.random()*.075})`;
       pctx.beginPath();pctx.arc(x,y,r,0,Math.PI*2);pctx.fill();
     }
-    pctx.fillStyle='rgba(255,255,255,.2)';
-    for(let y=step/2;y<TEX;y+=step)for(let x=step/2;x<TEX;x+=step){
-      pctx.beginPath();pctx.arc(x,y,2.2,0,Math.PI*2);pctx.fill();
+    pctx.fillStyle='rgba(240,246,248,.24)';
+    for(let y=32;y<TEX;y+=64)for(let x=32;x<TEX;x+=64){
+      pctx.beginPath();pctx.arc(x,y,1.8,0,Math.PI*2);pctx.fill();
     }
+    // Route markings are painted from the same safe centerlines used by bots.
+    const routeColors=['rgba(247,190,41,.72)','rgba(87,206,229,.58)','rgba(238,243,234,.48)'];
+    (activeStage?.botGraph?.routes||[]).forEach((route,index)=>{
+      pctx.save();
+      pctx.lineCap='round';pctx.lineJoin='round';
+      pctx.beginPath();
+      route.forEach((point,i)=>{
+        const uv=worldToTex(point[0],point[1]);
+        if(i)pctx.lineTo(uv[0],uv[1]);else pctx.moveTo(uv[0],uv[1]);
+      });
+      pctx.strokeStyle='rgba(20,29,36,.54)';pctx.lineWidth=index===0?14:10;pctx.stroke();
+      pctx.setLineDash(index===0?[18,10]:[8,13]);
+      pctx.strokeStyle=routeColors[index];pctx.lineWidth=index===0?5:4;pctx.stroke();
+      pctx.restore();
+    });
+    for(const [spawn,color] of [[SPAWN_A,'rgba(255,122,0,.52)'],[SPAWN_B,'rgba(106,31,255,.52)']]){
+      const uv=worldToTex(spawn.x,spawn.z);
+      pctx.strokeStyle=color;pctx.lineWidth=9;
+      pctx.beginPath();pctx.arc(uv[0],uv[1],42,0,Math.PI*2);pctx.stroke();
+    }
+  }else{
+    pctx.strokeStyle='rgba(90,100,120,.35)';pctx.lineWidth=3;
+    const divisions=10,step=TEX/divisions;
+    for(let i=0;i<=divisions;i++){
+      pctx.beginPath();pctx.moveTo(i*step,0);pctx.lineTo(i*step,TEX);pctx.stroke();
+      pctx.beginPath();pctx.moveTo(0,i*step);pctx.lineTo(TEX,i*step);pctx.stroke();
+    }
+    for(let i=0;i<2600;i++){
+      pctx.fillStyle=Math.random()<.5?'rgba(255,255,255,.06)':'rgba(60,70,90,.06)';
+      const r=1+Math.random()*3;pctx.beginPath();
+      pctx.arc(Math.random()*TEX,Math.random()*TEX,r,0,7);pctx.fill();
+    }
+    pctx.fillStyle='rgba(255,255,60,.5)';pctx.fillRect(0,TEX/2-5,TEX,10);
   }
-  // ノイズ
-  for (let i=0;i<2600;i++){
-    pctx.fillStyle = Math.random()<0.5 ? 'rgba(255,255,255,.06)' : 'rgba(60,70,90,.06)';
-    const r = 1+Math.random()*3;
-    pctx.beginPath();
-    pctx.arc(Math.random()*TEX, Math.random()*TEX, r, 0, 7);
-    pctx.fill();
+}
+
+function traceGroundSurface(ctx,surface){
+  ctx.beginPath();
+  if(surface.type==='circle'||surface.type==='ring'){
+    const uv=worldToTex(surface.x,surface.z);
+    const rx=(surface.r||surface.outer)/ARENA_W*TEX;
+    const ry=(surface.r||surface.outer)/ARENA_D*TEX;
+    ctx.ellipse(uv[0],uv[1],rx,ry,0,0,Math.PI*2);
+    return;
   }
-  // センターライン
-  pctx.fillStyle = salt?'rgba(239,177,31,.38)':'rgba(255,255,60,.5)';
-  pctx.fillRect(0, TEX/2-(salt?3:5), TEX, salt?6:10);
+  const c=Math.cos(surface.yaw||0),s=Math.sin(surface.yaw||0);
+  const corners=[[-surface.hw,surface.hd],[surface.hw,surface.hd],[surface.hw,-surface.hd],[-surface.hw,-surface.hd]];
+  corners.forEach(([lx,lz],i)=>{
+    const uv=worldToTex(surface.x+lx*c+lz*s,surface.z-lx*s+lz*c);
+    if(i)ctx.lineTo(uv[0],uv[1]);else ctx.moveTo(uv[0],uv[1]);
+  });
+  ctx.closePath();
 }
 
 // 塗り判定グリッド
@@ -2323,6 +2384,16 @@ function addPaintPlane(x,z,w,d,y,yaw=0,material=floorMat){
   if(material===floorMat&&activeStage)activeStage.paintableMeshes.push(m);
   return m;
 }
+function addSolidCollider(x,z,w,d,yMin,h,mesh,opts={}){
+  const ry=opts.ry||0,c=Math.abs(Math.cos(ry)),s=Math.abs(Math.sin(ry));
+  const hw=c*w/2+s*d/2,hd=s*w/2+c*d/2;
+  const o={
+    id:obstacles.length,x,z,hw,hd,wallHw:hw,wallHd:hd,
+    h,yMin,mesh,paintable:opts.paintable===true
+  };
+  obstacles.push(o);
+  return o;
+}
 function addBox(x, z, w, h, d, mat, solid=true, ry=0, opts={}){
   const baseY=opts.baseY||0;
   const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
@@ -2331,12 +2402,9 @@ function addBox(x, z, w, h, d, mat, solid=true, ry=0, opts={}){
   m.castShadow = m.receiveShadow = true;
   stageAdd(m);
   if (solid){
-    const o = {
-      id: obstacles.length, x, z, hw: w/2 + 0.55, hd: d/2 + 0.55,
-      wallHw: w/2, wallHd: d/2, h:baseY+h, yMin:baseY, mesh:m,
-      paintable:opts.paintable!==false&&ry===0
-    };
-    obstacles.push(o);
+    const o=addSolidCollider(x,z,w,d,baseY,baseY+h,m,{
+      ry,paintable:opts.paintable!==false&&ry===0
+    });
     if(opts.walkable!==false&&o.paintable){
       registerGround({type:'rect',x,z,hw:w/2,hd:d/2,y:o.h,yaw:ry,paintable:true});
       addPaintPlane(x,z,w,d,o.h+.012,ry);
@@ -2445,19 +2513,55 @@ function makeSignTexture(title,accent='#f0b323'){
   c.fillStyle='#a8b4c5';c.font='700 24px sans-serif';c.fillText('OFFSHORE WORKS • 07',256,190);
   const t=new THREE.CanvasTexture(cv);t.encoding=THREE.sRGBEncoding;return t;
 }
+function makeIndustrialTexture(kind){
+  const cv=document.createElement('canvas');cv.width=cv.height=256;
+  const c=cv.getContext('2d');
+  const palette={
+    dark:['#202a33','#101820','#4c5a65'],
+    panel:['#727d84','#4b565e','#a7b0b4'],
+    concrete:['#8b9294','#6d7477','#c2c7c5'],
+    tower:['#c3c8c8','#8e989c','#e6e8e4']
+  }[kind]||['#69747b','#4e5960','#b3b9ba'];
+  c.fillStyle=palette[0];c.fillRect(0,0,256,256);
+  c.strokeStyle=palette[1];c.lineWidth=5;
+  for(let i=0;i<=256;i+=64){
+    c.beginPath();c.moveTo(i,0);c.lineTo(i,256);c.stroke();
+    c.beginPath();c.moveTo(0,i);c.lineTo(256,i);c.stroke();
+  }
+  c.strokeStyle='rgba(255,255,255,.12)';c.lineWidth=2;
+  c.strokeRect(7,7,114,114);c.strokeRect(135,7,114,114);
+  c.strokeRect(7,135,114,114);c.strokeRect(135,135,114,114);
+  for(let y=16;y<256;y+=32)for(let x=16;x<256;x+=32){
+    c.fillStyle=palette[2];c.beginPath();c.arc(x,y,2.4,0,Math.PI*2);c.fill();
+  }
+  for(let i=0;i<46;i++){
+    const x=Math.random()*256,y=Math.random()*256,r=1+Math.random()*7;
+    c.fillStyle=`rgba(111,51,26,${.04+Math.random()*.12})`;
+    c.beginPath();c.arc(x,y,r,0,Math.PI*2);c.fill();
+  }
+  if(kind==='dark'||kind==='panel'){
+    c.strokeStyle='rgba(8,13,17,.2)';c.lineWidth=3;
+    for(let x=-256;x<512;x+=34){c.beginPath();c.moveTo(x,256);c.lineTo(x+256,0);c.stroke();}
+  }
+  const t=new THREE.CanvasTexture(cv);
+  t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.set(2,2);
+  t.encoding=THREE.sRGBEncoding;t.anisotropy=Math.min(4,renderer.capabilities.getMaxAnisotropy());
+  return t;
+}
 function addDeckRect(x,z,w,d,y,opts={}){
   const baseY=opts.baseY==null?-3.15:opts.baseY;
   const h=Math.max(.3,y-baseY);
   const baseMat=opts.baseMat||STAGE_MATERIALS.darkMetal;
   const base=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),baseMat);
   base.position.set(x,baseY+h/2,z);base.castShadow=base.receiveShadow=true;stageAdd(base);
-  obstacles.push({
-    id:obstacles.length,x,z,hw:w/2+.35,hd:d/2+.35,wallHw:w/2,wallHd:d/2,
-    h:y,yMin:baseY,mesh:base,paintable:false
-  });
+  // The skirt is visual only. Walkable collision comes from the simple top
+  // surface below, so a ramp can overlap a deck without hitting an invisible box.
   const topMat=opts.paintable===false?(opts.topMat||STAGE_MATERIALS.grate):floorMat;
   addPaintPlane(x,z,w,d,y+.018,opts.yaw||0,topMat);
-  registerGround({type:'rect',x,z,hw:w/2,hd:d/2,y,yaw:opts.yaw||0,paintable:opts.paintable!==false});
+  registerGround({
+    type:'rect',x,z,hw:w/2,hd:d/2,y,yaw:opts.yaw||0,
+    paintable:opts.paintable!==false,kind:opts.kind
+  });
   return base;
 }
 function rampGeometry(x,z,width,length,yStart,yEnd,yaw){
@@ -2474,7 +2578,10 @@ function addRamp(x,z,width,length,yStart,yEnd,yaw=0,opts={}){
   const m=new THREE.Mesh(rampGeometry(x,z,width,length,yStart,yEnd,yaw),opts.paintable===false?STAGE_MATERIALS.grate:floorMat);
   m.receiveShadow=true;stageAdd(m);mapWorldPaintUV(m);
   if(opts.paintable!==false&&activeStage)activeStage.paintableMeshes.push(m);
-  registerGround({type:'ramp',x,z,hw:width/2,hd:length/2,yStart,yEnd,y:Math.max(yStart,yEnd),yaw,paintable:opts.paintable!==false});
+  registerGround({
+    type:'ramp',x,z,hw:width/2,hd:length/2,yStart,yEnd,y:Math.max(yStart,yEnd),yaw,
+    paintable:opts.paintable!==false,kind:opts.kind||'ramp'
+  });
   return m;
 }
 function addRampBetween(a,b,width,yStart,yEnd,opts={}){
@@ -2507,7 +2614,7 @@ function addContainer(x,z,y,color,yaw=0){
   if(activeStage)activeStage.disposableMaterials.push(mat);
   const m=new THREE.Mesh(new THREE.BoxGeometry(7,2.8,3.2),mat);
   m.position.set(x,y+1.4,z);m.rotation.y=yaw;m.castShadow=m.receiveShadow=true;stageAdd(m);
-  obstacles.push({id:obstacles.length,x,z,hw:3.8,hd:2.1,wallHw:3.5,wallHd:1.6,h:y+2.8,yMin:y,mesh:m,paintable:false});
+  addSolidCollider(x,z,7,3.2,y,y+2.8,m,{ry:yaw,paintable:false});
   for(const sx of [-1,1]){
     const rib=new THREE.Mesh(new THREE.BoxGeometry(.14,2.55,3.28),STAGE_MATERIALS.rail);
     rib.position.set(x+sx*2.7*Math.cos(yaw),y+1.4,z-sx*2.7*Math.sin(yaw));rib.rotation.y=yaw;stageAdd(rib);
@@ -2522,16 +2629,110 @@ function addStageSign(x,y,z,yaw,title,accent){
     activeStage.disposableMaterials.push(mat);
   }
 }
+function addAtlasPanel(x,y,z,yaw,column,row,w=6,h=4){
+  const geometry=new THREE.PlaneGeometry(w,h);
+  const uv=geometry.attributes.uv;
+  const vBase=row===0?.5:0;
+  for(let i=0;i<uv.count;i++)uv.setXY(i,column/3+uv.getX(i)/3,vBase+uv.getY(i)/2);
+  uv.needsUpdate=true;
+  const panel=new THREE.Mesh(geometry,SALT_DECAL_MATERIAL);
+  panel.position.set(x,y,z);panel.rotation.y=yaw;panel.renderOrder=1;stageAdd(panel);
+  return panel;
+}
+function addDrumCluster(entries){
+  if(!entries.length)return;
+  const drums=new THREE.InstancedMesh(
+    new THREE.CylinderGeometry(.65,.67,1.45,12),
+    STAGE_DECOR_MATERIALS.drum,
+    entries.length
+  );
+  entries.forEach(([x,y,z],i)=>{
+    const matrix=new THREE.Matrix4().makeTranslation(x,y+.725,z);
+    drums.setMatrixAt(i,matrix);
+  });
+  drums.instanceMatrix.needsUpdate=true;drums.castShadow=!isTouch;drums.receiveShadow=true;stageAdd(drums);
+}
+function addPipeRuns(entries){
+  if(!entries.length)return;
+  const pipes=new THREE.InstancedMesh(
+    new THREE.BoxGeometry(1,.28,.28),
+    STAGE_DECOR_MATERIALS.pipe,
+    entries.length
+  );
+  const quaternion=new THREE.Quaternion(),scale=new THREE.Vector3(),position=new THREE.Vector3();
+  entries.forEach(([x,y,z,length,yaw],i)=>{
+    position.set(x,y,z);quaternion.setFromAxisAngle(new THREE.Vector3(0,1,0),yaw);scale.set(length,1,1);
+    pipes.setMatrixAt(i,new THREE.Matrix4().compose(position,quaternion,scale));
+  });
+  pipes.instanceMatrix.needsUpdate=true;pipes.castShadow=!isTouch;stageAdd(pipes);
+}
+function addTeamBanner(x,y,z,yaw,team){
+  const material=new THREE.MeshStandardMaterial({
+    color:TEAM[team].main,roughness:.7,metalness:.12,
+    emissive:TEAM[team].dark,emissiveIntensity:.16
+  });
+  if(activeStage)activeStage.disposableMaterials.push(material);
+  const back=new THREE.Mesh(new THREE.BoxGeometry(4.8,5.4,.18),material);
+  back.position.set(x,y,z);back.rotation.y=yaw;back.castShadow=!isTouch;stageAdd(back);
+  const normalX=Math.sin(yaw),normalZ=Math.cos(yaw);
+  addAtlasPanel(
+    x+normalX*.11,y,z+normalZ*.11,yaw,
+    team==='A'?0:1,0,4.25,4.25
+  );
+  const pole=new THREE.Mesh(new THREE.BoxGeometry(.2,6.6,.2),STAGE_MATERIALS.rail);
+  pole.position.set(x-2.65*Math.cos(yaw),y-.5,z+2.65*Math.sin(yaw));stageAdd(pole);
+}
+function addDistantHarbor(){
+  const blocks=[
+    [-78,-1.8,24,30,3,21,.08],[76,-1.4,-30,34,3.5,23,-.12],
+    [-18,-2.1,-82,28,2.5,18,.03],[46,-2,-76,22,2.7,16,-.2],
+    [-83,2,21,8,5,5,.08],[-72,1.5,28,10,4,5,.08],
+    [70,2,-25,9,5,5,-.12],[81,1.4,-34,8,4,5,-.12]
+  ];
+  const mesh=new THREE.InstancedMesh(new THREE.BoxGeometry(1,1,1),STAGE_MATERIALS.darkMetal,blocks.length);
+  const position=new THREE.Vector3(),quaternion=new THREE.Quaternion(),scale=new THREE.Vector3();
+  blocks.forEach(([x,y,z,sx,sy,sz,yaw],i)=>{
+    position.set(x,y,z);scale.set(sx,sy,sz);
+    quaternion.setFromAxisAngle(new THREE.Vector3(0,1,0),yaw);
+    mesh.setMatrixAt(i,new THREE.Matrix4().compose(position,quaternion,scale));
+  });
+  mesh.instanceMatrix.needsUpdate=true;mesh.receiveShadow=true;stageAdd(mesh);
+
+  const beams=[
+    [-77,8,18,.7,17,.7,0,0],[-76,16,18,13,.55,.7,.08,-.45],
+    [74,8,-37,.7,18,.7,0,0],[73,17,-37,14,.55,.7,-.12,.48],
+    [-18,7,-83,.55,15,.55,0,0],[-17,14,-83,11,.45,.55,.03,-.4]
+  ];
+  const crane=new THREE.InstancedMesh(new THREE.BoxGeometry(1,1,1),STAGE_MATERIALS.rust,beams.length);
+  beams.forEach(([x,y,z,sx,sy,sz,yaw,roll],i)=>{
+    position.set(x,y,z);scale.set(sx,sy,sz);
+    quaternion.setFromEuler(new THREE.Euler(0,yaw,roll));
+    crane.setMatrixAt(i,new THREE.Matrix4().compose(position,quaternion,scale));
+  });
+  crane.instanceMatrix.needsUpdate=true;stageAdd(crane);
+}
 
 const STAGE_MATERIALS={
-  darkMetal:new THREE.MeshStandardMaterial({color:0x242a33,roughness:.68,metalness:.38}),
+  darkMetal:new THREE.MeshStandardMaterial({color:0xffffff,map:makeIndustrialTexture('dark'),roughness:.68,metalness:.38}),
   rail:new THREE.MeshStandardMaterial({color:0x151a22,roughness:.42,metalness:.72}),
-  concrete:new THREE.MeshStandardMaterial({color:0xb8bec5,roughness:.82,metalness:.02}),
+  concrete:new THREE.MeshStandardMaterial({color:0xffffff,map:makeIndustrialTexture('concrete'),roughness:.82,metalness:.02}),
   rust:new THREE.MeshStandardMaterial({color:0x9b4e27,roughness:.88,metalness:.18}),
-  tower:new THREE.MeshStandardMaterial({color:0xd2d7dc,roughness:.62,metalness:.28}),
+  tower:new THREE.MeshStandardMaterial({color:0xffffff,map:makeIndustrialTexture('tower'),roughness:.62,metalness:.28}),
   grate:new THREE.MeshStandardMaterial({color:0x59616b,roughness:.42,metalness:.75,transparent:true,opacity:.82}),
   ocean:new THREE.MeshStandardMaterial({color:0x176f9e,roughness:.2,metalness:.08,transparent:true,opacity:.94}),
   hazard:new THREE.MeshStandardMaterial({map:makeHazardTexture(),roughness:.72,metalness:.12})
+};
+const SALT_DECAL_TEXTURE=new THREE.TextureLoader().load('assets/salt-spire-decal-atlas-v1.webp');
+SALT_DECAL_TEXTURE.encoding=THREE.sRGBEncoding;
+SALT_DECAL_TEXTURE.generateMipmaps=false;
+SALT_DECAL_TEXTURE.minFilter=THREE.LinearFilter;
+SALT_DECAL_TEXTURE.magFilter=THREE.LinearFilter;
+const SALT_DECAL_MATERIAL=new THREE.MeshStandardMaterial({
+  map:SALT_DECAL_TEXTURE,roughness:.82,metalness:.05,side:THREE.DoubleSide
+});
+const STAGE_DECOR_MATERIALS={
+  drum:new THREE.MeshStandardMaterial({color:0xd39a24,roughness:.66,metalness:.42}),
+  pipe:new THREE.MeshStandardMaterial({color:0x9b4e27,roughness:.74,metalness:.48})
 };
 
 function makeRuntime(id,config){
@@ -2539,11 +2740,12 @@ function makeRuntime(id,config){
     id,version:STAGE_VERSION,root:activeStageRoot,config,
     spawnA:SPAWN_A,spawnB:SPAWN_B,paintTexture:paintTex,paintMask,
     paintableMeshes:[],groundSurfaces,solidColliders:obstacles,projectileColliders,
-    killZones:[],botGraph:{routes:[]},disposableMaterials:[],disposableTextures:[]
+    killZones:[],botGraph:{routes:[]},animators:[],disposableMaterials:[],disposableTextures:[]
   };
 }
 function buildInkYard(){
   ARENA_W=ARENA_D=ARENA=80;
+  scene.fog.color.setHex(0xbcd7ef);
   scene.fog.near=70;scene.fog.far=210;
   SPAWN_A.set(-32,0,-32);SPAWN_B.set(32,0,32);
   const rt=makeRuntime('ink_yard',{name:'インクヤード',width:80,depth:80,seaLevel:-20,killY:-30,clampBounds:true,maxPlayableY:7});
@@ -2590,92 +2792,196 @@ function buildSaltSpire(){
   });
   activeStage=rt;
   rt.killZones.push({type:'belowY',y:-5.5,respawnSeconds:2,awardsKill:false});
+  scene.fog.color.setHex(0x9fc4d2);
   scene.fog.near=82;scene.fog.far=235;
   const ocean=new THREE.Mesh(new THREE.PlaneGeometry(260,260,1,1),STAGE_MATERIALS.ocean);
   ocean.rotation.x=-Math.PI/2;ocean.position.y=-3.2;ocean.receiveShadow=true;stageAdd(ocean);
 
-  // スポーンと中央メインルート
-  addDeckRect(0,43,18,12,1.45,{baseMat:STAGE_MATERIALS.darkMetal});
-  addDeckRect(0,-43,18,12,1.45,{baseMat:STAGE_MATERIALS.darkMetal});
-  addDeckRect(0,34,14,8,1.45);addDeckRect(0,-34,14,8,1.45);
-  addRamp(0,25,12,18,1.45,3,0);addRamp(0,-25,12,18,1.45,3,Math.PI);
-  addDeckRect(0,12,13,9,3);addDeckRect(0,-12,13,9,3);
+  // Broad, overlapping direct route. Every joint shares its endpoint height.
+  for(const s of [-1,1]){
+    addDeckRect(0,43*s,20,13,1.45,{baseMat:STAGE_MATERIALS.darkMetal});
+    addDeckRect(0,34*s,18,8,1.45,{baseY:.9});
+    addRampBetween([0,30*s],[0,20*s],14,1.45,3);
+    addDeckRect(0,17*s,15,8,3,{baseY:2.35});
+  }
 
-  // 中央リングと非塗装のビーコン塔
-  const ringBase=new THREE.Mesh(new THREE.CylinderGeometry(15.5,17,6.15,32,1,true),STAGE_MATERIALS.darkMetal);
+  // Full circular combat floor: the beacon can be circled from every route.
+  const centerRadius=18;
+  const ringBase=new THREE.Mesh(
+    new THREE.CylinderGeometry(centerRadius,centerRadius+1.4,6.15,40,1,true),
+    STAGE_MATERIALS.darkMetal
+  );
   ringBase.position.y=-.075;ringBase.castShadow=ringBase.receiveShadow=true;stageAdd(ringBase);
-  const ringTop=new THREE.Mesh(new THREE.RingGeometry(3.8,15.5,48,1),floorMat);
-  ringTop.rotation.x=-Math.PI/2;ringTop.position.y=3.02;ringTop.receiveShadow=true;stageAdd(ringTop);mapWorldPaintUV(ringTop);
-  registerGround({type:'ring',x:0,z:0,inner:3.8,outer:15.5,y:3,paintable:true});
+  const ringTop=new THREE.Mesh(new THREE.CircleGeometry(centerRadius,56),floorMat);
+  ringTop.rotation.x=-Math.PI/2;ringTop.position.y=3.02;ringTop.receiveShadow=true;
+  stageAdd(ringTop);mapWorldPaintUV(ringTop);
+  registerGround({type:'circle',x:0,z:0,r:centerRadius,y:3,paintable:true,kind:'center'});
   rt.paintableMeshes.push(ringTop);
-  const tower=new THREE.Mesh(new THREE.CylinderGeometry(3.1,3.1,11.5,24),STAGE_MATERIALS.tower);
-  tower.position.y=8.75;tower.castShadow=tower.receiveShadow=true;stageAdd(tower);
-  obstacles.push({id:obstacles.length,x:0,z:0,hw:3.65,hd:3.65,wallHw:3.1,wallHd:3.1,h:14.5,yMin:3,mesh:tower,paintable:false});
+
+  const tower=new THREE.Mesh(new THREE.CylinderGeometry(3.4,3.8,12.5,28),STAGE_MATERIALS.tower);
+  tower.position.y=9.25;tower.castShadow=tower.receiveShadow=true;stageAdd(tower);
+  addSolidCollider(0,0,7.4,7.4,3,15.5,tower,{paintable:false});
   for(let i=0;i<3;i++){
-    const band=new THREE.Mesh(new THREE.TorusGeometry(3.18,.13,8,32),i===1?STAGE_MATERIALS.hazard:STAGE_MATERIALS.rail);
-    band.rotation.x=Math.PI/2;band.position.y=5.1+i*3.2;stageAdd(band);
+    const band=new THREE.Mesh(
+      new THREE.TorusGeometry(3.82,.14,8,36),
+      i===1?STAGE_MATERIALS.hazard:STAGE_MATERIALS.rail
+    );
+    band.rotation.x=Math.PI/2;band.position.y=5.3+i*3.3;stageAdd(band);
   }
   const beacon=new THREE.PointLight(0xffc739,1.4,34,2);
-  beacon.position.set(0,14.2,0);stageAdd(beacon);
+  beacon.position.set(0,17,0);stageAdd(beacon);
+  const cap=new THREE.Mesh(new THREE.CylinderGeometry(4.55,4.1,.65,28),STAGE_MATERIALS.darkMetal);
+  cap.position.y=15.7;cap.castShadow=cap.receiveShadow=true;stageAdd(cap);
+  const glassMaterial=new THREE.MeshStandardMaterial({
+    color:0xffd75f,emissive:0xff8a18,emissiveIntensity:1.25,
+    transparent:true,opacity:.68,roughness:.16,metalness:.12
+  });
+  rt.disposableMaterials.push(glassMaterial);
+  const glass=new THREE.Mesh(new THREE.CylinderGeometry(2.25,2.25,1.7,24,1,true),glassMaterial);
+  glass.position.y=16.9;stageAdd(glass);
+  const crown=new THREE.Mesh(new THREE.ConeGeometry(3.35,1.45,28),STAGE_MATERIALS.darkMetal);
+  crown.position.y=18.45;crown.castShadow=true;stageAdd(crown);
+  const spinner=new THREE.Group();
+  const beamMaterial=new THREE.MeshBasicMaterial({color:0xffe9a1,transparent:true,opacity:.82});
+  rt.disposableMaterials.push(beamMaterial);
+  const beamA=new THREE.Mesh(new THREE.BoxGeometry(6.2,.18,.34),beamMaterial);
+  const beamB=new THREE.Mesh(new THREE.BoxGeometry(.34,.18,6.2),beamMaterial);
+  spinner.add(beamA,beamB);spinner.position.y=16.9;stageAdd(spinner);
+  rt.animators.push((dt,time)=>{
+    spinner.rotation.y+=dt*.78;
+    beacon.intensity=1.35+Math.sin(time*2.6)*.32;
+    glassMaterial.emissiveIntensity=1.15+Math.sin(time*2.6)*.18;
+  });
 
-  // 西側高所ルート（北西→中央→南東）と対称側の観測デッキ
-  for(const [x,z] of [[-33,20],[33,-20],[33,20],[-33,-20]])addDeckRect(x,z,16,15,4.8);
-  addRampBetween([0,37],[-27,25],10,1.45,4.8);
-  addRampBetween([0,-37],[27,-25],10,1.45,4.8);
-  addRampBetween([-30,14],[-15,5],9,4.8,3);
-  addRampBetween([30,-14],[15,-5],9,4.8,3);
-  addRampBetween([30,14],[15,5],8,4.8,3);
-  addRampBetween([-30,-14],[-15,-5],8,4.8,3);
-  addDeckRect(-38,8,10,10,4.8);addDeckRect(38,-8,10,10,4.8);
+  // High route: team A north-west to center, then team B south-east.
+  addRampBetween([-9,36],[-25,30],11,1.45,4.6);
+  addDeckRect(-34,23,18,14,4.6);
+  addDeckRect(-38,10,13,13,4.6,{baseY:3.9});
+  addRampBetween([-31.5,7.2],[-13,11],10,4.6,3);
 
-  // 東側低所フランク。遮蔽を使いながら中央の裏へ回れる。
-  addDeckRect(44,0,12,34,1.1);addDeckRect(-44,0,12,34,1.1);
-  addDeckRect(40,29,12,10,1.25);addDeckRect(-40,-29,12,10,1.25);
-  addRampBetween([5,38],[38,30],9,1.45,1.25);
-  addRampBetween([-5,-38],[-38,-30],9,1.45,1.25);
-  addRampBetween([43,1],[15,2],8,1.1,3);
-  addRampBetween([-43,-1],[-15,-2],8,1.1,3);
+  addRampBetween([9,-36],[25,-30],11,1.45,4.6);
+  addDeckRect(34,-23,18,14,4.6);
+  addDeckRect(38,-10,13,13,4.6,{baseY:3.9});
+  addRampBetween([31.5,-7.2],[13,-11],10,4.6,3);
 
-  // 塗れないグレーチング。高所と中央を短く接続する。
-  addRampBetween([-28,8],[-15,3],5,4.8,3,{paintable:false});
-  addRampBetween([28,-8],[15,-3],5,4.8,3,{paintable:false});
-  addRampBetween([28,8],[15,3],5,4.8,3,{paintable:false});
-  addRampBetween([-28,-8],[-15,-3],5,4.8,3,{paintable:false});
+  // Low flank: team A north-east to center, then team B south-west.
+  addRampBetween([5,39],[22,34],12,1.45,1.35);
+  addDeckRect(22,34,14,12,1.35,{baseY:.7});
+  addRampBetween([22,34],[38,25],12,1.35,1.2);
+  addDeckRect(39,22,14,14,1.2);
+  addRampBetween([40,18],[44,10],12,1.2,1.1);
+  addDeckRect(44,2,14,25,1.1);
+  addRampBetween([38,4],[17,1],11,1.1,3);
 
-  // 腰高カバー、コンテナ、ハザード帯
-  for(const [x,z,flip] of [[-4,29,1],[4,-29,-1],[-29,21,1],[29,-21,-1],[39,4,1],[-39,-4,-1]]){
-    addBox(x,z,flip===1?7:5,1.45,3.2,STAGE_MATERIALS.concrete,true,0,{baseY:surfaceHeightAtPoint(x,z),paintable:true});
+  addRampBetween([-5,-39],[-22,-34],12,1.45,1.35);
+  addDeckRect(-22,-34,14,12,1.35,{baseY:.7});
+  addRampBetween([-22,-34],[-38,-25],12,1.35,1.2);
+  addDeckRect(-39,-22,14,14,1.2);
+  addRampBetween([-40,-18],[-44,-10],12,1.2,1.1);
+  addDeckRect(-44,-2,14,25,1.1);
+  addRampBetween([-38,-4],[-17,-1],11,1.1,3);
+
+  // Cover is outside every route centerline.
+  for(const [x,z,w,d] of [[-13,-12,5,3],[13,12,5,3]]){
+    addBox(x,z,w,1.35,d,STAGE_MATERIALS.concrete,true,0,{baseY:3,paintable:true});
   }
-  addContainer(34,25,4.8,0xd96332,.18);addContainer(-34,-25,4.8,0x477fa8,.18+Math.PI);
-  addContainer(46,1,1.1,0xc69c27,Math.PI/2);addContainer(-46,-1,1.1,0x4e687d,Math.PI/2);
-  for(const [x,z,y,w,d] of [[0,16,3,12,.8],[0,-16,3,12,.8],[-33,12.2,4.8,16,.8],[33,-12.2,4.8,16,.8]]){
-    const h=new THREE.Mesh(new THREE.BoxGeometry(w,.12,d),STAGE_MATERIALS.hazard);
-    h.position.set(x,y+.08,z);stageAdd(h);
+  addContainer(-39,25,4.6,0xd96332,.08);
+  addContainer(39,-25,4.6,0x477fa8,Math.PI+.08);
+  addContainer(50,0,1.1,0xc69c27,Math.PI/2);
+  addContainer(-50,0,1.1,0x4e687d,Math.PI/2);
+  for(const [x,z,y,w,d] of [[0,20,3,13,.8],[0,-20,3,13,.8],[-27,29,4.6,10,.8],[27,-29,4.6,10,.8]]){
+    const strip=new THREE.Mesh(new THREE.BoxGeometry(w,.12,d),STAGE_MATERIALS.hazard);
+    strip.position.set(x,y+.08,z);stageAdd(strip);
   }
 
-  // 外周手すりと、オリジナルの産業サイン
+  // Rails mark genuine drop edges and do not take part in collision.
   addRailLine(-9,49,9,49,1.45);addRailLine(-9,-49,9,-49,1.45);
-  addRailLine(-50,25,-50,-5,1.1);addRailLine(50,-25,50,5,1.1);
-  addRailLine(-41,27,-27,27,4.8);addRailLine(41,-27,27,-27,4.8);
-  addStageSign(-42,7.3,20,Math.PI/2,'SALT 07','#ff8b2f');
-  addStageSign(42,7.3,-20,-Math.PI/2,'TIDELINE','#6f43ff');
+  addRailLine(-51,8,-51,-14,1.1);addRailLine(51,-8,51,14,1.1);
+  addRailLine(-40,30,-27,30,4.6);addRailLine(40,-30,27,-30,4.6);
+  addStageSign(-43,7.1,22,Math.PI/2,'SALT 07','#ff8b2f');
+  addStageSign(43,7.1,-22,-Math.PI/2,'TIDELINE','#6f43ff');
+  addAtlasPanel(0,-.55,49.53,0,0,0,7,3.2);
+  addAtlasPanel(0,-.55,-49.53,Math.PI,1,0,7,3.2);
+  addAtlasPanel(-43.03,6.4,23,-Math.PI/2,2,0,6,4);
+  addAtlasPanel(51.03,3.1,2,Math.PI/2,0,1,6,4);
+  addAtlasPanel(0,1.15,18.03,0,1,1,6,3.2);
+  addAtlasPanel(0,1.15,-18.03,Math.PI,2,1,6,3.2);
+  addDrumCluster([
+    [-42,4.6,18],[-40.45,4.6,17.5],[-41.1,4.6,15.9],
+    [42,1.1,13],[48.4,1.1,-6],
+    [-42,1.1,-13],[-48.4,1.1,6]
+  ]);
+  addPipeRuns([
+    [-46,2.15,4,8,Math.PI/2],[-46,2.65,4,8,Math.PI/2],
+    [46,2.15,-4,8,Math.PI/2],[46,2.65,-4,8,Math.PI/2],
+    [-32,6.15,29,8,0],[32,6.15,-29,8,0]
+  ]);
+  addTeamBanner(-7.1,4.25,48.2,0,'A');
+  addTeamBanner(7.1,4.25,48.2,0,'A');
+  addTeamBanner(-7.1,4.25,-48.2,Math.PI,'B');
+  addTeamBanner(7.1,4.25,-48.2,Math.PI,'B');
+  const spawnLightA=new THREE.PointLight(TEAM.A.main,.72,24,2);
+  const spawnLightB=new THREE.PointLight(TEAM.B.main,.72,24,2);
+  spawnLightA.position.set(0,5,43);spawnLightB.position.set(0,5,-43);
+  stageAdd(spawnLightA);stageAdd(spawnLightB);
+  addDistantHarbor();
   flushRailPosts();
   spawnPad(0,43,1.45,'A');spawnPad(0,-43,1.45,'B');
 
   rt.botGraph.routes=[
-    [[0,43],[0,32],[0,22],[0,12],[0,0],[0,-12],[0,-22],[0,-32],[0,-43]],
-    [[0,43],[-18,34],[-34,23],[-38,8],[-30,0],[-38,-8],[-34,-23],[-18,-34],[0,-43]],
-    [[0,43],[18,34],[36,25],[44,10],[31,0],[44,-10],[36,-25],[18,-34],[0,-43]]
+    [[0,43],[0,34],[0,30],[0,20],[0,17],[-7,10],[-8,1],[-7,-9],[0,-17],[0,-20],[0,-30],[0,-34],[0,-43]],
+    [[0,43],[-6,37],[-9,36],[-25,30],[-34,23],[-38,10],[-31.5,7.2],[-13,11],[-8,8],[-8,0],[-7,-8],[13,-11],[31.5,-7.2],[38,-10],[34,-23],[25,-30],[9,-36],[6,-37],[0,-43]],
+    [[0,43],[5,39],[22,34],[38,25],[44,10],[38,4],[17,1],[9,5],[6,-6],[-9,-4],[-17,-1],[-38,-4],[-44,-10],[-38,-25],[-22,-34],[-5,-39],[0,-43]]
   ];
+  rt.botGraph.validation=validateStageRoutes(rt.botGraph.routes);
   return rt;
 }
 
+function validateStageRoutes(routes){
+  const failures=[];
+  routes.forEach((route,routeIndex)=>{
+    let previousHeight=null;
+    for(let pointIndex=0;pointIndex<route.length-1;pointIndex++){
+      const a=route[pointIndex],b=route[pointIndex+1];
+      const distance=Math.hypot(b[0]-a[0],b[1]-a[1]);
+      const steps=Math.max(1,Math.ceil(distance/.45));
+      for(let i=0;i<=steps;i++){
+        const t=i/steps,x=THREE.MathUtils.lerp(a[0],b[0],t),z=THREE.MathUtils.lerp(a[1],b[1],t);
+        const height=surfaceHeightAtPoint(x,z,previousHeight==null?999:previousHeight);
+        if(!Number.isFinite(height)){
+          failures.push({route:routeIndex,segment:pointIndex,x:+x.toFixed(2),z:+z.toFixed(2),reason:'no-ground'});
+          previousHeight=null;
+          break;
+        }
+        if(previousHeight!=null&&Math.abs(height-previousHeight)>.3){
+          failures.push({route:routeIndex,segment:pointIndex,x:+x.toFixed(2),z:+z.toFixed(2),reason:'height-seam'});
+          break;
+        }
+        previousHeight=height;
+      }
+    }
+  });
+  return {ok:failures.length===0,failures};
+}
+
 function surfaceHeightAtPoint(x,z,currentY=999){
-  let found=-Infinity;
+  let found=-Infinity,bestDelta=Infinity;
+  const unlimited=currentY>=900;
   for(const s of groundSurfaces){
     if(!surfaceContains(s,x,z))continue;
     const h=surfaceHeight(s,x,z);
-    if(h<=currentY+.75&&h>found)found=h;
+    if(unlimited){
+      if(h>found)found=h;
+      continue;
+    }
+    // A character may step onto a very small lip, but never snap through a
+    // deck above its head. Overlapping ramp/deck seams choose the closest
+    // continuous surface instead of always choosing the highest one.
+    if(h>currentY+.42)continue;
+    const delta=Math.abs(h-currentY);
+    if(delta<bestDelta-.001||(Math.abs(delta-bestDelta)<.001&&h>found)){
+      found=h;bestDelta=delta;
+    }
   }
   return found;
 }
@@ -3684,16 +3990,17 @@ function collideObstacles(pos, r){
   for (const o of obstacles){
     if (pos.y >= o.h - 0.12 || pos.y < (o.yMin==null?-999:o.yMin)-.2) continue;
     const dx = pos.x - o.x, dz = pos.z - o.z;
-    const px = o.hw - Math.abs(dx), pz = o.hd - Math.abs(dz);
+    const expandedHw=o.hw+r,expandedHd=o.hd+r;
+    const px = expandedHw - Math.abs(dx), pz = expandedHd - Math.abs(dz);
     if (px > 0 && pz > 0){
       if (px < pz){
         const sign = Math.sign(dx || 1);
-        pos.x = o.x + sign * o.hw;
-        contact = { o, axis:'x', sign, u:pos.z, nx:sign, nz:0 };
+        pos.x = o.x + sign * expandedHw;
+        contact = { o, axis:'x', sign, u:pos.z, nx:sign, nz:0, radius:r };
       } else {
         const sign = Math.sign(dz || 1);
-        pos.z = o.z + sign * o.hd;
-        contact = { o, axis:'z', sign, u:pos.x, nx:0, nz:sign };
+        pos.z = o.z + sign * expandedHd;
+        contact = { o, axis:'z', sign, u:pos.x, nx:0, nz:sign, radius:r };
       }
     }
   }
@@ -4503,8 +4810,8 @@ function updatePlayer(dt){
     const s = player.climbSurface;
     player.vy = 0;
     // 壁から離れたりめり込んだりしないよう、法線方向だけ位置を固定する。
-    if (s.axis === 'x') player.pos.x = s.o.x + s.sign*s.o.hw;
-    else                player.pos.z = s.o.z + s.sign*s.o.hd;
+    if (s.axis === 'x') player.pos.x = s.o.x + s.sign*(s.o.hw+(s.radius||0));
+    else                player.pos.z = s.o.z + s.sign*(s.o.hd+(s.radius||0));
     player.pos.y += 7.2*dt;
     if (player.pos.y >= s.o.h-0.12){
       player.pos.y = s.o.h+0.08;
@@ -5941,6 +6248,7 @@ let timeSyncT = 0;
 function animate(){
   requestAnimationFrame(animate);
   const dt = Math.min(clock.getDelta(), 0.05);
+  for(const update of activeStage?.animators||[])update(dt,performance.now()*.001);
   if (running){
     // 時間はホストが管理して定期的に同期
     if (mode !== 'online' || isHost){
