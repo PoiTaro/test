@@ -608,7 +608,7 @@
   .tbtn {
     position:fixed; z-index:15; border-radius:50%; border:none; font-weight:900; color:#fff;
     box-shadow:0 4px 12px rgba(0,0,0,.5), inset 0 0 0 2px rgba(255,255,255,.4);
-    user-select:none; -webkit-user-select:none;
+    user-select:none; -webkit-user-select:none; pointer-events:auto; touch-action:none;
   }
   #btnFire { right:max(30px, calc(env(safe-area-inset-right) + 18px)); bottom:max(96px, calc(env(safe-area-inset-bottom) + 72px)); width:96px; height:96px; font-size:17px; background:radial-gradient(circle at 35% 30%, #ffb14e, #e05e00); }
   #btnSwim { right:max(140px, calc(env(safe-area-inset-right) + 128px)); bottom:max(44px, calc(env(safe-area-inset-bottom) + 20px)); width:70px; height:70px; font-size:13px; background:radial-gradient(circle at 35% 30%, #6fd6ff, #0a6ecf); }
@@ -3496,21 +3496,30 @@ function shoot(origin, dir, team, opts = {}){
   const spread=opts.spread!=null?opts.spread:1.6;
   const verticalSpread=opts.verticalSpread!=null?opts.verticalSpread:1.2;
   const speed=opts.speed!=null?opts.speed:26;
+  const overdriveShot=!!opts.fromPlayer&&player.overdriveT>0;
+  const damageBoost=overdriveShot?1.38:1;
+  const paintBoost=overdriveShot?1.2:1;
   const vel = opts.vel ? opts.vel.clone()
     : dir.clone().multiplyScalar(speed).add(new THREE.Vector3((Math.random()-0.5)*spread, (Math.random()-0.5)*verticalSpread + (opts.lift!=null?opts.lift:2.2), (Math.random()-0.5)*spread));
-  const r = opts.r != null ? opts.r : 1.9 + Math.random()*0.55;
+  const r = (opts.r != null ? opts.r : 1.9 + Math.random()*0.55)*paintBoost;
+  const damage=(opts.damage != null ? opts.damage : (opts.fromPlayer ? 34 : 20))*damageBoost;
+  const hitRadius=opts.hitRadius!=null?opts.hitRadius:.79;
+  const visualScale=opts.visualScale!=null?opts.visualScale:1;
   const m = new THREE.Mesh(projGeoA, projMat[team]);
   m.position.copy(origin);
-  m.scale.setScalar(0.85 + Math.random()*0.35);
+  m.scale.setScalar((0.85 + Math.random()*0.35)*visualScale);
   m.castShadow = true;
   scene.add(m);
   projectiles.push({
     mesh: m, vel, team,
     fromPlayer: !!opts.fromPlayer,
+    fromRemote: !!opts.fromRemote,
     ghost: !!opts.ghost,     // ゴースト弾＝見た目だけ。塗りは相手からのイベントで反映
     life: opts.life!=null?opts.life:(isTouch&&!opts.fromPlayer?1.3:2.4), r,
     gravity: opts.gravity!=null?opts.gravity:34,
-    damage: opts.damage != null ? opts.damage : (opts.fromPlayer ? 34 : 20),
+    damage,
+    hitRadius,
+    visualScale,
     emerge: !!opts.emerge,
     midPainted: false,
     sourceName: opts.sourceName || '',
@@ -3520,7 +3529,8 @@ function shoot(origin, dir, team, opts = {}){
     netSend({ t:'sh', m:team,
       x:+origin.x.toFixed(2), y:+origin.y.toFixed(2), z:+origin.z.toFixed(2),
       vx:+vel.x.toFixed(2), vy:+vel.y.toFixed(2), vz:+vel.z.toFixed(2), r:+r.toFixed(2),
-      d:opts.damage, e:opts.emerge ? 1 : 0, g:opts.gravity!=null?opts.gravity:34, l:opts.life!=null?opts.life:2.4,
+      d:damage, e:opts.emerge ? 1 : 0, g:opts.gravity!=null?opts.gravity:34, l:opts.life!=null?opts.life:2.4,
+      hr:hitRadius,vs:visualScale,
       w:opts.weapon || (opts.emerge ? '飛び出しショット' : 'インクシューター') });
   }
 }
@@ -3762,6 +3772,10 @@ function damagePlayer(dmg, hitPos, attackerName='対戦相手', weapon='イン�
     closeMap();
     closeSettings();
     player.dead = true;
+    player.overdriveT=0;
+    player.barrierT=0;
+    barrierMesh.visible=false;
+    specialEffects.forEach(fx=>{ if(fx.follow==='player')fx.life=0; });
     updateSpecialUI();
     player.respawnT = 2.6;
     player.respawnEnd = performance.now()+2600;
@@ -3778,6 +3792,10 @@ function fallPlayer(){
   if(player.dead)return;
   closeMap();closeSettings();
   player.dead=true;
+  player.overdriveT=0;
+  player.barrierT=0;
+  barrierMesh.visible=false;
+  specialEffects.forEach(fx=>{ if(fx.follow==='player')fx.life=0; });
   player.hp=0;
   player.respawnT=2;
   player.respawnEnd=performance.now()+2000;
@@ -3977,12 +3995,20 @@ for (const [el, on, off] of [[btnFire, ()=>firing=true, ()=>firing=false],[btnSw
 }
 function bindTouchAction(id, action){
   const el = document.getElementById(id);
-  el.addEventListener('touchstart', e => { e.preventDefault(); action(); }, {passive:false});
-  el.addEventListener('click', e => { if (!isTouch){ e.preventDefault(); action(); } });
+  let lastPointerAt=-Infinity;
+  el.addEventListener('pointerdown', e => {
+    e.preventDefault();
+    lastPointerAt=performance.now();
+    action();
+  }, {passive:false});
+  el.addEventListener('click', e => {
+    e.preventDefault();
+    if(performance.now()-lastPointerAt>450)action();
+  });
 }
 bindTouchAction('btnJump', () => jumpQueued = true);
 bindTouchAction('btnSub', () => subQueued = true);
-bindTouchAction('btnSpecial', () => specialQueued = true);
+bindTouchAction('btnSpecial', () => activateSpecial());
 
 // ---------- 物理ヘルパー ----------
 function collideObstacles(pos, r){
@@ -4053,7 +4079,7 @@ function resetGame(){
   player.rollT = 0; player.rollCd = 0; player.superJump = null; player.special = 0;
   player.charge=0; player.wasFiring=false; player.launchPaintT=0; player.dualieSlideT=0; player.precisionT=0;
   player.overdriveT=0; player.barrierT=0; player.specialPoseT=0; player.rollerTrailT=0;
-  barrierMesh.visible=false; specialEffects.length=0;
+  barrierMesh.visible=false; clearSpecialEffects();
   document.getElementById('weaponChargeHud').style.opacity='0';
   document.getElementById('weaponChargeFill').style.width='0%';
   player.hp = 100; player.dead = false; player.respawnT = 0; player.respawnEnd=0;
@@ -4196,7 +4222,173 @@ const barrierMesh=new THREE.Mesh(
   new THREE.SphereGeometry(2.25,24,16),
   new THREE.MeshBasicMaterial({color:TEAM.A.light,transparent:true,opacity:.2,side:THREE.DoubleSide,depthWrite:false})
 );
-barrierMesh.position.y=1.05; barrierMesh.visible=false; player.group.add(barrierMesh);
+barrierMesh.position.y=1.05; barrierMesh.visible=false; barrierMesh.renderOrder=4; player.group.add(barrierMesh);
+
+function makeSpecialMaterial(team,opacity=.78,wireframe=false){
+  return new THREE.MeshStandardMaterial({
+    color:TEAM[team].light,
+    emissive:TEAM[team].main,
+    emissiveIntensity:1.45,
+    roughness:.25,
+    metalness:.12,
+    transparent:opacity<1,
+    opacity,
+    wireframe,
+    depthWrite:opacity>=1,
+    side:THREE.DoubleSide
+  });
+}
+function makeSpecialVisual(type,team,center){
+  const group=new THREE.Group();
+  group.position.copy(center);
+  group.userData.type=type;
+  group.userData.clock=0;
+  group.userData.rings=[];
+  group.userData.orbs=[];
+  group.userData.streaks=[];
+  const glow=makeSpecialMaterial(team,.82);
+  const glass=makeSpecialMaterial(team,.18);
+  const wire=makeSpecialMaterial(team,.58,true);
+  const addMesh=(geometry,material=glow)=>{
+    const mesh=new THREE.Mesh(geometry,material);
+    mesh.renderOrder=5;
+    group.add(mesh);
+    return mesh;
+  };
+  const groundRing=addMesh(new THREE.TorusGeometry(2.15,.09,8,36),glow);
+  groundRing.rotation.x=Math.PI/2;
+  groundRing.position.y=.12;
+  group.userData.rings.push(groundRing);
+  const light=new THREE.PointLight(TEAM[team].light,2.4,13,2);
+  light.position.y=2.1;
+  group.add(light);
+  group.userData.light=light;
+
+  if(type==='overdrive'){
+    for(let i=0;i<3;i++){
+      const ring=addMesh(new THREE.TorusGeometry(1.05+i*.36,.055,7,28),i===1?wire:glow);
+      ring.rotation.x=Math.PI/2;
+      ring.position.y=.35+i*.48;
+      group.userData.rings.push(ring);
+    }
+    for(let i=0;i<7;i++){
+      const orb=addMesh(new THREE.OctahedronGeometry(.13+i%2*.06,0),glow);
+      orb.userData.phase=i/7*Math.PI*2;
+      orb.userData.radius=1.1+(i%3)*.28;
+      orb.userData.height=.55+(i%4)*.42;
+      group.userData.orbs.push(orb);
+    }
+  }else if(type==='barrier'){
+    const shell=addMesh(new THREE.IcosahedronGeometry(2.7,2),wire);
+    shell.position.y=1.25;
+    group.userData.shell=shell;
+    for(let i=0;i<3;i++){
+      const ring=addMesh(new THREE.TorusGeometry(2.54,.065,8,40),glow);
+      ring.position.y=1.25;
+      ring.rotation.set(i===0?Math.PI/2:0,i===2?Math.PI/2:0,0);
+      group.userData.rings.push(ring);
+    }
+  }else if(type==='inkRain'){
+    const rainCone=addMesh(new THREE.CylinderGeometry(4.7,6.5,6.3,24,1,true),glass);
+    rainCone.position.y=3.1;
+    group.userData.rainCone=rainCone;
+    for(let i=0;i<6;i++){
+      const cloud=addMesh(new THREE.SphereGeometry(1.25+(i%3)*.28,12,8),i%2?wire:glow);
+      cloud.scale.y=.58;
+      cloud.position.set(Math.cos(i*Math.PI/3)*1.65,6.35+(i%2)*.24,Math.sin(i*Math.PI/3)*1.15);
+      group.userData.orbs.push(cloud);
+    }
+    for(let i=0;i<14;i++){
+      const streak=addMesh(new THREE.CylinderGeometry(.025,.07,1.25+(i%3)*.35,5),glow);
+      streak.position.set((Math.random()-.5)*10,1+Math.random()*5.5,(Math.random()-.5)*10);
+      streak.userData.speed=5.5+Math.random()*4;
+      group.userData.streaks.push(streak);
+    }
+  }else if(type==='megaCannon'){
+    const barrel=addMesh(new THREE.CylinderGeometry(.42,.8,1.85,16,1,true),glass);
+    barrel.rotation.x=Math.PI/2;
+    barrel.position.set(0,1.22,-.72);
+    group.userData.barrel=barrel;
+    for(let i=0;i<3;i++){
+      const ring=addMesh(new THREE.TorusGeometry(.48+i*.25,.06,8,30),i===1?wire:glow);
+      ring.position.set(0,1.22,-1.65-i*.3);
+      group.userData.rings.push(ring);
+    }
+  }
+  scene.add(group);
+  return group;
+}
+function disposeSpecialVisual(fx){
+  if(!fx||!fx.visual)return;
+  const geometries=new Set(),materials=new Set();
+  fx.visual.traverse(o=>{
+    if(o.geometry)geometries.add(o.geometry);
+    if(o.material){
+      const list=Array.isArray(o.material)?o.material:[o.material];
+      list.forEach(m=>materials.add(m));
+    }
+  });
+  scene.remove(fx.visual);
+  geometries.forEach(g=>g.dispose());
+  materials.forEach(m=>m.dispose());
+  fx.visual=null;
+}
+function clearSpecialEffects(){
+  specialEffects.forEach(disposeSpecialVisual);
+  specialEffects.length=0;
+}
+function specialEffectCenter(fx){
+  if(fx.follow==='player')return player.pos;
+  if(fx.follow==='remote'&&remote)return remote.pos;
+  return fx.center;
+}
+function updateSpecialVisual(fx,dt){
+  if(!fx.visual)return;
+  fx.visual.userData.clock+=dt;
+  const t=fx.visual.userData.clock;
+  const center=specialEffectCenter(fx);
+  fx.visual.position.copy(center);
+  if(fx.type==='megaCannon'){
+    fx.visual.rotation.y=fx.follow==='player'?camYaw:(remote?.yaw||remote?.tyaw||0);
+  }else{
+    fx.visual.rotation.y+=dt*(fx.type==='barrier'?.72:1.3);
+  }
+  fx.visual.userData.rings.forEach((ring,i)=>{
+    ring.rotation.z+=dt*(1.5+i*.55);
+    const pulse=1+Math.sin(t*7+i)*.08;
+    ring.scale.setScalar(pulse);
+  });
+  if(fx.type==='overdrive'){
+    fx.visual.userData.orbs.forEach((orb,i)=>{
+      const a=t*(2.2+i*.08)+orb.userData.phase;
+      orb.position.set(Math.cos(a)*orb.userData.radius,orb.userData.height+Math.sin(a*2)*.18,Math.sin(a)*orb.userData.radius);
+      orb.rotation.x+=dt*4;
+      orb.rotation.y+=dt*5;
+    });
+  }else if(fx.type==='barrier'&&fx.visual.userData.shell){
+    fx.visual.userData.shell.rotation.x+=dt*.45;
+    fx.visual.userData.shell.rotation.z+=dt*.32;
+    fx.visual.userData.shell.scale.setScalar(1+Math.sin(t*5)*.035);
+  }else if(fx.type==='inkRain'){
+    fx.visual.userData.orbs.forEach((cloud,i)=>{
+      cloud.position.y=6.35+(i%2)*.24+Math.sin(t*1.7+i)*.13;
+      cloud.rotation.y+=dt*(.18+i*.02);
+    });
+    fx.visual.userData.streaks.forEach(streak=>{
+      streak.position.y-=streak.userData.speed*dt;
+      if(streak.position.y<.15){
+        streak.position.y=6.2;
+        streak.position.x=(Math.random()-.5)*10;
+        streak.position.z=(Math.random()-.5)*10;
+      }
+    });
+  }else if(fx.type==='megaCannon'){
+    const kick=fx.visual.userData.flash||0;
+    fx.visual.scale.setScalar(1+kick*.22+Math.sin(t*12)*.025);
+    fx.visual.userData.flash=Math.max(0,kick-dt*4.5);
+  }
+  fx.visual.userData.light.intensity=1.7+Math.sin(t*9)*.75+(fx.visual.userData.flash||0)*4;
+}
 let specialAudioCtx=null;
 function playSpecialSound(){
   try{
@@ -4239,17 +4431,59 @@ function addSpecial(amount){
   player.special = Math.min(1, player.special+amount);
   updateSpecialUI();
 }
+function specialHorizontalDistance(a,b){
+  return Math.hypot(a.x-b.x,a.z-b.z);
+}
+function damageSpecialArea(fx,radius,damage,weapon){
+  const center=specialEffectCenter(fx);
+  if(fx.ghost&&fx.team!==player.team&&!player.dead&&specialHorizontalDistance(player.pos,center)<radius){
+    damagePlayer(damage,center.clone(),fx.sourceName||remotePlayerName(),weapon);
+  }
+  const ownsBots=!fx.ghost||(mode==='online'&&isHost);
+  if(!ownsBots)return;
+  for(let i=0;i<bots.length;i++){
+    const bot=bots[i];
+    if(!bot.active||bot.dead||bot.team===fx.team||specialHorizontalDistance(bot.pos,center)>=radius)continue;
+    if(!fx.ghost&&mode==='online'&&!isHost){
+      netSend({t:'bh',i,d:damage,w:weapon});
+    }else{
+      damageBot(bot,damage,bot.pos.clone(),!fx.ghost,fx.team,fx.ghost,weapon);
+    }
+  }
+}
+function createOverdrive(team,center,ghost=false,sourceName='',follow=''){
+  const fx={type:'overdrive',team,center:center.clone(),ghost,sourceName,follow,life:9.15,pulseT:0,pulses:0};
+  fx.visual=makeSpecialVisual(fx.type,team,center);
+  specialEffects.push(fx);
+  return fx;
+}
+function createBarrierSpecial(team,center,ghost=false,sourceName='',follow=''){
+  const fx={type:'barrier',team,center:center.clone(),ghost,sourceName,follow,life:8.15,pulseT:0,pulses:0};
+  fx.visual=makeSpecialVisual(fx.type,team,center);
+  specialEffects.push(fx);
+  return fx;
+}
 function createInkRain(team,center,ghost=false,sourceName=''){
-  specialEffects.push({type:'inkRain',team,center:center.clone(),ghost,sourceName,life:7,paintT:0,damageT:0});
+  const fx={type:'inkRain',team,center:center.clone(),ghost,sourceName,life:7.2,paintT:0,damageT:0,pulses:0};
+  fx.visual=makeSpecialVisual(fx.type,team,center);
+  specialEffects.push(fx);
+  return fx;
+}
+function createMegaCannon(team,center,ghost=false,sourceName='',follow=''){
+  const fx={type:'megaCannon',team,center:center.clone(),ghost,sourceName,follow,life:ghost?1.65:1.45,shotT:.08,shots:0};
+  fx.visual=makeSpecialVisual(fx.type,team,center);
+  specialEffects.push(fx);
+  return fx;
 }
 function activateSpecial(){
-  if (!running || player.dead || player.special < 1) return;
+  if (!running || player.dead || player.special < 1) return false;
   const loadout=selectedLoadout();
   const type=loadout.special;
   player.special = 0;
+  specialQueued=false;
   specialUses++;
   updateSpecialUI();
-  player.specialPoseT=.85;
+  player.specialPoseT=1.05;
   addShake(1.1);
   playSpecialSound();
   showSpecialAnnouncement(loadout.specialName,player.team,'YOU');
@@ -4257,65 +4491,108 @@ function activateSpecial(){
   let effectPos=center;
   burst(center.clone().add(new THREE.Vector3(0,1,0)), player.team, 42, 12);
   if(type==='overdrive'){
-    player.overdriveT=8;
-    player.ink=Math.min(1,player.ink+.45);
+    player.overdriveT=9;
+    player.ink=1;
+    player.hp=Math.min(100,player.hp+30);
+    createOverdrive(player.team,center,false,'','player');
   }else if(type==='barrier'){
-    player.barrierT=7;
+    player.barrierT=8;
     barrierMesh.material.color.setHex(TEAM[player.team].light);
     barrierMesh.visible=true;
     paint(center.x,center.z,4.5,player.team);
+    createBarrierSpecial(player.team,center,false,'','player');
   }else if(type==='inkRain'){
     const target=center.clone().add(new THREE.Vector3(-Math.sin(camYaw)*10,0,-Math.cos(camYaw)*10));
     createInkRain(player.team,target,false);
     effectPos=target;
   }else if(type==='megaCannon'){
-    specialEffects.push({type:'megaCannon',team:player.team,life:1.15,shotT:0,shots:0});
+    createMegaCannon(player.team,center,false,'','player');
   }
   netSend({ t:'sx',k:type,n:loadout.specialName,m:player.team,x:+effectPos.x.toFixed(2), y:+effectPos.y.toFixed(2), z:+effectPos.z.toFixed(2) });
+  return true;
 }
 function updateSpecialEffects(dt){
   player.overdriveT=Math.max(0,player.overdriveT-dt);
   player.barrierT=Math.max(0,player.barrierT-dt);
   player.specialPoseT=Math.max(0,player.specialPoseT-dt);
+  if(player.overdriveT>0&&!player.dead){
+    player.ink=Math.min(1,player.ink+dt*.24);
+    player.hp=Math.min(100,player.hp+dt*5);
+  }
   barrierMesh.visible=player.barrierT>0&&!player.dead;
   if(barrierMesh.visible){
-    barrierMesh.rotation.y+=dt*.9;
-    barrierMesh.material.opacity=.16+Math.sin(performance.now()*.008)*.06;
+    barrierMesh.rotation.y+=dt*1.7;
+    const barrierPulse=.96+Math.sin(performance.now()*.012)*.06;
+    barrierMesh.scale.setScalar(barrierPulse);
+    barrierMesh.material.opacity=.18+Math.sin(performance.now()*.009)*.07;
   }
   for(let i=specialEffects.length-1;i>=0;i--){
     const fx=specialEffects[i];
+    if(fx.follow==='remote'&&(!remote||remote.dead))fx.life=0;
     fx.life-=dt;
-    if(fx.type==='inkRain'){
-      fx.paintT-=dt; fx.damageT-=dt;
-      if(fx.paintT<=0){
-        fx.paintT=.16;
-        const a=Math.random()*Math.PI*2,d=Math.sqrt(Math.random())*7.2;
-        const x=fx.center.x+Math.cos(a)*d,z=fx.center.z+Math.sin(a)*d;
-        burst(new THREE.Vector3(x,5+Math.random()*3,z),fx.team,4,2.2);
+    if(fx.life<=0){
+      disposeSpecialVisual(fx);
+      specialEffects.splice(i,1);
+      continue;
+    }
+    updateSpecialVisual(fx,dt);
+    if(fx.type==='overdrive'){
+      fx.pulseT-=dt;
+      if(fx.pulseT<=0){
+        fx.pulseT=fx.pulses===0?.18:.62;
+        const first=fx.pulses++===0;
+        const center=specialEffectCenter(fx);
+        damageSpecialArea(fx,first?5.8:3.75,first?58:14,'オーバードライブ');
         if(!fx.ghost){
-          paint(x,z,1.35+Math.random()*.8,fx.team);
-          addSpecial(.002);
-          for(const b of bots){
-            if(!b.active||b.dead||b.team===fx.team)continue;
-            if(Math.hypot(b.pos.x-x,b.pos.z-z)<1.8)damageBot(b,7,b.pos.clone(),true,fx.team,false,'インクレイン');
-          }
+          paint(center.x,center.z,first?4.8:2.15,fx.team);
+          burst(center.clone().add(new THREE.Vector3(0,.4,0)),fx.team,first?26:8,first?8:4);
         }
       }
-      if(fx.ghost&&fx.team!==player.team&&fx.damageT<=0&&player.pos.distanceTo(fx.center)<7.4){
-        fx.damageT=.55; damagePlayer(4,player.pos.clone(),fx.sourceName||remotePlayerName(),'インクレイン');
+    }else if(fx.type==='barrier'){
+      fx.pulseT-=dt;
+      if(fx.pulseT<=0){
+        fx.pulseT=fx.pulses===0?.2:.78;
+        const first=fx.pulses++===0;
+        const center=specialEffectCenter(fx);
+        damageSpecialArea(fx,first?6.5:3.9,first?62:13,'インクバリア');
+        if(!fx.ghost){
+          paint(center.x,center.z,first?5.2:2.4,fx.team);
+          burst(center.clone().add(new THREE.Vector3(0,.7,0)),fx.team,first?30:8,first?9:4);
+        }
       }
-    }else if(fx.type==='megaCannon'&&fx.shots<3){
+    }else if(fx.type==='inkRain'){
+      fx.paintT-=dt; fx.damageT-=dt;
+      if(fx.paintT<=0){
+        fx.paintT=.13;
+        const a=Math.random()*Math.PI*2,d=Math.sqrt(Math.random())*7.2;
+        const x=fx.center.x+Math.cos(a)*d,z=fx.center.z+Math.sin(a)*d;
+        burst(new THREE.Vector3(x,5+Math.random()*3,z),fx.team,3,2.2);
+        if(!fx.ghost){
+          paint(x,z,1.35+Math.random()*.8,fx.team);
+        }
+      }
+      if(fx.damageT<=0){
+        fx.damageT=.42;
+        fx.pulses++;
+        damageSpecialArea(fx,7.4,9,'インクレイン');
+      }
+    }else if(fx.type==='megaCannon'&&!fx.ghost&&fx.shots<3){
       fx.shotT-=dt;
       if(fx.shotT<=0){
-        fx.shotT=.28; fx.shots++;
+        fx.shotT=.31; fx.shots++;
         const yaw=camYaw+(fx.shots-2)*.035;
         const dir=new THREE.Vector3(-Math.sin(yaw),Math.sin(-camPitch*.28+.12),-Math.cos(yaw)).normalize();
         const origin=player.pos.clone().add(new THREE.Vector3(dir.x*.9,1.35,dir.z*.9));
-        shoot(origin,dir,player.team,{fromPlayer:true,broadcast:true,damage:82,r:4.4,speed:34,lift:1.1,gravity:10,life:3.2,spread:.15,verticalSpread:.1,weapon:'メガインク砲'});
+        shoot(origin,dir,player.team,{fromPlayer:true,broadcast:true,damage:120,r:5.2,hitRadius:2.2,visualScale:4.4,speed:38,lift:1.15,gravity:8,life:3.4,spread:.1,verticalSpread:.08,weapon:'メガインク砲'});
+        if(fx.visual)fx.visual.userData.flash=1;
+        burst(origin.clone(),player.team,16,7);
         addShake(.75);
       }
     }
-    if(fx.life<=0||(fx.type==='megaCannon'&&fx.shots>=3&&fx.shotT<-.1))specialEffects.splice(i,1);
+    if(fx.life<=0||(fx.type==='megaCannon'&&!fx.ghost&&fx.shots>=3&&fx.shotT<-.1)){
+      disposeSpecialVisual(fx);
+      specialEffects.splice(i,1);
+    }
   }
 }
 
@@ -4581,22 +4858,23 @@ function updateWeaponFire(dt,mlen,onAir){
   const emerge=player.emergeWindow>0;
   const dir=weaponAimDirection();
   const origin=player.pos.clone().add(new THREE.Vector3(-Math.sin(camYaw)*.8,1.1,-Math.cos(camYaw)*.8));
-  const rateBoost=player.overdriveT>0?.58:1;
+  const rateBoost=player.overdriveT>0?.42:1;
+  const inkCostBoost=player.overdriveT>0?.55:1;
   const chargeHud=document.getElementById('weaponChargeHud');
   const chargeFill=document.getElementById('weaponChargeFill');
   player.launchPaintT=Math.max(0,(player.launchPaintT||0)-dt);
 
   if(type==='charger'){
     if(firing&&player.ink>.006){
-      player.charge=Math.min(1,player.charge+dt/1.15);
-      player.ink=Math.max(0,player.ink-dt*.075);
+      player.charge=Math.min(1,player.charge+dt/(1.15*rateBoost));
+      player.ink=Math.max(0,player.ink-dt*.075*inkCostBoost);
       chargeHud.style.opacity='1';
       chargeFill.style.width=(player.charge*100).toFixed(0)+'%';
       if(player.charge>=1)addShake(.025);
     }
     if(!firing&&player.wasFiring&&player.charge>.06&&player.fireCd<=0){
       const q=player.charge;
-      player.fireCd=.32;
+      player.fireCd=.32*rateBoost;
       const shotDir=weaponAimDirection();
       shoot(origin,shotDir,player.team,{
         fromPlayer:true,broadcast:true,damage:24+q*92,r:.85+q*1.1,
@@ -4621,21 +4899,21 @@ function updateWeaponFire(dt,mlen,onAir){
     player.rollerTrailT=(player.rollerTrailT||0)-dt;
     if(firing&&!player.wasFiring&&player.fireCd<=0&&player.ink>.07){
       const vertical=onAir;
-      player.ink-=vertical?.1:.075;
-      player.fireCd=vertical?.76:.62;
+      player.ink-=(vertical?.1:.075)*inkCostBoost;
+      player.fireCd=(vertical?.76:.62)*rateBoost;
       paintWeaponLaunch('roller',vertical?1.15:1);
       fireRollerSwing(dir,vertical);
     }
     if(firing&&mlen>.08&&!onAir&&player.ink>.012){
       if(player.rollerTrailT<=0){
         player.rollerTrailT=.09;
-        player.ink-=.012;
+        player.ink-=.012*inkCostBoost;
         const x=player.pos.x-Math.sin(player.yaw)*.25,z=player.pos.z-Math.cos(player.yaw)*.25;
         paint(x,z,2.05,player.team);
         addSpecial(.006);
         for(const b of bots){
           if(!b.active||b.dead||b.team===player.team)continue;
-          if(b.pos.distanceTo(player.pos)<1.35)damageBot(b,44,b.pos.clone(),true,player.team,false,'トレイルローラー');
+          if(b.pos.distanceTo(player.pos)<1.35)damageBot(b,player.overdriveT>0?64:44,b.pos.clone(),true,player.team,false,'トレイルローラー');
         }
       }
     }
@@ -4646,7 +4924,7 @@ function updateWeaponFire(dt,mlen,onAir){
   if(firing&&player.fireCd<=0&&player.ink>.018){
     if(type==='slosher'){
       player.fireCd=.58*rateBoost;
-      player.ink=Math.max(0,player.ink-.075);
+      player.ink=Math.max(0,player.ink-.075*inkCostBoost);
       for(let i=0;i<3;i++){
         const arcDir=weaponAimDirection(camYaw+(i-1)*.035);
         shoot(origin,arcDir,player.team,{
@@ -4659,7 +4937,7 @@ function updateWeaponFire(dt,mlen,onAir){
       addShake(.42);
     }else if(type==='dualies'){
       player.fireCd=.072*rateBoost;
-      player.ink=Math.max(0,player.ink-.017);
+      player.ink=Math.max(0,player.ink-.017*inkCostBoost);
       player.dualShot=(player.dualShot||0)^1;
       const side=player.dualShot?.34:-.34;
       const sideVec=new THREE.Vector3(Math.cos(camYaw)*side,0,-Math.sin(camYaw)*side);
@@ -4672,7 +4950,7 @@ function updateWeaponFire(dt,mlen,onAir){
       addShake(emerge?.24:.1);
     }else{
       player.fireCd=(emerge?.28:.095)*rateBoost;
-      player.ink=Math.max(0,player.ink-(emerge?.055:.022));
+      player.ink=Math.max(0,player.ink-(emerge?.055:.022)*inkCostBoost);
       const spread=onAir?3.1:1.25;
       shoot(origin,dir,player.team,{
         fromPlayer:true,broadcast:true,emerge,damage:emerge?44:34,r:emerge?2.7:undefined,
@@ -4734,7 +5012,7 @@ function updatePlayer(dt){
   let speed = 7.5;
   if (enemyInk) speed = 3.25;
   if (player.swimming) speed = ownInk ? 13.5 : 2.7;
-  if(player.overdriveT>0) speed*=1.24;
+  if(player.overdriveT>0) speed*=1.4;
 
   const sin = Math.sin(camYaw), cos = Math.cos(camYaw);
   let vx = (mx * cos + mz * sin) * speed;
@@ -5086,7 +5364,7 @@ function updateProjectiles(dt){
     const pos = p.mesh.position;
     const shotGround=groundHeightAt(pos.x,pos.z,pos.y+.35);
     // 弾の向き（進行方向へ伸ばす）
-    p.mesh.scale.y = 1 + Math.min(0.8, p.vel.length()*0.012);
+    p.mesh.scale.y = p.visualScale*(1 + Math.min(0.8, p.vel.length()*0.012));
     p.mesh.lookAt(pos.x + p.vel.x, pos.y + p.vel.y, pos.z + p.vel.z);
 
     // 発射地点と着弾点の間にも一度塗りを置き、射線が途切れないようにする。
@@ -5098,7 +5376,7 @@ function updateProjectiles(dt){
 
     let dead = false;
     // 潜行中も無敵ではないが、当たり判定が小さくなる。
-    if (p.team !== player.team && !player.dead && hitChar(pos, player.pos, player.swimming ? 0.43 : 0.79)){
+    if (p.team !== player.team && !player.dead && hitChar(pos, player.pos, player.swimming ? Math.max(.43,p.hitRadius*.62) : p.hitRadius)){
       damagePlayer(
         p.damage,
         pos.clone(),
@@ -5108,7 +5386,7 @@ function updateProjectiles(dt){
       dead = true;
     }
     // 相手プレイヤーへの命中は見た目だけ（ダメージは相手側が判定して通知）
-    if (!dead && remote && !remote.dead && p.team !== remote.team && hitChar(pos, remote.pos)){
+    if (!dead && remote && !remote.dead && p.team !== remote.team && hitChar(pos, remote.pos,p.hitRadius)){
       burst(pos.clone(), p.team, 5, 3);
       dead = true;
     }
@@ -5116,13 +5394,13 @@ function updateProjectiles(dt){
       for (let bi = 0; bi < bots.length; bi++){
         const b = bots[bi];
         if (!b.active || b.dead || b.team === p.team) continue;
-        if (hitChar(pos, b.pos)){
+        if (hitChar(pos, b.pos,p.hitRadius)){
           if (mode === 'online' && !isHost){
             // ボットの体力はホストが管理しているので、当たったことだけ伝える
             burst(pos.clone(), p.team, 5, 3);
             if (p.fromPlayer) netSend({ t:'bh', i: bi, d:p.damage, w:p.weapon });
           } else {
-            damageBot(b, p.damage, pos.clone(), p.fromPlayer, p.team, false, p.weapon);
+            damageBot(b, p.damage, pos.clone(), p.fromPlayer, p.team, p.fromRemote, p.weapon);
           }
           dead = true;
           break;
@@ -5461,8 +5739,9 @@ function handleNet(m){
     case 'sh':                                   // 相手の弾（見た目のみ／自分への当たり判定あり）
       shoot(new THREE.Vector3(m.x, m.y, m.z), null, m.m,
             { vel: new THREE.Vector3(m.vx, m.vy, m.vz), r:m.r, damage:m.d, emerge:!!m.e,
+              hitRadius:Number.isFinite(m.hr)?m.hr:.79,visualScale:Number.isFinite(m.vs)?m.vs:1,
               gravity:Number.isFinite(m.g)?m.g:34,life:Number.isFinite(m.l)?m.l:2.4,
-              ghost:true, sourceName:remotePlayerName(), weapon:m.w||'インクシューター' });
+              ghost:true, fromRemote:true, sourceName:remotePlayerName(), weapon:m.w||'インクシューター' });
       break;
     case 'sb':                                   // 相手のサブ武器
       if(m.k==='sprinkler'){
@@ -5477,6 +5756,12 @@ function handleNet(m){
       burst(pos.clone().add(new THREE.Vector3(0,1,0)),m.m,38,11);
       if(m.k==='inkRain'){
         createInkRain(m.m,pos,true,remotePlayerName());
+      }else if(m.k==='overdrive'){
+        createOverdrive(m.m,pos,true,remotePlayerName(),'remote');
+      }else if(m.k==='barrier'){
+        createBarrierSpecial(m.m,pos,true,remotePlayerName(),'remote');
+      }else if(m.k==='megaCannon'){
+        createMegaCannon(m.m,pos,true,remotePlayerName(),'remote');
       }else if(!m.k&&m.m!==player.team&&!player.dead&&player.pos.distanceTo(pos)<11){
         damagePlayer(55,pos,remotePlayerName(),'スペシャル');
       }
