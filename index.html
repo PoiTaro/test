@@ -2141,6 +2141,17 @@ const stageMaskCtx=stageMaskCv.getContext('2d');
 const paintTex = new THREE.CanvasTexture(paintCv);
 paintTex.encoding = THREE.sRGBEncoding;
 paintTex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+const saltFloorDetailImage = new Image();
+let saltFloorDetailReady = false;
+saltFloorDetailImage.decoding = 'async';
+saltFloorDetailImage.addEventListener('load', () => {
+  saltFloorDetailReady = true;
+  if (typeof activeStage !== 'undefined' && activeStage?.id === 'salt_spire_beacon'){
+    drawBaseFloor(activeStage.id);
+    paintTex.needsUpdate = true;
+  }
+});
+saltFloorDetailImage.src = 'assets/salt-spire-floor-tile-v1.webp';
 
 function drawBaseFloor(stageId=''){
   const salt=stageId==='salt_spire_beacon';
@@ -2164,10 +2175,27 @@ function drawBaseFloor(stageId=''){
       };
       const colors=palettes[kind]||palettes.concrete;
       pctx.fillStyle=colors[0];pctx.fillRect(0,0,TEX,TEX);
-      pctx.strokeStyle=colors[1];pctx.lineWidth=2;
-      const plate=kind==='metal'?42:64;
-      for(let x=0;x<=TEX;x+=plate){pctx.beginPath();pctx.moveTo(x,0);pctx.lineTo(x,TEX);pctx.stroke();}
-      for(let y=0;y<=TEX;y+=plate){pctx.beginPath();pctx.moveTo(0,y);pctx.lineTo(TEX,y);pctx.stroke();}
+      if(saltFloorDetailReady){
+        // The generated marine-deck tile is composited into the same canvas as
+        // the live ink. Keeping it below the splats preserves vivid team
+        // colours while giving every exposed floor panel bolts, anti-slip
+        // grain, grooves and salt wear.
+        const tile=kind==='metal'?208:(kind==='ramp'?224:256);
+        pctx.globalCompositeOperation='soft-light';
+        pctx.globalAlpha=kind==='center'?.72:.82;
+        for(let ty=-tile;ty<TEX+tile;ty+=tile){
+          for(let tx=-tile;tx<TEX+tile;tx+=tile){
+            pctx.drawImage(saltFloorDetailImage,tx,ty,tile,tile);
+          }
+        }
+        pctx.globalAlpha=1;
+        pctx.globalCompositeOperation='source-over';
+      }else{
+        pctx.strokeStyle=colors[1];pctx.lineWidth=2;
+        const plate=kind==='metal'?42:64;
+        for(let x=0;x<=TEX;x+=plate){pctx.beginPath();pctx.moveTo(x,0);pctx.lineTo(x,TEX);pctx.stroke();}
+        for(let y=0;y<=TEX;y+=plate){pctx.beginPath();pctx.moveTo(0,y);pctx.lineTo(TEX,y);pctx.stroke();}
+      }
       if(kind==='metal'||kind==='ramp'){
         pctx.strokeStyle='rgba(232,242,244,.13)';pctx.lineWidth=1;
         for(let x=-TEX;x<TEX*2;x+=24){
@@ -2549,6 +2577,38 @@ function makeIndustrialTexture(kind){
   t.encoding=THREE.sRGBEncoding;t.anisotropy=Math.min(4,renderer.capabilities.getMaxAnisotropy());
   return t;
 }
+function makeCityFacadeTextures(accent='#63d9ff',seed=0){
+  const colorCv=document.createElement('canvas'),lightCv=document.createElement('canvas');
+  colorCv.width=lightCv.width=256;colorCv.height=lightCv.height=512;
+  const color=colorCv.getContext('2d'),light=lightCv.getContext('2d');
+  const gradient=color.createLinearGradient(0,0,0,512);
+  gradient.addColorStop(0,'#4d5d68');gradient.addColorStop(.55,'#293844');gradient.addColorStop(1,'#17242f');
+  color.fillStyle=gradient;color.fillRect(0,0,256,512);
+  light.fillStyle='#000';light.fillRect(0,0,256,512);
+  color.fillStyle='rgba(255,255,255,.07)';
+  for(let x=0;x<256;x+=64)color.fillRect(x,0,3,512);
+  for(let y=0;y<512;y+=48)color.fillRect(0,y,256,3);
+  for(let row=0;row<10;row++)for(let column=0;column<6;column++){
+    const x=13+column*41,y=14+row*49;
+    color.fillStyle='rgba(7,15,22,.72)';color.fillRect(x,y,25,25);
+    const lit=((row*11+column*7+seed*5)%9)<5;
+    if(lit){
+      color.fillStyle=accent;color.globalAlpha=.58;color.fillRect(x+3,y+3,19,19);color.globalAlpha=1;
+      light.fillStyle=accent;light.fillRect(x+4,y+4,17,17);
+    }else{
+      color.fillStyle='rgba(142,168,180,.18)';color.fillRect(x+3,y+3,19,19);
+    }
+  }
+  color.strokeStyle='rgba(2,8,13,.56)';color.lineWidth=7;color.strokeRect(3,3,250,506);
+  const albedo=new THREE.CanvasTexture(colorCv),emissive=new THREE.CanvasTexture(lightCv);
+  for(const texture of [albedo,emissive]){
+    texture.wrapS=texture.wrapT=THREE.RepeatWrapping;
+    texture.repeat.set(1,1.5);
+    texture.anisotropy=Math.min(2,renderer.capabilities.getMaxAnisotropy());
+  }
+  albedo.encoding=THREE.sRGBEncoding;
+  return {albedo,emissive};
+}
 function addDeckRect(x,z,w,d,y,opts={}){
   const baseY=opts.baseY==null?-3.15:opts.baseY;
   const h=Math.max(.3,y-baseY);
@@ -2743,25 +2803,103 @@ function addTeamBanner(x,y,z,yaw,team){
   pole.position.set(x-2.65*Math.cos(yaw),y-.5,z+2.65*Math.sin(yaw));stageAdd(pole);
 }
 function addDistantHarbor(){
-  const blocks=[
-    [-78,-1.8,24,30,3,21,.08],[76,-1.4,-30,34,3.5,23,-.12],
-    [-18,-2.1,-82,28,2.5,18,.03],[46,-2,-76,22,2.7,16,-.2],
-    [-83,2,21,8,5,5,.08],[-72,1.5,28,10,4,5,.08],
-    [70,2,-25,9,5,5,-.12],[81,1.4,-34,8,4,5,-.12]
-  ];
-  const mesh=new THREE.InstancedMesh(new THREE.BoxGeometry(1,1,1),STAGE_MATERIALS.darkMetal,blocks.length);
+  // A low, solid shoreline hides the end of the ocean plane and gives the
+  // arena a believable place inside a much larger offshore city.
+  const cityApron=new THREE.Mesh(
+    new THREE.RingGeometry(72,134,isTouch?44:72,1),
+    new THREE.MeshStandardMaterial({color:0x243946,roughness:.86,metalness:.2})
+  );
+  cityApron.rotation.x=-Math.PI/2;cityApron.position.y=-3.02;stageAdd(cityApron);
+  activeStage.disposableMaterials.push(cityApron.material);
+
+  const cool=makeCityFacadeTextures('#56dcff',1);
+  const warm=makeCityFacadeTextures('#ffbf57',2);
+  const coolMat=new THREE.MeshStandardMaterial({
+    map:cool.albedo,emissiveMap:cool.emissive,emissive:0xffffff,
+    emissiveIntensity:.52,roughness:.7,metalness:.26
+  });
+  const warmMat=new THREE.MeshStandardMaterial({
+    map:warm.albedo,emissiveMap:warm.emissive,emissive:0xffffff,
+    emissiveIntensity:.44,roughness:.74,metalness:.2
+  });
+  activeStage.disposableTextures.push(cool.albedo,cool.emissive,warm.albedo,warm.emissive);
+  activeStage.disposableMaterials.push(coolMat,warmMat);
+
+  const towerCount=isTouch?18:34;
+  const skyline=[[],[]],roofTransforms=[];
+  const hash=n=>{const v=Math.sin(n*127.17+31.7)*43758.5453;return v-Math.floor(v);};
+  for(let i=0;i<towerCount;i++){
+    const angle=(i/towerCount)*Math.PI*2+hash(i+4)*.09;
+    const radius=84+hash(i+17)*38;
+    const width=5.5+hash(i+31)*8.5;
+    const depth=5.2+hash(i+47)*9;
+    const height=11+hash(i+63)*27+(i%11===0?11:0);
+    const x=Math.cos(angle)*radius,z=Math.sin(angle)*radius,y=-2.92+height/2;
+    const yaw=-angle+Math.PI/2+(hash(i+79)-.5)*.22;
+    skyline[i%2].push([x,y,z,width,height,depth,yaw]);
+    roofTransforms.push([x,-2.74+height,z,width*1.07,.34,depth*1.07,yaw]);
+  }
+  const buildingGeometry=new THREE.BoxGeometry(1,1,1);
   const position=new THREE.Vector3(),quaternion=new THREE.Quaternion(),scale=new THREE.Vector3();
-  blocks.forEach(([x,y,z,sx,sy,sz,yaw],i)=>{
+  skyline.forEach((entries,index)=>{
+    const buildings=new THREE.InstancedMesh(buildingGeometry,index?warmMat:coolMat,entries.length);
+    entries.forEach(([x,y,z,sx,sy,sz,yaw],i)=>{
+      position.set(x,y,z);scale.set(sx,sy,sz);
+      quaternion.setFromAxisAngle(new THREE.Vector3(0,1,0),yaw);
+      buildings.setMatrixAt(i,new THREE.Matrix4().compose(position,quaternion,scale));
+    });
+    buildings.instanceMatrix.needsUpdate=true;buildings.castShadow=false;buildings.receiveShadow=false;
+    stageAdd(buildings);
+  });
+  const roofs=new THREE.InstancedMesh(new THREE.BoxGeometry(1,1,1),STAGE_MATERIALS.rail,roofTransforms.length);
+  roofTransforms.forEach(([x,y,z,sx,sy,sz,yaw],i)=>{
     position.set(x,y,z);scale.set(sx,sy,sz);
     quaternion.setFromAxisAngle(new THREE.Vector3(0,1,0),yaw);
-    mesh.setMatrixAt(i,new THREE.Matrix4().compose(position,quaternion,scale));
+    roofs.setMatrixAt(i,new THREE.Matrix4().compose(position,quaternion,scale));
   });
-  mesh.instanceMatrix.needsUpdate=true;mesh.receiveShadow=true;stageAdd(mesh);
+  roofs.instanceMatrix.needsUpdate=true;stageAdd(roofs);
+
+  // Low warehouses bridge the scale gap between the playable decks and the
+  // tall skyline. They use the same instanced geometry budget.
+  const warehouses=[
+    [-78,-1.2,24,30,4.2,21,.08],[76,-1.1,-30,34,4.6,23,-.12],
+    [-18,-1.35,-82,28,4,18,.03],[46,-1.25,-76,22,4.3,16,-.2],
+    [-72,-1.5,-40,22,3.4,14,.16],[69,-1.45,44,24,3.6,16,-.08]
+  ];
+  const warehouseMesh=new THREE.InstancedMesh(new THREE.BoxGeometry(1,1,1),STAGE_MATERIALS.deckEdge,warehouses.length);
+  warehouses.forEach(([x,y,z,sx,sy,sz,yaw],i)=>{
+    position.set(x,y,z);scale.set(sx,sy,sz);
+    quaternion.setFromAxisAngle(new THREE.Vector3(0,1,0),yaw);
+    warehouseMesh.setMatrixAt(i,new THREE.Matrix4().compose(position,quaternion,scale));
+  });
+  warehouseMesh.instanceMatrix.needsUpdate=true;stageAdd(warehouseMesh);
+
+  // An elevated freight loop and its supports make the horizon read as a
+  // connected city instead of isolated boxes.
+  const freightLoop=new THREE.Mesh(
+    new THREE.TorusGeometry(104,.3,isTouch?4:6,isTouch?48:80,Math.PI*1.62),
+    STAGE_MATERIALS.rust
+  );
+  freightLoop.rotation.x=Math.PI/2;freightLoop.rotation.z=.47;freightLoop.position.y=8.4;
+  stageAdd(freightLoop);
+  const supportEntries=[];
+  for(let i=0;i<(isTouch?12:18);i++){
+    const angle=.47+(i/(isTouch?12:18))*Math.PI*1.62;
+    supportEntries.push([Math.cos(angle)*104,2.65,Math.sin(angle)*104,.42,11,.42,-angle]);
+  }
+  const supports=new THREE.InstancedMesh(new THREE.BoxGeometry(1,1,1),STAGE_MATERIALS.darkMetal,supportEntries.length);
+  supportEntries.forEach(([x,y,z,sx,sy,sz,yaw],i)=>{
+    position.set(x,y,z);scale.set(sx,sy,sz);
+    quaternion.setFromAxisAngle(new THREE.Vector3(0,1,0),yaw);
+    supports.setMatrixAt(i,new THREE.Matrix4().compose(position,quaternion,scale));
+  });
+  supports.instanceMatrix.needsUpdate=true;stageAdd(supports);
 
   const beams=[
-    [-77,8,18,.7,17,.7,0,0],[-76,16,18,13,.55,.7,.08,-.45],
-    [74,8,-37,.7,18,.7,0,0],[73,17,-37,14,.55,.7,-.12,.48],
-    [-18,7,-83,.55,15,.55,0,0],[-17,14,-83,11,.45,.55,.03,-.4]
+    [-77,7,18,.8,19,.8,0,0],[-76,16,18,15,.62,.8,.08,-.45],
+    [74,7,-37,.8,20,.8,0,0],[73,17,-37,16,.62,.8,-.12,.48],
+    [-18,7,-83,.65,17,.65,0,0],[-17,15,-83,13,.52,.65,.03,-.4],
+    [63,7,57,.65,16,.65,0,0],[62,14,57,12,.5,.65,-.08,.42]
   ];
   const crane=new THREE.InstancedMesh(new THREE.BoxGeometry(1,1,1),STAGE_MATERIALS.rust,beams.length);
   beams.forEach(([x,y,z,sx,sy,sz,yaw,roll],i)=>{
@@ -2770,6 +2908,19 @@ function addDistantHarbor(){
     crane.setMatrixAt(i,new THREE.Matrix4().compose(position,quaternion,scale));
   });
   crane.instanceMatrix.needsUpdate=true;stageAdd(crane);
+
+  // Tiny emissive rooftop markers add depth at night/fog distance without
+  // real point lights or expensive transparent particles.
+  const markerMaterial=new THREE.MeshBasicMaterial({color:0xffd46b,fog:true});
+  activeStage.disposableMaterials.push(markerMaterial);
+  const markerCount=isTouch?10:18;
+  const markers=new THREE.InstancedMesh(new THREE.SphereGeometry(.23,6,5),markerMaterial,markerCount);
+  for(let i=0;i<markerCount;i++){
+    const roof=roofTransforms[(i*7)%roofTransforms.length];
+    position.set(roof[0],roof[1]+.52,roof[2]);scale.set(1,1,1);quaternion.identity();
+    markers.setMatrixAt(i,new THREE.Matrix4().compose(position,quaternion,scale));
+  }
+  markers.instanceMatrix.needsUpdate=true;stageAdd(markers);
 }
 
 const STAGE_MATERIALS={

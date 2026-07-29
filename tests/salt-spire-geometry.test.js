@@ -187,6 +187,26 @@ assert.equal(runtime.botGraph.routes.length, 3, 'three readable primary routes a
 assert.equal(result.ok, true, JSON.stringify(result.failures.slice(0, 12), null, 2));
 const atlasBytes = fs.statSync(path.join(__dirname, '..', 'assets', 'salt-spire-decal-atlas-v1.webp')).size;
 assert(atlasBytes < 100_000, `mobile decal atlas is too large: ${atlasBytes} bytes`);
+const floorTextureBytes = fs.statSync(path.join(__dirname, '..', 'assets', 'salt-spire-floor-tile-v1.webp')).size;
+assert(floorTextureBytes < 250_000, `mobile floor texture is too large: ${floorTextureBytes} bytes`);
+assert(
+  /saltFloorDetailImage\.src\s*=\s*'assets\/salt-spire-floor-tile-v1\.webp'/.test(html),
+  'Salt Spire must load the generated industrial floor detail texture'
+);
+assert(
+  /pctx\.drawImage\(saltFloorDetailImage,tx,ty,tile,tile\)/.test(html),
+  'floor detail texture must be baked below the dynamic ink layer'
+);
+assert(
+  /const towerCount=isTouch\?18:34/.test(html) &&
+  /new THREE\.InstancedMesh\(buildingGeometry/.test(html),
+  'distant harbor must use a mobile-scaled instanced city skyline'
+);
+assert(
+  /new THREE\.TorusGeometry\(104,.3/.test(html) &&
+  /const warehouses=\[/.test(html),
+  'distant skyline must include connected harbor infrastructure'
+);
 assert((builderBody.match(/addDeckRect/g)||[]).length <= 16, 'too many separate deck slabs');
 assert((builderBody.match(/addRampBetween/g)||[]).length <= 16, 'too many separate ramp surfaces');
 assert(
