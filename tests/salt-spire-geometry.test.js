@@ -199,12 +199,19 @@ assert(
 );
 assert(
   /salt-spire-city-panorama-v1\.webp/.test(html) &&
-  /new THREE\.CylinderGeometry\(430,430,176/.test(html),
+  /new THREE\.CylinderGeometry\(430,430,176/.test(html) &&
+  /side:THREE\.BackSide,depthWrite:true,depthTest:true/.test(html) &&
+  /panorama\.renderOrder=-10/.test(html),
   'distant harbor must include a seamless panoramic city layer'
 );
 assert(
-  /const layerConfigs=\[[\s\S]*?minR:94,maxR:142[\s\S]*?minR:162,maxR:226[\s\S]*?minR:250,maxR:334/.test(html),
+  /const layerConfigs=\[[\s\S]*?minR:100,maxR:144[\s\S]*?minR:170,maxR:228[\s\S]*?minR:256,maxR:334/.test(html),
   'distant skyline must contain near, middle and far 3D city layers'
+);
+assert(
+  /gradient\.addColorStop\(0,'#e4eeec'\)/.test(html) &&
+  !/gradient\.addColorStop\(1,'#17242f'\)/.test(html),
+  'city facades must use the bright coastal palette instead of near-black towers'
 );
 assert(
   /const warehouseEntries=\[\]/.test(html) &&

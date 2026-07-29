@@ -2582,24 +2582,26 @@ function makeCityFacadeTextures(accent='#63d9ff',seed=0){
   colorCv.width=lightCv.width=256;colorCv.height=lightCv.height=512;
   const color=colorCv.getContext('2d'),light=lightCv.getContext('2d');
   const gradient=color.createLinearGradient(0,0,0,512);
-  gradient.addColorStop(0,'#4d5d68');gradient.addColorStop(.55,'#293844');gradient.addColorStop(1,'#17242f');
+  gradient.addColorStop(0,'#e4eeec');
+  gradient.addColorStop(.5,'#aebfc3');
+  gradient.addColorStop(1,'#718a92');
   color.fillStyle=gradient;color.fillRect(0,0,256,512);
   light.fillStyle='#000';light.fillRect(0,0,256,512);
-  color.fillStyle='rgba(255,255,255,.07)';
+  color.fillStyle='rgba(34,65,76,.16)';
   for(let x=0;x<256;x+=64)color.fillRect(x,0,3,512);
   for(let y=0;y<512;y+=48)color.fillRect(0,y,256,3);
   for(let row=0;row<10;row++)for(let column=0;column<6;column++){
     const x=13+column*41,y=14+row*49;
-    color.fillStyle='rgba(7,15,22,.72)';color.fillRect(x,y,25,25);
+    color.fillStyle='rgba(42,65,73,.72)';color.fillRect(x,y,25,25);
     const lit=((row*11+column*7+seed*5)%9)<5;
     if(lit){
-      color.fillStyle=accent;color.globalAlpha=.58;color.fillRect(x+3,y+3,19,19);color.globalAlpha=1;
+      color.fillStyle=accent;color.globalAlpha=.44;color.fillRect(x+3,y+3,19,19);color.globalAlpha=1;
       light.fillStyle=accent;light.fillRect(x+4,y+4,17,17);
     }else{
-      color.fillStyle='rgba(142,168,180,.18)';color.fillRect(x+3,y+3,19,19);
+      color.fillStyle='rgba(202,221,222,.48)';color.fillRect(x+3,y+3,19,19);
     }
   }
-  color.strokeStyle='rgba(2,8,13,.56)';color.lineWidth=7;color.strokeRect(3,3,250,506);
+  color.strokeStyle='rgba(38,61,69,.4)';color.lineWidth=7;color.strokeRect(3,3,250,506);
   const albedo=new THREE.CanvasTexture(colorCv),emissive=new THREE.CanvasTexture(lightCv);
   for(const texture of [albedo,emissive]){
     texture.wrapS=texture.wrapT=THREE.RepeatWrapping;
@@ -2932,7 +2934,8 @@ function addDistantHarborWorld(){
   panoramaTexture.minFilter=THREE.LinearFilter;
   panoramaTexture.magFilter=THREE.LinearFilter;
   const panoramaMaterial=new THREE.MeshBasicMaterial({
-    map:panoramaTexture,side:THREE.BackSide,depthWrite:false,fog:false
+    map:panoramaTexture,side:THREE.BackSide,depthWrite:true,depthTest:true,
+    fog:false,toneMapped:false
   });
   const panorama=new THREE.Mesh(
     new THREE.CylinderGeometry(430,430,176,isTouch?48:72,1,true),
@@ -2940,9 +2943,11 @@ function addDistantHarborWorld(){
   );
   panorama.position.y=24;
   panorama.rotation.y=Math.PI*.27;
-  // Render after the depthless sky dome, but still behind every depth-writing
-  // 3D district mesh.
-  panorama.renderOrder=1;
+  panorama.name='salt-spire-city-panorama';
+  // Write the far-cylinder depth before the depthless sky dome is drawn.
+  // This guarantees that the panorama cannot be overwritten by the sky while
+  // every nearer 3D district still passes the depth test normally.
+  panorama.renderOrder=-10;
   panorama.frustumCulled=false;
   stageAdd(panorama);
   activeStage.disposableTextures.push(panoramaTexture);
@@ -2951,9 +2956,9 @@ function addDistantHarborWorld(){
   // Three separated land belts leave water channels between districts, so
   // the city reads as an enormous offshore world rather than one flat slab.
   const districtMaterials=[
-    new THREE.MeshStandardMaterial({color:0x314854,roughness:.82,metalness:.22}),
-    new THREE.MeshStandardMaterial({color:0x405965,roughness:.86,metalness:.16}),
-    new THREE.MeshStandardMaterial({color:0x55717c,roughness:.9,metalness:.08})
+    new THREE.MeshStandardMaterial({color:0x68868b,roughness:.82,metalness:.2}),
+    new THREE.MeshStandardMaterial({color:0x81999d,roughness:.86,metalness:.14}),
+    new THREE.MeshStandardMaterial({color:0xa0afb0,roughness:.9,metalness:.06})
   ];
   activeStage.disposableMaterials.push(...districtMaterials);
   [
@@ -2979,16 +2984,16 @@ function addDistantHarborWorld(){
   });
   const layerMaterials=[
     [
-      makeFacadeMaterial(cool,0xe8f5fa,.5,.67),
-      makeFacadeMaterial(warm,0xffead3,.44,.7)
+      makeFacadeMaterial(cool,0xf3fbfa,.34,.68),
+      makeFacadeMaterial(warm,0xfff1df,.3,.72)
     ],
     [
-      makeFacadeMaterial(cool,0xc7e2ea,.38,.72),
-      makeFacadeMaterial(warm,0xeedcc9,.34,.75)
+      makeFacadeMaterial(cool,0xdceeed,.26,.74),
+      makeFacadeMaterial(warm,0xeee1d1,.23,.77)
     ],
     [
-      makeFacadeMaterial(cool,0xadcbd6,.22,.78),
-      makeFacadeMaterial(warm,0xcfc9c0,.2,.8)
+      makeFacadeMaterial(cool,0xc9dfe0,.16,.8),
+      makeFacadeMaterial(warm,0xded7cb,.14,.82)
     ]
   ];
   activeStage.disposableMaterials.push(...layerMaterials.flat());
@@ -3000,9 +3005,9 @@ function addDistantHarborWorld(){
   const roofGeometry=new THREE.BoxGeometry(1,1,1);
   const roofEntries=[],antennaEntries=[],tankEntries=[],markerEntries=[];
   const layerConfigs=[
-    {count:isTouch?30:56,minR:94,maxR:142,minH:7,maxH:28,minW:4.8,maxW:11.5},
-    {count:isTouch?42:82,minR:162,maxR:226,minH:13,maxH:48,minW:5.5,maxW:13},
-    {count:isTouch?58:118,minR:250,maxR:334,minH:20,maxH:76,minW:6,maxW:15}
+    {count:isTouch?18:36,minR:100,maxR:144,minH:7,maxH:21,minW:4.8,maxW:10},
+    {count:isTouch?26:50,minR:170,maxR:228,minH:12,maxH:36,minW:5.3,maxW:11.5},
+    {count:isTouch?34:70,minR:256,maxR:334,minH:18,maxH:54,minW:5.8,maxW:13}
   ];
 
   function buildCityLayer(config,layerIndex){
@@ -3014,7 +3019,7 @@ function addDistantHarborWorld(){
       const width=config.minW+hash(seed+31)*(config.maxW-config.minW);
       const depth=config.minW+hash(seed+47)*(config.maxW-config.minW);
       let height=config.minH+hash(seed+63)*(config.maxH-config.minH);
-      if(i%(layerIndex===2?13:17)===0)height*=1.42;
+      if(i%(layerIndex===2?17:19)===0)height*=1.3;
       const x=Math.cos(angle)*radius,z=Math.sin(angle)*radius;
       const baseY=-2.92,y=baseY+height/2;
       const yaw=-angle+Math.PI/2+(hash(seed+79)-.5)*.25;
@@ -3056,11 +3061,11 @@ function addDistantHarborWorld(){
   layerConfigs.forEach(buildCityLayer);
 
   const roofMaterials=[
-    STAGE_MATERIALS.rail,
-    new THREE.MeshStandardMaterial({color:0x415864,roughness:.72,metalness:.32}),
-    new THREE.MeshStandardMaterial({color:0x657d86,roughness:.8,metalness:.18})
+    new THREE.MeshStandardMaterial({color:0x467682,roughness:.68,metalness:.3}),
+    new THREE.MeshStandardMaterial({color:0x78969d,roughness:.75,metalness:.23}),
+    new THREE.MeshStandardMaterial({color:0xa1b2b4,roughness:.82,metalness:.12})
   ];
-  activeStage.disposableMaterials.push(roofMaterials[1],roofMaterials[2]);
+  activeStage.disposableMaterials.push(...roofMaterials);
   for(let layerIndex=0;layerIndex<3;layerIndex++){
     const entries=roofEntries.filter(entry=>entry[7]===layerIndex);
     const roofs=new THREE.InstancedMesh(roofGeometry,roofMaterials[layerIndex],entries.length);
@@ -3092,9 +3097,9 @@ function addDistantHarborWorld(){
   // Dense low-rise blocks make the ground between towers feel occupied.
   const warehouseEntries=[];
   [
-    {count:isTouch?22:38,radius:118,width:13,depth:8},
-    {count:isTouch?30:54,radius:196,width:17,depth:10},
-    {count:isTouch?36:68,radius:286,width:20,depth:12}
+    {count:isTouch?14:28,radius:120,width:13,depth:8},
+    {count:isTouch?18:38,radius:198,width:17,depth:10},
+    {count:isTouch?24:48,radius:288,width:20,depth:12}
   ].forEach((belt,beltIndex)=>{
     for(let i=0;i<belt.count;i++){
       const angle=(i/belt.count)*Math.PI*2+hash(i+beltIndex*97)*.08;
@@ -3107,7 +3112,22 @@ function addDistantHarborWorld(){
       ]);
     }
   });
-  addInstances(boxGeometry,STAGE_MATERIALS.deckEdge,warehouseEntries);
+  const warehouseMaterial=new THREE.MeshStandardMaterial({
+    color:0xb8c7c8,map:STAGE_MATERIALS.deckEdge.map,roughness:.82,metalness:.14
+  });
+  const cityStructureMaterial=new THREE.MeshStandardMaterial({
+    color:0x416b75,roughness:.58,metalness:.44
+  });
+  const craneMaterial=new THREE.MeshStandardMaterial({
+    color:0xf2ad32,emissive:0x6d3108,emissiveIntensity:.12,roughness:.56,metalness:.38
+  });
+  const shipMaterial=new THREE.MeshStandardMaterial({
+    color:0xd96c4b,roughness:.66,metalness:.28
+  });
+  activeStage.disposableMaterials.push(
+    warehouseMaterial,cityStructureMaterial,craneMaterial,shipMaterial
+  );
+  addInstances(boxGeometry,warehouseMaterial,warehouseEntries);
 
   // Elevated transit loops visually connect all districts. Their supports are
   // instanced and remain purely decorative.
@@ -3135,7 +3155,7 @@ function addDistantHarborWorld(){
       ]);
     }
   });
-  addInstances(boxGeometry,STAGE_MATERIALS.darkMetal,transitSupports);
+  addInstances(boxGeometry,cityStructureMaterial,transitSupports);
 
   // Port machinery, ships and wind turbines break the skyline into recognisable
   // districts without adding any collision or gameplay cost.
@@ -3151,7 +3171,7 @@ function addDistantHarborWorld(){
     craneBeams.push([x, -2.9+height,z,15,.62,.72,yaw-.34]);
     craneBeams.push([x-Math.sin(yaw)*5,-2.9+height-3,z-Math.cos(yaw)*5,10,.38,.42,yaw+.42]);
   }
-  addInstances(boxGeometry,STAGE_MATERIALS.rust,craneBeams);
+  addInstances(boxGeometry,craneMaterial,craneBeams);
 
   const shipHulls=[],shipCabins=[];
   const shipCount=isTouch?6:11;
@@ -3163,7 +3183,7 @@ function addDistantHarborWorld(){
     shipHulls.push([x,-2.35,z,length,1.5,4.2,yaw]);
     shipCabins.push([x-Math.sin(yaw)*length*.18,-1.05,z-Math.cos(yaw)*length*.18,length*.28,2.4,3.4,yaw]);
   }
-  addInstances(boxGeometry,STAGE_MATERIALS.rust,shipHulls);
+  addInstances(boxGeometry,shipMaterial,shipHulls);
   addInstances(boxGeometry,STAGE_MATERIALS.concrete,shipCabins);
 
   const turbineMasts=[],turbineBlades=[];
