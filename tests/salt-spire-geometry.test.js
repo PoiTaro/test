@@ -176,7 +176,7 @@ const context = {
     colliders.push({x,z,hw:3.5,hd:1.6,yMin:y,h:y+2.8});
   },
   addRailLine(){}, addStageSign(){}, addAtlasPanel(){}, addDrumCluster(){}, addPipeRuns(){},
-  addTeamBanner(){}, addDistantHarbor(){}, addSupportPylons(){},
+  addTeamBanner(){}, addDistantHarbor(){}, addDistantHarborWorld(){}, addSupportPylons(){},
   flushRailPosts(){}, spawnPad(){},
   validateStageRoutes: validateRoutes
 };
@@ -198,15 +198,23 @@ assert(
   'floor detail texture must be baked below the dynamic ink layer'
 );
 assert(
-  /const towerCount=isTouch\?18:34/.test(html) &&
-  /new THREE\.InstancedMesh\(buildingGeometry/.test(html),
-  'distant harbor must use a mobile-scaled instanced city skyline'
+  /salt-spire-city-panorama-v1\.webp/.test(html) &&
+  /new THREE\.CylinderGeometry\(430,430,176/.test(html),
+  'distant harbor must include a seamless panoramic city layer'
 );
 assert(
-  /new THREE\.TorusGeometry\(104,.3/.test(html) &&
-  /const warehouses=\[/.test(html),
-  'distant skyline must include connected harbor infrastructure'
+  /const layerConfigs=\[[\s\S]*?minR:94,maxR:142[\s\S]*?minR:162,maxR:226[\s\S]*?minR:250,maxR:334/.test(html),
+  'distant skyline must contain near, middle and far 3D city layers'
 );
+assert(
+  /const warehouseEntries=\[\]/.test(html) &&
+  /const craneBeams=\[\]/.test(html) &&
+  /const shipHulls=\[\],shipCabins=\[\]/.test(html) &&
+  /const turbineMasts=\[\],turbineBlades=\[\]/.test(html),
+  'distant districts must include warehouses, cranes, ships and turbines'
+);
+const cityPanoramaBytes = fs.statSync(path.join(__dirname, '..', 'assets', 'salt-spire-city-panorama-v1.webp')).size;
+assert(cityPanoramaBytes < 300_000, `mobile city panorama is too large: ${cityPanoramaBytes} bytes`);
 assert((builderBody.match(/addDeckRect/g)||[]).length <= 16, 'too many separate deck slabs');
 assert((builderBody.match(/addRampBetween/g)||[]).length <= 16, 'too many separate ramp surfaces');
 assert(

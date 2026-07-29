@@ -2072,11 +2072,11 @@ document.getElementById('game').appendChild(renderer.domElement);
 const scene = new THREE.Scene();
 scene.fog = new THREE.Fog(0xbcd7ef, 70, 210);
 
-const camera = new THREE.PerspectiveCamera(66, innerWidth/innerHeight, 0.1, 500);
+const camera = new THREE.PerspectiveCamera(66, innerWidth/innerHeight, 0.1, 800);
 
 // ---------- 空（グラデーションシェーダー） ----------
 {
-  const skyGeo = new THREE.SphereGeometry(320, 32, 16);
+  const skyGeo = new THREE.SphereGeometry(600, 32, 16);
   const skyMat = new THREE.ShaderMaterial({
     side: THREE.BackSide, depthWrite: false, fog: false,
     uniforms: {
@@ -2923,6 +2923,268 @@ function addDistantHarbor(){
   markers.instanceMatrix.needsUpdate=true;stageAdd(markers);
 }
 
+function addDistantHarborWorld(){
+  // The generated panorama is the final atmospheric layer. It is mirrored at
+  // the asset level, so its left/right edges meet cleanly around the cylinder.
+  const panoramaTexture=new THREE.TextureLoader().load('assets/salt-spire-city-panorama-v1.webp');
+  panoramaTexture.encoding=THREE.sRGBEncoding;
+  panoramaTexture.generateMipmaps=false;
+  panoramaTexture.minFilter=THREE.LinearFilter;
+  panoramaTexture.magFilter=THREE.LinearFilter;
+  const panoramaMaterial=new THREE.MeshBasicMaterial({
+    map:panoramaTexture,side:THREE.BackSide,depthWrite:false,fog:false
+  });
+  const panorama=new THREE.Mesh(
+    new THREE.CylinderGeometry(430,430,176,isTouch?48:72,1,true),
+    panoramaMaterial
+  );
+  panorama.position.y=24;
+  panorama.rotation.y=Math.PI*.27;
+  // Render after the depthless sky dome, but still behind every depth-writing
+  // 3D district mesh.
+  panorama.renderOrder=1;
+  panorama.frustumCulled=false;
+  stageAdd(panorama);
+  activeStage.disposableTextures.push(panoramaTexture);
+  activeStage.disposableMaterials.push(panoramaMaterial);
+
+  // Three separated land belts leave water channels between districts, so
+  // the city reads as an enormous offshore world rather than one flat slab.
+  const districtMaterials=[
+    new THREE.MeshStandardMaterial({color:0x314854,roughness:.82,metalness:.22}),
+    new THREE.MeshStandardMaterial({color:0x405965,roughness:.86,metalness:.16}),
+    new THREE.MeshStandardMaterial({color:0x55717c,roughness:.9,metalness:.08})
+  ];
+  activeStage.disposableMaterials.push(...districtMaterials);
+  [
+    [74,144,-3.02,0],
+    [158,230,-3.07,1],
+    [244,338,-3.1,2]
+  ].forEach(([inner,outer,y,materialIndex])=>{
+    const district=new THREE.Mesh(
+      new THREE.RingGeometry(inner,outer,isTouch?56:96,1),
+      districtMaterials[materialIndex]
+    );
+    district.rotation.x=-Math.PI/2;
+    district.position.y=y;
+    stageAdd(district);
+  });
+
+  const cool=makeCityFacadeTextures('#55dfff',3);
+  const warm=makeCityFacadeTextures('#ffc86b',5);
+  activeStage.disposableTextures.push(cool.albedo,cool.emissive,warm.albedo,warm.emissive);
+  const makeFacadeMaterial=(textures,color,intensity,roughness)=>new THREE.MeshStandardMaterial({
+    map:textures.albedo,emissiveMap:textures.emissive,emissive:0xffffff,
+    emissiveIntensity:intensity,color,roughness,metalness:.2
+  });
+  const layerMaterials=[
+    [
+      makeFacadeMaterial(cool,0xe8f5fa,.5,.67),
+      makeFacadeMaterial(warm,0xffead3,.44,.7)
+    ],
+    [
+      makeFacadeMaterial(cool,0xc7e2ea,.38,.72),
+      makeFacadeMaterial(warm,0xeedcc9,.34,.75)
+    ],
+    [
+      makeFacadeMaterial(cool,0xadcbd6,.22,.78),
+      makeFacadeMaterial(warm,0xcfc9c0,.2,.8)
+    ]
+  ];
+  activeStage.disposableMaterials.push(...layerMaterials.flat());
+
+  const hash=n=>{const value=Math.sin(n*127.17+31.7)*43758.5453;return value-Math.floor(value);};
+  const position=new THREE.Vector3(),quaternion=new THREE.Quaternion(),scale=new THREE.Vector3();
+  const boxGeometry=new THREE.BoxGeometry(1,1,1);
+  const octagonalGeometry=new THREE.CylinderGeometry(1,1,1,8,1,false);
+  const roofGeometry=new THREE.BoxGeometry(1,1,1);
+  const roofEntries=[],antennaEntries=[],tankEntries=[],markerEntries=[];
+  const layerConfigs=[
+    {count:isTouch?30:56,minR:94,maxR:142,minH:7,maxH:28,minW:4.8,maxW:11.5},
+    {count:isTouch?42:82,minR:162,maxR:226,minH:13,maxH:48,minW:5.5,maxW:13},
+    {count:isTouch?58:118,minR:250,maxR:334,minH:20,maxH:76,minW:6,maxW:15}
+  ];
+
+  function buildCityLayer(config,layerIndex){
+    const batches=[[],[],[],[]];
+    for(let i=0;i<config.count;i++){
+      const seed=i+layerIndex*211;
+      const angle=(i/config.count)*Math.PI*2+(hash(seed+2)-.5)*.11;
+      const radius=config.minR+hash(seed+17)*(config.maxR-config.minR);
+      const width=config.minW+hash(seed+31)*(config.maxW-config.minW);
+      const depth=config.minW+hash(seed+47)*(config.maxW-config.minW);
+      let height=config.minH+hash(seed+63)*(config.maxH-config.minH);
+      if(i%(layerIndex===2?13:17)===0)height*=1.42;
+      const x=Math.cos(angle)*radius,z=Math.sin(angle)*radius;
+      const baseY=-2.92,y=baseY+height/2;
+      const yaw=-angle+Math.PI/2+(hash(seed+79)-.5)*.25;
+      const materialIndex=hash(seed+93)>.48?1:0;
+      const round=hash(seed+107)>.82;
+      batches[materialIndex+(round?2:0)].push([x,y,z,width,height,depth,yaw]);
+      roofEntries.push([x,baseY+height+.17,z,width*1.05,.34,depth*1.05,yaw,layerIndex]);
+      if(hash(seed+121)>.61){
+        const mastHeight=2.4+hash(seed+137)*7;
+        antennaEntries.push([x,baseY+height+mastHeight/2+.32,z,.12,mastHeight,.12,0]);
+      }
+      if(hash(seed+151)>.84){
+        tankEntries.push([x,baseY+height+1.05,z,1.05,1.65,1.05,yaw]);
+      }
+      if(hash(seed+163)>.7){
+        markerEntries.push([x,baseY+height+1.1,z,.24,.24,.24,0]);
+      }
+    }
+    batches.forEach((entries,batchIndex)=>{
+      if(!entries.length)return;
+      const geometry=batchIndex>=2?octagonalGeometry:boxGeometry;
+      const material=layerMaterials[layerIndex][batchIndex%2];
+      const mesh=new THREE.InstancedMesh(geometry,material,entries.length);
+      entries.forEach(([x,y,z,sx,sy,sz,yaw],index)=>{
+        position.set(x,y,z);
+        quaternion.setFromAxisAngle(new THREE.Vector3(0,1,0),yaw);
+        scale.set(roundScale(geometry,sx),sy,roundScale(geometry,sz));
+        mesh.setMatrixAt(index,new THREE.Matrix4().compose(position,quaternion,scale));
+      });
+      mesh.instanceMatrix.needsUpdate=true;
+      mesh.castShadow=false;
+      mesh.receiveShadow=false;
+      stageAdd(mesh);
+    });
+  }
+  function roundScale(geometry,value){
+    return geometry===octagonalGeometry?value*.58:value;
+  }
+  layerConfigs.forEach(buildCityLayer);
+
+  const roofMaterials=[
+    STAGE_MATERIALS.rail,
+    new THREE.MeshStandardMaterial({color:0x415864,roughness:.72,metalness:.32}),
+    new THREE.MeshStandardMaterial({color:0x657d86,roughness:.8,metalness:.18})
+  ];
+  activeStage.disposableMaterials.push(roofMaterials[1],roofMaterials[2]);
+  for(let layerIndex=0;layerIndex<3;layerIndex++){
+    const entries=roofEntries.filter(entry=>entry[7]===layerIndex);
+    const roofs=new THREE.InstancedMesh(roofGeometry,roofMaterials[layerIndex],entries.length);
+    entries.forEach(([x,y,z,sx,sy,sz,yaw],index)=>{
+      position.set(x,y,z);scale.set(sx,sy,sz);
+      quaternion.setFromAxisAngle(new THREE.Vector3(0,1,0),yaw);
+      roofs.setMatrixAt(index,new THREE.Matrix4().compose(position,quaternion,scale));
+    });
+    roofs.instanceMatrix.needsUpdate=true;stageAdd(roofs);
+  }
+
+  function addInstances(geometry,material,entries){
+    if(!entries.length)return null;
+    const mesh=new THREE.InstancedMesh(geometry,material,entries.length);
+    entries.forEach(([x,y,z,sx,sy,sz,yaw,pitch=0,roll=0],index)=>{
+      position.set(x,y,z);scale.set(sx,sy,sz);
+      quaternion.setFromEuler(new THREE.Euler(pitch||0,yaw||0,roll||0));
+      mesh.setMatrixAt(index,new THREE.Matrix4().compose(position,quaternion,scale));
+    });
+    mesh.instanceMatrix.needsUpdate=true;mesh.castShadow=false;stageAdd(mesh);
+    return mesh;
+  }
+  addInstances(new THREE.CylinderGeometry(1,1,1,6),STAGE_MATERIALS.rail,antennaEntries);
+  addInstances(new THREE.CylinderGeometry(1,1,1,12),STAGE_MATERIALS.tower,tankEntries);
+  const markerMaterial=new THREE.MeshBasicMaterial({color:0xffd36c,fog:true});
+  activeStage.disposableMaterials.push(markerMaterial);
+  addInstances(new THREE.SphereGeometry(1,6,5),markerMaterial,markerEntries);
+
+  // Dense low-rise blocks make the ground between towers feel occupied.
+  const warehouseEntries=[];
+  [
+    {count:isTouch?22:38,radius:118,width:13,depth:8},
+    {count:isTouch?30:54,radius:196,width:17,depth:10},
+    {count:isTouch?36:68,radius:286,width:20,depth:12}
+  ].forEach((belt,beltIndex)=>{
+    for(let i=0;i<belt.count;i++){
+      const angle=(i/belt.count)*Math.PI*2+hash(i+beltIndex*97)*.08;
+      const radius=belt.radius+(hash(i+beltIndex*131)-.5)*22;
+      const height=3.6+hash(i+beltIndex*157)*5.2;
+      warehouseEntries.push([
+        Math.cos(angle)*radius,-2.9+height/2,Math.sin(angle)*radius,
+        belt.width*(.72+hash(i+9)*.58),height,belt.depth*(.72+hash(i+19)*.55),
+        -angle+Math.PI/2
+      ]);
+    }
+  });
+  addInstances(boxGeometry,STAGE_MATERIALS.deckEdge,warehouseEntries);
+
+  // Elevated transit loops visually connect all districts. Their supports are
+  // instanced and remain purely decorative.
+  const transitMaterial=new THREE.MeshStandardMaterial({
+    color:0xf2a72c,emissive:0x6b2b08,emissiveIntensity:.24,roughness:.46,metalness:.48
+  });
+  activeStage.disposableMaterials.push(transitMaterial);
+  const transitSupports=[];
+  [
+    [128,9.5,.22,Math.PI*1.72],
+    [212,15,-.36,Math.PI*1.54],
+    [306,21,.6,Math.PI*1.38]
+  ].forEach(([radius,height,rotation,arc],beltIndex)=>{
+    const loop=new THREE.Mesh(
+      new THREE.TorusGeometry(radius,beltIndex===0?.32:.42,isTouch?4:6,isTouch?64:112,arc),
+      transitMaterial
+    );
+    loop.rotation.x=Math.PI/2;loop.rotation.z=rotation;loop.position.y=height;stageAdd(loop);
+    const supportCount=isTouch?10:16;
+    for(let i=0;i<supportCount;i++){
+      const angle=rotation+(i/(supportCount-1))*arc;
+      transitSupports.push([
+        Math.cos(angle)*radius,(height-3.05)/2,Math.sin(angle)*radius,
+        .38,height+3.05,.38,-angle
+      ]);
+    }
+  });
+  addInstances(boxGeometry,STAGE_MATERIALS.darkMetal,transitSupports);
+
+  // Port machinery, ships and wind turbines break the skyline into recognisable
+  // districts without adding any collision or gameplay cost.
+  const craneBeams=[];
+  const craneCount=isTouch?5:9;
+  for(let i=0;i<craneCount;i++){
+    const angle=(i/craneCount)*Math.PI*2+.18;
+    const radius=145+(i%3)*55;
+    const x=Math.cos(angle)*radius,z=Math.sin(angle)*radius;
+    const yaw=-angle;
+    const height=17+(i%4)*3;
+    craneBeams.push([x,-2.9+height/2,z,.75,height,.75,yaw]);
+    craneBeams.push([x, -2.9+height,z,15,.62,.72,yaw-.34]);
+    craneBeams.push([x-Math.sin(yaw)*5,-2.9+height-3,z-Math.cos(yaw)*5,10,.38,.42,yaw+.42]);
+  }
+  addInstances(boxGeometry,STAGE_MATERIALS.rust,craneBeams);
+
+  const shipHulls=[],shipCabins=[];
+  const shipCount=isTouch?6:11;
+  for(let i=0;i<shipCount;i++){
+    const angle=(i/shipCount)*Math.PI*2+.35;
+    const radius=150+(i%2)*88;
+    const length=12+(i%4)*4;
+    const x=Math.cos(angle)*radius,z=Math.sin(angle)*radius,yaw=-angle+.28;
+    shipHulls.push([x,-2.35,z,length,1.5,4.2,yaw]);
+    shipCabins.push([x-Math.sin(yaw)*length*.18,-1.05,z-Math.cos(yaw)*length*.18,length*.28,2.4,3.4,yaw]);
+  }
+  addInstances(boxGeometry,STAGE_MATERIALS.rust,shipHulls);
+  addInstances(boxGeometry,STAGE_MATERIALS.concrete,shipCabins);
+
+  const turbineMasts=[],turbineBlades=[];
+  const turbineCount=isTouch?6:10;
+  for(let i=0;i<turbineCount;i++){
+    const angle=(i/turbineCount)*Math.PI*2+.52;
+    const radius=320;
+    const x=Math.cos(angle)*radius,z=Math.sin(angle)*radius;
+    const height=26+(i%3)*4;
+    turbineMasts.push([x,-2.9+height/2,z,.38,height,.38,0]);
+    for(let blade=0;blade<3;blade++){
+      turbineBlades.push([
+        x,-2.9+height,z,.28,8,.38,
+        -angle+Math.PI/2,0,blade*Math.PI*2/3
+      ]);
+    }
+  }
+  addInstances(new THREE.CylinderGeometry(1,1,1,8),STAGE_MATERIALS.tower,turbineMasts);
+  addInstances(boxGeometry,STAGE_MATERIALS.tower,turbineBlades);
+}
+
 const STAGE_MATERIALS={
   darkMetal:new THREE.MeshStandardMaterial({color:0xffffff,map:makeIndustrialTexture('dark'),roughness:.68,metalness:.38}),
   deckEdge:new THREE.MeshStandardMaterial({color:0xffffff,map:makeIndustrialTexture('panel'),roughness:.5,metalness:.58}),
@@ -3006,8 +3268,8 @@ function buildSaltSpire(){
   activeStage=rt;
   rt.killZones.push({type:'belowY',y:-5.5,respawnSeconds:2,awardsKill:false});
   scene.fog.color.setHex(0x9fc4d2);
-  scene.fog.near=82;scene.fog.far=235;
-  const ocean=new THREE.Mesh(new THREE.PlaneGeometry(260,260,1,1),STAGE_MATERIALS.ocean);
+  scene.fog.near=128;scene.fog.far=560;
+  const ocean=new THREE.Mesh(new THREE.PlaneGeometry(760,760,1,1),STAGE_MATERIALS.ocean);
   ocean.rotation.x=-Math.PI/2;ocean.position.y=-3.2;ocean.receiveShadow=true;stageAdd(ocean);
 
   // Broad, overlapping direct route. Every joint shares its endpoint height.
@@ -3149,7 +3411,7 @@ function buildSaltSpire(){
   const spawnLightB=new THREE.PointLight(TEAM.B.main,.72,24,2);
   spawnLightA.position.set(0,5,43);spawnLightB.position.set(0,5,-43);
   stageAdd(spawnLightA);stageAdd(spawnLightB);
-  addDistantHarbor();
+  addDistantHarborWorld();
   flushRailPosts();
   spawnPad(0,43,1.45,'A');spawnPad(0,-43,1.45,'B');
 
