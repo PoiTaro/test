@@ -134,6 +134,7 @@ function validateRoutes(routes){
 }
 
 const context = {
+  isTouch:false,
   ARENA_W: 0, ARENA_D: 0, ARENA: 0,
   SPAWN_A: { set(){} }, SPAWN_B: { set(){} },
   STAGE_VERSION: 1, activeStage: null,

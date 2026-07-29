@@ -34,8 +34,8 @@ for (const geometry of [
 }
 
 includes(
-  /inkGlass=new THREE\.MeshStandardMaterial\(\{[\s\S]*?transparent:true,opacity:\.72/,
-  'Weapons must include a translucent glowing ink chamber'
+  /inkGlass=new THREE\.MeshPhysicalMaterial\(\{[\s\S]*?clearcoat:1[\s\S]*?transparent:true,opacity:\.76/,
+  'Weapons must include a clear-coated translucent glowing ink chamber'
 );
 includes(
   /teamMaterials\.push\([\s\S]*?color:'main'[\s\S]*?color:'light'[\s\S]*?color:'dark'/,

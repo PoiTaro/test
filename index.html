@@ -2060,13 +2060,13 @@ updateOrientationUI();
 
 // ---------- レンダラー / シーン ----------
 const renderer = new THREE.WebGLRenderer({ antialias:true, powerPreference:'high-performance' });
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, isTouch ? 1.35 : 2));
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, isTouch ? 1.5 : 2));
 renderer.setSize(innerWidth, innerHeight);
-renderer.shadowMap.enabled = !isTouch;
-renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = isTouch ? THREE.PCFShadowMap : THREE.PCFSoftShadowMap;
 renderer.outputEncoding = THREE.sRGBEncoding;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.05;
+renderer.toneMappingExposure = 1.08;
 document.getElementById('game').appendChild(renderer.domElement);
 
 const scene = new THREE.Scene();
@@ -2083,14 +2083,21 @@ const camera = new THREE.PerspectiveCamera(66, innerWidth/innerHeight, 0.1, 800)
       top:    { value: new THREE.Color(0x2f7fd8) },
       mid:    { value: new THREE.Color(0x9fd0f2) },
       bottom: { value: new THREE.Color(0xffe9c9) },
+      sunDir: { value: new THREE.Vector3(.48,.78,.34).normalize() },
     },
     vertexShader: `varying vec3 vP; void main(){ vP = position; gl_Position = projectionMatrix*modelViewMatrix*vec4(position,1.0); }`,
     fragmentShader: `
-      varying vec3 vP; uniform vec3 top; uniform vec3 mid; uniform vec3 bottom;
+      varying vec3 vP; uniform vec3 top; uniform vec3 mid; uniform vec3 bottom; uniform vec3 sunDir;
       void main(){
-        float h = normalize(vP).y;
+        vec3 direction = normalize(vP);
+        float h = direction.y;
         vec3 c = h > 0.15 ? mix(mid, top, smoothstep(0.15, 0.75, h))
                           : mix(bottom, mid, smoothstep(-0.1, 0.15, h));
+        float horizon = 1.0 - smoothstep(0.0, .32, abs(h));
+        float sunHalo = pow(max(dot(direction, sunDir), 0.0), 28.0);
+        float sunCore = pow(max(dot(direction, sunDir), 0.0), 640.0);
+        c = mix(c, vec3(1.0,.88,.67), horizon*.12 + sunHalo*.18);
+        c += vec3(1.0,.82,.52) * sunCore * 1.8;
         gl_FragColor = vec4(c, 1.0);
       }`
   });
@@ -2117,19 +2124,25 @@ const camera = new THREE.PerspectiveCamera(66, innerWidth/innerHeight, 0.1, 800)
 }
 
 // ---------- ライティング ----------
-scene.add(new THREE.HemisphereLight(0xcfe6ff, 0xffd9a8, 0.75));
-const sun = new THREE.DirectionalLight(0xfff2dd, 1.35);
+scene.add(new THREE.HemisphereLight(0xcfe6ff, 0xd6ae83, 0.82));
+const sun = new THREE.DirectionalLight(0xfff0d8, 1.48);
 sun.position.set(45, 70, 25);
-sun.castShadow = !isTouch;
-sun.shadow.mapSize.set(2048, 2048);
-sun.shadow.camera.left = -60; sun.shadow.camera.right = 60;
-sun.shadow.camera.top = 60;  sun.shadow.camera.bottom = -60;
-sun.shadow.camera.far = 220;
-sun.shadow.bias = -0.0006;
+sun.castShadow = true;
+const shadowMapSize = isTouch ? 1024 : 2048;
+sun.shadow.mapSize.set(shadowMapSize, shadowMapSize);
+sun.shadow.camera.near = 1;
+sun.shadow.camera.left = -72; sun.shadow.camera.right = 72;
+sun.shadow.camera.top = 72;  sun.shadow.camera.bottom = -72;
+sun.shadow.camera.far = 240;
+sun.shadow.bias = -0.00035;
+sun.shadow.normalBias = 0.035;
 scene.add(sun);
-const rim = new THREE.DirectionalLight(0x9fc4ff, 0.35);
+const rim = new THREE.DirectionalLight(0x88c7ff, 0.42);
 rim.position.set(-40, 30, -50);
 scene.add(rim);
+const warmFill = new THREE.DirectionalLight(0xffb86f, 0.18);
+warmFill.position.set(-25, 18, 38);
+scene.add(warmFill);
 
 // ---------- 塗りキャンバス（床テクスチャ） ----------
 const paintCv = document.createElement('canvas');
@@ -2350,7 +2363,48 @@ function paint(x, z, r, team){
 // ---------- ステージ ----------
 // ステージは描画・塗装面・地面・壁コリジョンを分けて管理する。
 // これにより、平面のインクヤードと立体的なソルトスパイアを同じゲーム処理で切り替えられる。
-const floorMat = new THREE.MeshStandardMaterial({ map: paintTex, roughness: 0.42, metalness: 0.05 });
+const floorInkUniforms = { uInkTime:{ value:0 } };
+const floorMat = new THREE.MeshStandardMaterial({
+  map: paintTex,
+  bumpMap: makeIndustrialBumpTexture('floor'),
+  bumpScale: 0.075,
+  roughness: 0.68,
+  metalness: 0.08,
+  envMapIntensity: 1.12
+});
+floorMat.onBeforeCompile = shader => {
+  shader.uniforms.uInkTime = floorInkUniforms.uInkTime;
+  shader.fragmentShader = `uniform float uInkTime;\n${shader.fragmentShader}`;
+  shader.fragmentShader = shader.fragmentShader.replace(
+    'void main() {',
+    'void main() {\n  float wetInkMask = 0.0;'
+  );
+  shader.fragmentShader = shader.fragmentShader.replace(
+    '#include <map_fragment>',
+    `#include <map_fragment>
+    float wetInkChroma = max(diffuseColor.r, max(diffuseColor.g, diffuseColor.b))
+      - min(diffuseColor.r, min(diffuseColor.g, diffuseColor.b));
+    float wetInkLight = max(diffuseColor.r, max(diffuseColor.g, diffuseColor.b));
+    wetInkMask = smoothstep(0.10, 0.34, wetInkChroma) * smoothstep(0.20, 0.48, wetInkLight);
+    float wetInkPulse = 1.0 + sin(uInkTime * 1.7) * 0.012;
+    diffuseColor.rgb = mix(
+      diffuseColor.rgb,
+      diffuseColor.rgb * vec3(1.16, 1.10, 1.19) * wetInkPulse,
+      wetInkMask * 0.48
+    );`
+  );
+  shader.fragmentShader = shader.fragmentShader.replace(
+    '#include <roughnessmap_fragment>',
+    `#include <roughnessmap_fragment>
+    roughnessFactor = mix(roughnessFactor, 0.13, wetInkMask);`
+  );
+  shader.fragmentShader = shader.fragmentShader.replace(
+    '#include <metalnessmap_fragment>',
+    `#include <metalnessmap_fragment>
+    metalnessFactor = mix(metalnessFactor, 0.11, wetInkMask);`
+  );
+};
+floorMat.customProgramCacheKey = () => 'ink-clash-wet-floor-v2';
 const obstacles = [];
 const groundSurfaces = [];
 const projectileColliders = obstacles;
@@ -2361,8 +2415,12 @@ let activeStageRoot = null;
 const stageRailPostMatrices=[];
 
 const wallMat = new THREE.MeshStandardMaterial({ color: 0xe8eef4, roughness: 0.6 });
-const accentMatA = new THREE.MeshStandardMaterial({ color: TEAM.A.main, roughness: 0.5 });
-const accentMatB = new THREE.MeshStandardMaterial({ color: TEAM.B.main, roughness: 0.5 });
+const accentMatA = new THREE.MeshStandardMaterial({
+  color:TEAM.A.main,roughness:.24,metalness:.07,envMapIntensity:1.22
+});
+const accentMatB = new THREE.MeshStandardMaterial({
+  color:TEAM.B.main,roughness:.24,metalness:.07,envMapIntensity:1.22
+});
 
 function surfaceLocal(surface,x,z){
   const dx=x-surface.x,dz=z-surface.z;
@@ -2451,9 +2509,17 @@ function applyWallPaint(o, axis, sign, u, y, radius, team, broadcast=true){
   if (!o || !o.paintable) return;
   const r = Math.max(0.7, Math.min(2.8, radius));
   const g = new THREE.Group();
-  const mat = new THREE.MeshBasicMaterial({
-    color:TEAM[team].main, transparent:true, opacity:0.92,
-    depthWrite:false, polygonOffset:true, polygonOffsetFactor:-3
+  const mat = new THREE.MeshStandardMaterial({
+    color:TEAM[team].main,
+    emissive:TEAM[team].dark,
+    emissiveIntensity:.12,
+    roughness:.12,
+    metalness:.08,
+    transparent:true,
+    opacity:.94,
+    depthWrite:false,
+    polygonOffset:true,
+    polygonOffsetFactor:-3
   });
   const main = new THREE.Mesh(wallCircleGeo, mat);
   main.scale.set(r, r * (0.9 + Math.random()*0.25), 1);
@@ -2576,6 +2642,38 @@ function makeIndustrialTexture(kind){
   t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.set(2,2);
   t.encoding=THREE.sRGBEncoding;t.anisotropy=Math.min(4,renderer.capabilities.getMaxAnisotropy());
   return t;
+}
+function makeIndustrialBumpTexture(kind){
+  const cv=document.createElement('canvas');cv.width=cv.height=256;
+  const c=cv.getContext('2d');
+  c.fillStyle=kind==='concrete'?'#888':'#969696';c.fillRect(0,0,256,256);
+  const image=c.getImageData(0,0,256,256),data=image.data;
+  for(let i=0;i<data.length;i+=4){
+    const grain=(Math.random()-.5)*(kind==='concrete'?34:18);
+    const value=Math.max(0,Math.min(255,data[i]+grain));
+    data[i]=data[i+1]=data[i+2]=value;
+  }
+  c.putImageData(image,0,0);
+  c.strokeStyle=kind==='floor'?'#555':'#4b4b4b';
+  c.lineWidth=kind==='floor'?3:5;
+  for(let i=0;i<=256;i+=64){
+    c.beginPath();c.moveTo(i,0);c.lineTo(i,256);c.stroke();
+    c.beginPath();c.moveTo(0,i);c.lineTo(256,i);c.stroke();
+  }
+  c.strokeStyle='rgba(225,225,225,.72)';c.lineWidth=2;
+  c.strokeRect(6,6,116,116);c.strokeRect(134,6,116,116);
+  c.strokeRect(6,134,116,116);c.strokeRect(134,134,116,116);
+  c.fillStyle='#ececec';
+  for(let y=16;y<256;y+=32)for(let x=16;x<256;x+=32){
+    c.beginPath();c.arc(x,y,2.2,0,Math.PI*2);c.fill();
+    c.fillStyle='#555';c.beginPath();c.arc(x+.5,y+.7,.8,0,Math.PI*2);c.fill();
+    c.fillStyle='#ececec';
+  }
+  const texture=new THREE.CanvasTexture(cv);
+  texture.wrapS=texture.wrapT=THREE.RepeatWrapping;
+  texture.repeat.set(kind==='floor'?4:2,kind==='floor'?4:2);
+  texture.anisotropy=Math.min(4,renderer.capabilities.getMaxAnisotropy());
+  return texture;
 }
 function makeCityFacadeTextures(accent='#63d9ff',seed=0){
   const colorCv=document.createElement('canvas'),lightCv=document.createElement('canvas');
@@ -3205,16 +3303,94 @@ function addDistantHarborWorld(){
   addInstances(boxGeometry,STAGE_MATERIALS.tower,turbineBlades);
 }
 
+const oceanUniforms = {
+  uTime:{ value:0 },
+  uDeep:{ value:new THREE.Color(0x075d83) },
+  uShallow:{ value:new THREE.Color(0x28b7ce) },
+  uSky:{ value:new THREE.Color(0x9fe9f4) },
+  uSunDirection:{ value:new THREE.Vector3(.48,.78,.34).normalize() }
+};
+function makeOceanMaterial(){
+  return new THREE.ShaderMaterial({
+    uniforms:oceanUniforms,
+    transparent:true,
+    depthWrite:true,
+    fog:true,
+    vertexShader:`
+      uniform float uTime;
+      varying vec3 vWorldPosition;
+      varying vec3 vWorldNormal;
+      varying float vWave;
+      #include <fog_pars_vertex>
+      void main(){
+        vec3 transformed = position;
+        float waveA = sin(position.x*.052 + uTime*.72) * .34;
+        float waveB = sin(position.y*.088 - uTime*.58) * .18;
+        float waveC = sin((position.x+position.y)*.034 + uTime*.41) * .24;
+        float wave = waveA + waveB + waveC;
+        transformed.z += wave;
+        float dx = cos(position.x*.052 + uTime*.72)*.01768
+          + cos((position.x+position.y)*.034 + uTime*.41)*.00816;
+        float dy = cos(position.y*.088 - uTime*.58)*.01584
+          + cos((position.x+position.y)*.034 + uTime*.41)*.00816;
+        vec3 localNormal = normalize(vec3(-dx,-dy,1.0));
+        vec4 worldPosition = modelMatrix * vec4(transformed,1.0);
+        vWorldPosition = worldPosition.xyz;
+        vWorldNormal = normalize(mat3(modelMatrix) * localNormal);
+        vWave = wave;
+        vec4 mvPosition = viewMatrix * worldPosition;
+        gl_Position = projectionMatrix * mvPosition;
+        #include <fog_vertex>
+      }`,
+    fragmentShader:`
+      uniform float uTime;
+      uniform vec3 uDeep;
+      uniform vec3 uShallow;
+      uniform vec3 uSky;
+      uniform vec3 uSunDirection;
+      varying vec3 vWorldPosition;
+      varying vec3 vWorldNormal;
+      varying float vWave;
+      #include <fog_pars_fragment>
+      void main(){
+        vec3 normal = normalize(vWorldNormal);
+        vec3 viewDirection = normalize(cameraPosition - vWorldPosition);
+        float fresnel = pow(1.0-max(dot(normal,viewDirection),0.0),3.0);
+        float crossingRipples = sin(vWorldPosition.x*.21 + uTime*1.05)
+          * sin(vWorldPosition.z*.18 - uTime*.82);
+        float rippleLight = smoothstep(.58,.98,crossingRipples*.5+.5);
+        vec3 halfDirection = normalize(uSunDirection + viewDirection);
+        float sunGlint = pow(max(dot(normal,halfDirection),0.0),96.0);
+        vec3 color = mix(uDeep,uShallow,clamp(vWave*.45+.52,0.0,1.0));
+        color = mix(color,uSky,fresnel*.68);
+        color += vec3(.18,.56,.64)*rippleLight*.19;
+        color += vec3(1.0,.82,.52)*sunGlint*1.55;
+        float distanceFade = 1.0-smoothstep(40.0,310.0,length(vWorldPosition.xz-cameraPosition.xz));
+        color = mix(color,uSky*.72,fresnel*.16*(1.0-distanceFade));
+        gl_FragColor = vec4(color,.965);
+        #include <tonemapping_fragment>
+        #include <encodings_fragment>
+        #include <fog_fragment>
+      }`
+  });
+}
+
+const INDUSTRIAL_BUMPS={
+  dark:makeIndustrialBumpTexture('dark'),
+  panel:makeIndustrialBumpTexture('panel'),
+  concrete:makeIndustrialBumpTexture('concrete'),
+  tower:makeIndustrialBumpTexture('tower')
+};
 const STAGE_MATERIALS={
-  darkMetal:new THREE.MeshStandardMaterial({color:0xffffff,map:makeIndustrialTexture('dark'),roughness:.68,metalness:.38}),
-  deckEdge:new THREE.MeshStandardMaterial({color:0xffffff,map:makeIndustrialTexture('panel'),roughness:.5,metalness:.58}),
+  darkMetal:new THREE.MeshStandardMaterial({color:0xffffff,map:makeIndustrialTexture('dark'),bumpMap:INDUSTRIAL_BUMPS.dark,bumpScale:.1,roughness:.62,metalness:.44,envMapIntensity:1.18}),
+  deckEdge:new THREE.MeshStandardMaterial({color:0xffffff,map:makeIndustrialTexture('panel'),bumpMap:INDUSTRIAL_BUMPS.panel,bumpScale:.08,roughness:.42,metalness:.64,envMapIntensity:1.24}),
   deckSupport:new THREE.MeshStandardMaterial({color:0x344854,roughness:.62,metalness:.5}),
-  rail:new THREE.MeshStandardMaterial({color:0x151a22,roughness:.42,metalness:.72}),
-  concrete:new THREE.MeshStandardMaterial({color:0xffffff,map:makeIndustrialTexture('concrete'),roughness:.82,metalness:.02}),
+  rail:new THREE.MeshStandardMaterial({color:0x182733,roughness:.31,metalness:.82,envMapIntensity:1.3}),
+  concrete:new THREE.MeshStandardMaterial({color:0xffffff,map:makeIndustrialTexture('concrete'),bumpMap:INDUSTRIAL_BUMPS.concrete,bumpScale:.14,roughness:.82,metalness:.02}),
   rust:new THREE.MeshStandardMaterial({color:0x9b4e27,roughness:.88,metalness:.18}),
-  tower:new THREE.MeshStandardMaterial({color:0xffffff,map:makeIndustrialTexture('tower'),roughness:.62,metalness:.28}),
-  grate:new THREE.MeshStandardMaterial({color:0x59616b,roughness:.42,metalness:.75,transparent:true,opacity:.82}),
-  ocean:new THREE.MeshStandardMaterial({color:0x176f9e,roughness:.2,metalness:.08,transparent:true,opacity:.94}),
+  tower:new THREE.MeshStandardMaterial({color:0xffffff,map:makeIndustrialTexture('tower'),bumpMap:INDUSTRIAL_BUMPS.tower,bumpScale:.075,roughness:.52,metalness:.35,envMapIntensity:1.08}),
+  grate:new THREE.MeshStandardMaterial({color:0x59616b,roughness:.34,metalness:.82,transparent:true,opacity:.86}),
+  ocean:makeOceanMaterial(),
   hazard:new THREE.MeshStandardMaterial({map:makeHazardTexture(),roughness:.72,metalness:.12})
 };
 const SALT_DECAL_TEXTURE=new THREE.TextureLoader().load('assets/salt-spire-decal-atlas-v1.webp');
@@ -3289,7 +3465,10 @@ function buildSaltSpire(){
   rt.killZones.push({type:'belowY',y:-5.5,respawnSeconds:2,awardsKill:false});
   scene.fog.color.setHex(0x9fc4d2);
   scene.fog.near=128;scene.fog.far=560;
-  const ocean=new THREE.Mesh(new THREE.PlaneGeometry(760,760,1,1),STAGE_MATERIALS.ocean);
+  const ocean=new THREE.Mesh(
+    new THREE.PlaneGeometry(760,760,isTouch?32:72,isTouch?32:72),
+    STAGE_MATERIALS.ocean
+  );
   ocean.rotation.x=-Math.PI/2;ocean.position.y=-3.2;ocean.receiveShadow=true;stageAdd(ocean);
 
   // Broad, overlapping direct route. Every joint shares its endpoint height.
@@ -3552,7 +3731,9 @@ loadStage(activeMatchSettings.stage);
 
 // ---------- キャラクター ----------
 function makeToonMat(color, emissive=0x000000, ei=0){
-  return new THREE.MeshStandardMaterial({ color, roughness: 0.55, metalness: 0.02, emissive, emissiveIntensity: ei });
+  return new THREE.MeshStandardMaterial({
+    color,roughness:.38,metalness:.025,emissive,emissiveIntensity:ei,envMapIntensity:1.08
+  });
 }
 
 function createKid(team, role = 'bot'){
@@ -3630,7 +3811,10 @@ function createKid(team, role = 'bot'){
   // インクタンク（背中）
   const tank = new THREE.Group();
   const glass = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.24, 0.62, 18),
-    new THREE.MeshStandardMaterial({ color: 0xdff2ff, roughness: 0.08, transparent: true, opacity: 0.45 }));
+    new THREE.MeshPhysicalMaterial({
+      color:0xdff2ff,roughness:.055,metalness:0,clearcoat:1,clearcoatRoughness:.07,
+      transparent:true,opacity:.48,depthWrite:false
+    }));
   const inkFill = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.5, 16), makeToonMat(c.main, c.main, 0.5));
   const cap = new THREE.Mesh(new THREE.SphereGeometry(0.24, 14, 10), makeToonMat(0x2a3348));
   cap.position.y = 0.34; cap.scale.y = 0.5;
@@ -3800,9 +3984,9 @@ function buildWeaponModel(key,team,side=1,mobile=isTouch){
   const metal=makeToonMat(0x202a3b,0x0b1020,.18);
   const chrome=new THREE.MeshStandardMaterial({color:0xe9f2f6,metalness:.72,roughness:.22});
   const rubber=new THREE.MeshStandardMaterial({color:0x111827,roughness:.82});
-  const inkGlass=new THREE.MeshStandardMaterial({
+  const inkGlass=new THREE.MeshPhysicalMaterial({
     color:c.light,emissive:c.main,emissiveIntensity:1.15,metalness:.05,roughness:.12,
-    transparent:true,opacity:.72,depthWrite:false
+    clearcoat:1,clearcoatRoughness:.06,transparent:true,opacity:.76,depthWrite:false
   });
   teamMaterials.push(
     {material:main,color:'main',emissive:'main'},
@@ -4575,14 +4759,19 @@ function revivePlayer(){
 const particles = [];
 const partGeo = new THREE.SphereGeometry(0.09, 8, 6);
 const partMat = {
-  A: new THREE.MeshBasicMaterial({ color: TEAM.A.light }),
-  B: new THREE.MeshBasicMaterial({ color: TEAM.B.light }),
+  A: new THREE.MeshStandardMaterial({
+    color:TEAM.A.light,emissive:TEAM.A.main,emissiveIntensity:.22,roughness:.13,metalness:.06
+  }),
+  B: new THREE.MeshStandardMaterial({
+    color:TEAM.B.light,emissive:TEAM.B.main,emissiveIntensity:.22,roughness:.13,metalness:.06
+  }),
 };
 function burst(pos, team, n=10, power=5){
   for (let i=0;i<n;i++){
     if (particles.length > (isTouch?72:240)) break;
     const m = new THREE.Mesh(partGeo, partMat[team]);
     m.position.copy(pos);
+    m.scale.set(1.25,.8,1);
     scene.add(m);
     const a = Math.random()*Math.PI*2, up = 2 + Math.random()*power;
     particles.push({
@@ -6175,7 +6364,8 @@ function updateParticles(dt){
     p.vel.y -= 22 * dt;
     p.mesh.position.addScaledVector(p.vel, dt);
     p.life -= dt;
-    p.mesh.scale.setScalar(Math.max(0.05, p.life * 1.8));
+    const particleScale=Math.max(0.05,p.life*1.8);
+    p.mesh.scale.set(particleScale*1.24,particleScale*.82,particleScale);
     if (p.life <= 0 || p.mesh.position.y < 0){
       scene.remove(p.mesh);
       particles.splice(i, 1);
@@ -7266,7 +7456,10 @@ let timeSyncT = 0;
 function animate(){
   requestAnimationFrame(animate);
   const dt = Math.min(clock.getDelta(), 0.05);
-  for(const update of activeStage?.animators||[])update(dt,performance.now()*.001);
+  const visualTime = performance.now()*.001;
+  floorInkUniforms.uInkTime.value = visualTime;
+  oceanUniforms.uTime.value = visualTime;
+  for(const update of activeStage?.animators||[])update(dt,visualTime);
   if (running){
     // 時間はホストが管理して定期的に同期
     if (mode !== 'online' || isHost){
