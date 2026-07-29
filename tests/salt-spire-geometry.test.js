@@ -51,7 +51,9 @@ function local(surface, x, z){
 function contains(surface, x, z){
   if(surface.type === 'circle') return Math.hypot(x-surface.x, z-surface.z) <= surface.r + .001;
   const p = local(surface, x, z);
-  return Math.abs(p.x) <= surface.hw + .001 && Math.abs(p.z) <= surface.hd + .001;
+  const marginX = surface.marginX || 0;
+  const marginZ = surface.marginZ || 0;
+  return Math.abs(p.x) <= surface.hw + marginX + .001 && Math.abs(p.z) <= surface.hd + marginZ + .001;
 }
 function surfaceHeight(surface, x, z){
   if(surface.type !== 'ramp') return surface.y;
@@ -62,6 +64,8 @@ function surfaceHeight(surface, x, z){
 function heightAt(x, z, currentY=999){
   let found = -Infinity;
   let bestDelta = Infinity;
+  let rampFound = -Infinity;
+  let rampDelta = Infinity;
   for(const surface of grounds){
     if(!contains(surface, x, z)) continue;
     const height = surfaceHeight(surface, x, z);
@@ -71,17 +75,21 @@ function heightAt(x, z, currentY=999){
     }
     if(height > currentY + .42) continue;
     const delta = Math.abs(height-currentY);
+    if(surface.type === 'ramp' && delta < rampDelta){
+      rampFound = height;
+      rampDelta = delta;
+    }
     if(delta < bestDelta-.001 || (Math.abs(delta-bestDelta) < .001 && height > found)){
       found = height;
       bestDelta = delta;
     }
   }
-  return found;
+  return Number.isFinite(rampFound) ? rampFound : found;
 }
 function validateRoutes(routes){
   const failures = [];
   routes.forEach((route, routeIndex) => {
-    for(const laneOffset of [0, -1.2, 1.2]){
+    for(const laneOffset of [0, -2.4, 2.4]){
       let previousHeight = null;
       for(let segment=0; segment<route.length-1; segment++){
         const a = route[segment];
@@ -133,7 +141,7 @@ const context = {
   scene: { fog: { color:{setHex(){}} } }, THREE, floorMat: {},
   STAGE_MATERIALS: {
     ocean:{}, darkMetal:{}, tower:{}, rail:{}, hazard:{},
-    concrete:{}, grate:{}
+    concrete:{}, grate:{}, deckEdge:{}, deckSupport:{}
   },
   makeRuntime: (id, config) => ({
     id, config, killZones:[], paintableMeshes:[], botGraph:{routes:[]},
@@ -143,7 +151,10 @@ const context = {
   mapWorldPaintUV(){},
   registerGround(surface){ grounds.push(surface); },
   addDeckRect(x, z, w, d, y, opts={}){
-    grounds.push({type:'rect', x, z, hw:w/2, hd:d/2, y, yaw:opts.yaw||0, paintable:opts.paintable!==false});
+    grounds.push({
+      type:'rect', x, z, hw:(opts.groundW||w)/2, hd:(opts.groundD||d)/2,
+      y, yaw:opts.yaw||0, paintable:opts.paintable!==false
+    });
   },
   addRampBetween(a, b, width, yStart, yEnd, opts={}){
     const x=(a[0]+b[0])/2, z=(a[1]+b[1])/2;
@@ -151,7 +162,8 @@ const context = {
     grounds.push({
       type:'ramp', x, z, hw:width/2, hd:Math.hypot(dx,dz)/2,
       yStart, yEnd, y:Math.max(yStart,yEnd),
-      yaw:Math.atan2(dx,dz)+Math.PI, paintable:opts.paintable!==false
+      yaw:Math.atan2(dx,dz)+Math.PI, marginZ:opts.groundMargin == null ? 1 : opts.groundMargin,
+      paintable:opts.paintable!==false
     });
   },
   addSolidCollider(x, z, w, d, yMin, h){
@@ -164,7 +176,7 @@ const context = {
     colliders.push({x,z,hw:3.5,hd:1.6,yMin:y,h:y+2.8});
   },
   addRailLine(){}, addStageSign(){}, addAtlasPanel(){}, addDrumCluster(){}, addPipeRuns(){},
-  addTeamBanner(){}, addDistantHarbor(){},
+  addTeamBanner(){}, addDistantHarbor(){}, addSupportPylons(){},
   flushRailPosts(){}, spawnPad(){},
   validateStageRoutes: validateRoutes
 };
@@ -177,4 +189,16 @@ const atlasBytes = fs.statSync(path.join(__dirname, '..', 'assets', 'salt-spire-
 assert(atlasBytes < 100_000, `mobile decal atlas is too large: ${atlasBytes} bytes`);
 assert((builderBody.match(/addDeckRect/g)||[]).length <= 16, 'too many separate deck slabs');
 assert((builderBody.match(/addRampBetween/g)||[]).length <= 16, 'too many separate ramp surfaces');
+assert(
+  /function rampStructureGeometry\([\s\S]*?left fascia[\s\S]*?right fascia/.test(html),
+  'ramps must use a closed structural body instead of a zero-thickness plane'
+);
+assert(
+  /const fascia=new THREE\.Mesh\(new THREE\.BoxGeometry\(w,fasciaH,d\),STAGE_MATERIALS\.deckEdge\)/.test(html),
+  'flat decks must include a visible structural fascia'
+);
+assert(
+  /addSupportPylons\(\[/.test(builderBody),
+  'major offshore decks must have visible supports'
+);
 console.log(`Salt Spire route test passed: ${grounds.length} simple surfaces, ${runtime.botGraph.routes.length} routes.`);

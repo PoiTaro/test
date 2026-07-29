@@ -2348,7 +2348,8 @@ function surfaceContains(surface,x,z){
   }
   if(surface.type==='circle') return Math.hypot(x-surface.x,z-surface.z)<=surface.r;
   const p=surfaceLocal(surface,x,z);
-  return Math.abs(p.x)<=surface.hw&&Math.abs(p.z)<=surface.hd;
+  const marginX=surface.marginX||0,marginZ=surface.marginZ||0;
+  return Math.abs(p.x)<=surface.hw+marginX&&Math.abs(p.z)<=surface.hd+marginZ;
 }
 function surfaceHeight(surface,x,z){
   if(surface.type!=='ramp') return surface.y;
@@ -2517,7 +2518,7 @@ function makeIndustrialTexture(kind){
   const cv=document.createElement('canvas');cv.width=cv.height=256;
   const c=cv.getContext('2d');
   const palette={
-    dark:['#202a33','#101820','#4c5a65'],
+    dark:['#344754','#1e2c36','#71838d'],
     panel:['#727d84','#4b565e','#a7b0b4'],
     concrete:['#8b9294','#6d7477','#c2c7c5'],
     tower:['#c3c8c8','#8e989c','#e6e8e4']
@@ -2552,14 +2553,24 @@ function addDeckRect(x,z,w,d,y,opts={}){
   const baseY=opts.baseY==null?-3.15:opts.baseY;
   const h=Math.max(.3,y-baseY);
   const baseMat=opts.baseMat||STAGE_MATERIALS.darkMetal;
-  const base=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),baseMat);
-  base.position.set(x,baseY+h/2,z);base.castShadow=base.receiveShadow=true;stageAdd(base);
-  // The skirt is visual only. Walkable collision comes from the simple top
-  // surface below, so a ramp can overlap a deck without hitting an invisible box.
+  const yaw=opts.yaw||0;
+  // Separate the deep structural skirt and the brighter top fascia. Both are
+  // visual-only, while the registered top surface remains perfectly flat.
+  const fasciaH=Math.min(.42,Math.max(.18,h*.3));
+  const skirtH=Math.max(.08,h-fasciaH);
+  const base=new THREE.Mesh(new THREE.BoxGeometry(w,skirtH,d),baseMat);
+  base.position.set(x,baseY+skirtH/2,z);base.rotation.y=yaw;
+  base.castShadow=base.receiveShadow=true;stageAdd(base);
+  const fascia=new THREE.Mesh(new THREE.BoxGeometry(w,fasciaH,d),STAGE_MATERIALS.deckEdge);
+  fascia.position.set(x,y-fasciaH/2,z);fascia.rotation.y=yaw;
+  fascia.castShadow=fascia.receiveShadow=true;stageAdd(fascia);
+  // Walkable collision comes only from the simple top surface below, so
+  // overlapping ramps and decks never create invisible step colliders.
   const topMat=opts.paintable===false?(opts.topMat||STAGE_MATERIALS.grate):floorMat;
-  addPaintPlane(x,z,w,d,y+.018,opts.yaw||0,topMat);
+  addPaintPlane(x,z,w,d,y+.018,yaw,topMat);
+  const groundW=opts.groundW||w,groundD=opts.groundD||d;
   registerGround({
-    type:'rect',x,z,hw:w/2,hd:d/2,y,yaw:opts.yaw||0,
+    type:'rect',x,z,hw:groundW/2,hd:groundD/2,y,yaw,
     paintable:opts.paintable!==false,kind:opts.kind
   });
   return base;
@@ -2574,15 +2585,64 @@ function rampGeometry(x,z,width,length,yStart,yEnd,yaw){
   g.computeVertexNormals();
   return g;
 }
+function rampStructureGeometry(x,z,width,length,yStart,yEnd,yaw,thickness=.72){
+  const hw=width/2,hd=length/2,c=Math.cos(yaw),s=Math.sin(yaw);
+  const world=(lx,lz,y)=>[x+lx*c+lz*s,y,z-lx*s+lz*c];
+  const top=[
+    world(-hw, hd,yStart-.025),world(hw, hd,yStart-.025),
+    world(hw,-hd,yEnd-.025),world(-hw,-hd,yEnd-.025)
+  ];
+  const bottom=[
+    world(-hw, hd,yStart-thickness),world(hw, hd,yStart-thickness),
+    world(hw,-hd,yEnd-thickness),world(-hw,-hd,yEnd-thickness)
+  ];
+  const vertices=[...top.flat(),...bottom.flat()];
+  const indices=[
+    4,6,5, 4,7,6,       // underside
+    0,4,1, 1,4,5,       // low-end cap
+    3,2,7, 2,6,7,       // high-end cap
+    0,3,4, 3,7,4,       // left fascia
+    1,5,2, 2,5,6        // right fascia
+  ];
+  const g=new THREE.BufferGeometry();
+  g.setAttribute('position',new THREE.Float32BufferAttribute(vertices,3));
+  g.setAttribute('uv',new THREE.Float32BufferAttribute([
+    0,0,1,0,1,1,0,1,
+    0,0,1,0,1,1,0,1
+  ],2));
+  g.setIndex(indices);g.computeVertexNormals();
+  return g;
+}
 function addRamp(x,z,width,length,yStart,yEnd,yaw=0,opts={}){
+  const structure=new THREE.Mesh(
+    rampStructureGeometry(x,z,width,length,yStart,yEnd,yaw,opts.thickness||.72),
+    opts.baseMat||STAGE_MATERIALS.deckEdge
+  );
+  structure.castShadow=structure.receiveShadow=true;stageAdd(structure);
   const m=new THREE.Mesh(rampGeometry(x,z,width,length,yStart,yEnd,yaw),opts.paintable===false?STAGE_MATERIALS.grate:floorMat);
   m.receiveShadow=true;stageAdd(m);mapWorldPaintUV(m);
   if(opts.paintable!==false&&activeStage)activeStage.paintableMeshes.push(m);
   registerGround({
     type:'ramp',x,z,hw:width/2,hd:length/2,yStart,yEnd,y:Math.max(yStart,yEnd),yaw,
+    marginZ:opts.groundMargin==null ? 1 : opts.groundMargin,
     paintable:opts.paintable!==false,kind:opts.kind||'ramp'
   });
   return m;
+}
+function addSupportPylons(points){
+  if(!points.length)return;
+  const geometry=new THREE.CylinderGeometry(.72,.92,1,isTouch?8:12,1,false);
+  const pylons=new THREE.InstancedMesh(geometry,STAGE_MATERIALS.deckSupport,points.length);
+  const position=new THREE.Vector3(),quaternion=new THREE.Quaternion(),scale=new THREE.Vector3();
+  points.forEach(([x,z,topY,r=1],i)=>{
+    const bottom=-3.05,height=Math.max(.8,topY-bottom-.3);
+    position.set(x,bottom+height/2,z);
+    scale.set(r,height,r);
+    pylons.setMatrixAt(i,new THREE.Matrix4().compose(position,quaternion,scale));
+  });
+  pylons.instanceMatrix.needsUpdate=true;
+  pylons.castShadow=pylons.receiveShadow=true;
+  stageAdd(pylons);
 }
 function addRampBetween(a,b,width,yStart,yEnd,opts={}){
   const x=(a[0]+b[0])/2,z=(a[1]+b[1])/2;
@@ -2714,6 +2774,8 @@ function addDistantHarbor(){
 
 const STAGE_MATERIALS={
   darkMetal:new THREE.MeshStandardMaterial({color:0xffffff,map:makeIndustrialTexture('dark'),roughness:.68,metalness:.38}),
+  deckEdge:new THREE.MeshStandardMaterial({color:0xffffff,map:makeIndustrialTexture('panel'),roughness:.5,metalness:.58}),
+  deckSupport:new THREE.MeshStandardMaterial({color:0x344854,roughness:.62,metalness:.5}),
   rail:new THREE.MeshStandardMaterial({color:0x151a22,roughness:.42,metalness:.72}),
   concrete:new THREE.MeshStandardMaterial({color:0xffffff,map:makeIndustrialTexture('concrete'),roughness:.82,metalness:.02}),
   rust:new THREE.MeshStandardMaterial({color:0x9b4e27,roughness:.88,metalness:.18}),
@@ -2799,14 +2861,14 @@ function buildSaltSpire(){
 
   // Broad, overlapping direct route. Every joint shares its endpoint height.
   for(const s of [-1,1]){
-    addDeckRect(0,43*s,20,13,1.45,{baseMat:STAGE_MATERIALS.darkMetal});
-    addDeckRect(0,34*s,18,8,1.45,{baseY:.9});
-    addRampBetween([0,30*s],[0,20*s],14,1.45,3);
-    addDeckRect(0,17*s,15,8,3,{baseY:2.35});
+    addDeckRect(0,43*s,24,18,1.45,{baseMat:STAGE_MATERIALS.darkMetal});
+    addDeckRect(0,34*s,20,11,1.45,{baseY:.72,groundW:14,groundD:6});
+    addRampBetween([0,31*s],[0,19*s],16,1.45,3);
+    addDeckRect(0,16.5*s,18,11,3,{baseY:2.2,groundD:5});
   }
 
   // Full circular combat floor: the beacon can be circled from every route.
-  const centerRadius=18;
+  const centerRadius=20;
   const ringBase=new THREE.Mesh(
     new THREE.CylinderGeometry(centerRadius,centerRadius+1.4,6.15,40,1,true),
     STAGE_MATERIALS.darkMetal
@@ -2815,7 +2877,10 @@ function buildSaltSpire(){
   const ringTop=new THREE.Mesh(new THREE.CircleGeometry(centerRadius,56),floorMat);
   ringTop.rotation.x=-Math.PI/2;ringTop.position.y=3.02;ringTop.receiveShadow=true;
   stageAdd(ringTop);mapWorldPaintUV(ringTop);
-  registerGround({type:'circle',x:0,z:0,r:centerRadius,y:3,paintable:true,kind:'center'});
+  // The visible disc is larger than its simple walk surface. The 18 m
+  // collision circle meets each ramp close to its exact endpoint, avoiding
+  // overlapping flat ground that previously produced hidden height steps.
+  registerGround({type:'circle',x:0,z:0,r:18,y:3,paintable:true,kind:'center'});
   rt.paintableMeshes.push(ringTop);
 
   const tower=new THREE.Mesh(new THREE.CylinderGeometry(3.4,3.8,12.5,28),STAGE_MATERIALS.tower);
@@ -2854,32 +2919,41 @@ function buildSaltSpire(){
   });
 
   // High route: team A north-west to center, then team B south-east.
-  addRampBetween([-9,36],[-25,30],11,1.45,4.6);
-  addDeckRect(-34,23,18,14,4.6);
-  addDeckRect(-38,10,13,13,4.6,{baseY:3.9});
-  addRampBetween([-31.5,7.2],[-13,11],10,4.6,3);
+  addRampBetween([-8.5,35],[-24,29],13,1.45,4.6);
+  addDeckRect(-34,23,22,18,4.6);
+  addDeckRect(-38,10,17,17,4.6,{baseY:3.7});
+  addRampBetween([-31,7.5],[-12,10.5],12,4.6,3);
 
-  addRampBetween([9,-36],[25,-30],11,1.45,4.6);
-  addDeckRect(34,-23,18,14,4.6);
-  addDeckRect(38,-10,13,13,4.6,{baseY:3.9});
-  addRampBetween([31.5,-7.2],[13,-11],10,4.6,3);
+  addRampBetween([8.5,-35],[24,-29],13,1.45,4.6);
+  addDeckRect(34,-23,22,18,4.6);
+  addDeckRect(38,-10,17,17,4.6,{baseY:3.7});
+  addRampBetween([31,-7.5],[12,-10.5],12,4.6,3);
 
   // Low flank: team A north-east to center, then team B south-west.
-  addRampBetween([5,39],[22,34],12,1.45,1.35);
-  addDeckRect(22,34,14,12,1.35,{baseY:.7});
-  addRampBetween([22,34],[38,25],12,1.35,1.2);
-  addDeckRect(39,22,14,14,1.2);
-  addRampBetween([40,18],[44,10],12,1.2,1.1);
-  addDeckRect(44,2,14,25,1.1);
-  addRampBetween([38,4],[17,1],11,1.1,3);
+  addRampBetween([5,35],[22,34],14,1.45,1.35);
+  addDeckRect(22,34,17,15,1.35,{baseY:.55});
+  addRampBetween([22,34],[38,25],14,1.35,1.2);
+  addDeckRect(39,22,18,18,1.2);
+  addRampBetween([40,18],[44,10],14,1.2,1.1);
+  addDeckRect(44,2,17,29,1.1);
+  addRampBetween([38,4],[18,1],13,1.1,3);
 
-  addRampBetween([-5,-39],[-22,-34],12,1.45,1.35);
-  addDeckRect(-22,-34,14,12,1.35,{baseY:.7});
-  addRampBetween([-22,-34],[-38,-25],12,1.35,1.2);
-  addDeckRect(-39,-22,14,14,1.2);
-  addRampBetween([-40,-18],[-44,-10],12,1.2,1.1);
-  addDeckRect(-44,-2,14,25,1.1);
-  addRampBetween([-38,-4],[-17,-1],11,1.1,3);
+  addRampBetween([-5,-35],[-22,-34],14,1.45,1.35);
+  addDeckRect(-22,-34,17,15,1.35,{baseY:.55});
+  addRampBetween([-22,-34],[-38,-25],14,1.35,1.2);
+  addDeckRect(-39,-22,18,18,1.2);
+  addRampBetween([-40,-18],[-44,-10],14,1.2,1.1);
+  addDeckRect(-44,-2,17,29,1.1);
+  addRampBetween([-38,-4],[-18,-1],13,1.1,3);
+
+  // The decks now read as supported offshore structures instead of floating
+  // planes. These pylons are visual-only and never obstruct movement.
+  addSupportPylons([
+    [-7,43,1.45],[7,43,1.45],[-7,-43,1.45],[7,-43,1.45],
+    [-34,23,4.6],[-38,10,4.6],[34,-23,4.6],[38,-10,4.6],
+    [22,34,1.35],[39,22,1.2],[44,2,1.1],
+    [-22,-34,1.35],[-39,-22,1.2],[-44,-2,1.1]
+  ]);
 
   // Cover is outside every route centerline.
   for(const [x,z,w,d] of [[-13,-12,5,3],[13,12,5,3]]){
@@ -2929,9 +3003,9 @@ function buildSaltSpire(){
   spawnPad(0,43,1.45,'A');spawnPad(0,-43,1.45,'B');
 
   rt.botGraph.routes=[
-    [[0,43],[0,34],[0,30],[0,20],[0,17],[-7,10],[-8,1],[-7,-9],[0,-17],[0,-20],[0,-30],[0,-34],[0,-43]],
-    [[0,43],[-6,37],[-9,36],[-25,30],[-34,23],[-38,10],[-31.5,7.2],[-13,11],[-8,8],[-8,0],[-7,-8],[13,-11],[31.5,-7.2],[38,-10],[34,-23],[25,-30],[9,-36],[6,-37],[0,-43]],
-    [[0,43],[5,39],[22,34],[38,25],[44,10],[38,4],[17,1],[9,5],[6,-6],[-9,-4],[-17,-1],[-38,-4],[-44,-10],[-38,-25],[-22,-34],[-5,-39],[0,-43]]
+    [[0,43],[0,34],[0,31],[0,19],[0,16.5],[-7,10],[-8,1],[-7,-9],[0,-16.5],[0,-19],[0,-31],[0,-34],[0,-43]],
+    [[0,43],[-6,38],[-8.5,35],[-24,29],[-34,23],[-38,10],[-31,7.5],[-12,10.5],[-8,8],[-8,0],[-7,-8],[12,-10.5],[31,-7.5],[38,-10],[34,-23],[24,-29],[8.5,-35],[6,-38],[0,-43]],
+    [[0,43],[5,35],[22,34],[38,25],[44,10],[38,4],[18,1],[9,5],[6,-6],[-9,-4],[-18,-1],[-38,-4],[-44,-10],[-38,-25],[-22,-34],[-5,-35],[0,-43]]
   ];
   rt.botGraph.validation=validateStageRoutes(rt.botGraph.routes);
   return rt;
@@ -2965,7 +3039,7 @@ function validateStageRoutes(routes){
 }
 
 function surfaceHeightAtPoint(x,z,currentY=999){
-  let found=-Infinity,bestDelta=Infinity;
+  let found=-Infinity,bestDelta=Infinity,rampFound=-Infinity,rampDelta=Infinity;
   const unlimited=currentY>=900;
   for(const s of groundSurfaces){
     if(!surfaceContains(s,x,z))continue;
@@ -2979,11 +3053,16 @@ function surfaceHeightAtPoint(x,z,currentY=999){
     // continuous surface instead of always choosing the highest one.
     if(h>currentY+.42)continue;
     const delta=Math.abs(h-currentY);
+    if(s.type==='ramp'&&delta<rampDelta){
+      rampFound=h;rampDelta=delta;
+    }
     if(delta<bestDelta-.001||(Math.abs(delta-bestDelta)<.001&&h>found)){
       found=h;bestDelta=delta;
     }
   }
-  return found;
+  // At a visual overlap, follow the sloped surface instead of clinging to a
+  // flat deck and snapping to the ramp only after the deck's edge.
+  return Number.isFinite(rampFound)?rampFound:found;
 }
 function rebuildPaintMask(){
   paintMask=new Uint8Array(GRID*GRID);
