@@ -77,6 +77,14 @@
     animation:stageIntroNameIn .5s cubic-bezier(.16,1,.3,1) both;
   }
   #stageIntro[data-team="B"] .stageIntroName { border-left-color:#9d6bff; }
+  #stageIntroCountdown {
+    position:absolute; inset:0; display:grid; place-items:center; pointer-events:none;
+    font-size:clamp(92px,18vw,220px); line-height:1; font-weight:900; color:#fff;
+    text-shadow:0 8px 0 rgba(0,0,0,.5),0 0 34px rgba(255,255,255,.4);
+    opacity:0; transform:scale(.66); transition:opacity .12s ease,transform .18s cubic-bezier(.16,1,.3,1);
+  }
+  #stageIntroCountdown.show { opacity:1; transform:scale(1); }
+  #stageIntro[data-team="B"] #stageIntroCountdown { color:#d9c5ff; }
   @keyframes stageIntroNameIn { from { opacity:0; transform:translateX(-24px); } to { opacity:1; transform:translateX(0); } }
   body.stage-intro-active #hud { opacity:.12; transition:opacity .35s ease; }
   body.stage-intro-active #rotatePrompt { display:none !important; }
@@ -1496,6 +1504,7 @@
 
 <div id="stageIntro" role="dialog" aria-live="polite" aria-hidden="true">
   <div id="stageIntroTitle" class="stageIntroName">ソルトスパイア・ビーコン</div>
+  <div id="stageIntroCountdown" aria-hidden="true"></div>
 </div>
 
 <div id="hud">
@@ -5020,11 +5029,17 @@ let running = false, timeLeft = MATCH_TIME, stateT = 0, botSyncT = 0;
 const clock = new THREE.Clock();
 const stageIntroEl = document.getElementById('stageIntro');
 const stageIntroTitleEl = document.getElementById('stageIntroTitle');
-const STAGE_INTRO_DURATION = 6;
+const stageIntroCountdownEl = document.getElementById('stageIntroCountdown');
+const STAGE_CAMERA_END = 5.65;
+const STAGE_INTRO_DURATION = 10.2;
 let stageIntroActive = false;
 let stageIntroElapsed = 0;
 let stageIntroStartPerf = 0;
 let stageIntroPrevFov = 60;
+let stageIntroActors = [];
+let stageIntroFx = null;
+let stageIntroBurstDone = false;
+let stageIntroSprayT = 0;
 
 function easeIntro(t){
   const x=Math.max(0,Math.min(1,t));
@@ -5038,6 +5053,12 @@ function updateStageIntroCopy(elapsed){
   const stageName=introStageName(stageId);
   stageIntroEl.dataset.team=player.team;
   stageIntroTitleEl.textContent=stageName;
+  let countdown='';
+  if(elapsed>=7.55&&elapsed<8.05)countdown='3';
+  else if(elapsed>=8.05&&elapsed<8.55)countdown='2';
+  else if(elapsed>=8.55&&elapsed<9.05)countdown='1';
+  stageIntroCountdownEl.textContent=countdown;
+  stageIntroCountdownEl.classList.toggle('show',!!countdown);
 }
 function introCameraPose(elapsed){
   const stageId=resolveStageId(activeStage?.id||activeMatchSettings.stage);
@@ -5054,7 +5075,7 @@ function introCameraPose(elapsed){
   );
   const lookFinal=new THREE.Vector3(player.pos.x,player.pos.y+1.25,player.pos.z);
   const out=new THREE.Vector3(), look=new THREE.Vector3();
-  const t=Math.max(0,Math.min(1,elapsed/5.65));
+  const t=Math.max(0,Math.min(1,elapsed/STAGE_CAMERA_END));
   if(t<.22){
     const q=easeIntro(t/.22); out.copy(far).lerp(mid,q); look.copy(center);
   }else if(t<.52){
@@ -5066,6 +5087,101 @@ function introCameraPose(elapsed){
   }
   camera.position.copy(out);
   camera.lookAt(look);
+}
+function disposeStageIntroObject(root){
+  if(!root)return;
+  root.traverse(o=>{
+    if(o.geometry)o.geometry.dispose();
+    if(o.material){
+      const mats=Array.isArray(o.material)?o.material:[o.material];
+      mats.forEach(m=>m.dispose());
+    }
+  });
+}
+function clearStageIntroFx(){
+  if(stageIntroFx){ scene.remove(stageIntroFx); disposeStageIntroObject(stageIntroFx); stageIntroFx=null; }
+  stageIntroActors=[];
+  stageIntroBurstDone=false;
+  stageIntroSprayT=0;
+}
+function stageIntroActorList(){
+  const list=[{entity:player,team:player.team}];
+  for(const b of bots)if(b.active)list.push({entity:b,team:b.team});
+  if(remote)list.push({entity:remote,team:remote.team});
+  return list.filter(a=>a.entity&&a.entity.group);
+}
+function setupStageIntroActors(){
+  clearStageIntroFx();
+  stageIntroFx=new THREE.Group();
+  scene.add(stageIntroFx);
+  stageIntroActors=stageIntroActorList().map(({entity,team})=>{
+    const origin=entity.pos.clone();
+    const center=new THREE.Vector3(0,origin.y,0);
+    const forward=center.sub(origin).setY(0).normalize();
+    if(forward.lengthSq()<.01)forward.set(0,0,team==='A'?-1:1);
+    entity.group.visible=false;
+    entity.group.scale.setScalar(.42);
+    entity.group.position.copy(origin);
+    const palette=TEAM[team];
+    const ring=new THREE.Mesh(
+      new THREE.TorusGeometry(1.55,.12,10,36),
+      new THREE.MeshStandardMaterial({color:palette.light,emissive:palette.main,emissiveIntensity:.8,transparent:true,opacity:.35,roughness:.25})
+    );
+    ring.rotation.x=Math.PI/2; ring.position.copy(origin); ring.position.y+=.06;
+    const puddle=new THREE.Mesh(
+      new THREE.CircleGeometry(1,32),
+      new THREE.MeshBasicMaterial({color:palette.main,transparent:true,opacity:.12,depthWrite:false})
+    );
+    puddle.rotation.x=-Math.PI/2; puddle.position.copy(origin); puddle.position.y+=.035; puddle.scale.set(.9,.9,1);
+    stageIntroFx.add(ring,puddle);
+    return {entity,team,origin,forward,ring,puddle};
+  });
+}
+function updateStageIntroActors(elapsed,dt){
+  const phase=elapsed-STAGE_CAMERA_END;
+  if(!stageIntroActors.length)return;
+  const puddleT=Math.max(0,Math.min(1,(phase-.15)/.75));
+  const revealT=Math.max(0,Math.min(1,(phase-.78)/1.05));
+  const launchT=Math.max(0,Math.min(1,(phase-3.7)/.65));
+  const rise=easeIntro(revealT);
+  const launch=easeIntro(launchT);
+  stageIntroSprayT-=dt;
+  for(const a of stageIntroActors){
+    const puddleScale=.74+puddleT*.7+launch*.3;
+    a.puddle.scale.set(puddleScale,puddleScale,1);
+    a.puddle.material.opacity=.08+puddleT*.28*(1-launch*.7);
+    const ringScale=.72+puddleT*.38+launch*.24;
+    a.ring.scale.setScalar(ringScale);
+    a.ring.material.opacity=.2+puddleT*.72*(1-launch*.45);
+    if(revealT<=0){
+      a.entity.group.visible=false;
+      continue;
+    }
+    a.entity.group.visible=true;
+    const bob=(1-rise)*.42+Math.sin(performance.now()*.012+a.origin.x)*.04;
+    const travel=launch*2.1;
+    a.entity.group.position.copy(a.origin).addScaledVector(a.forward,travel);
+    a.entity.group.position.y+=bob;
+    const scale=.42+rise*.58;
+    a.entity.group.scale.setScalar(scale);
+    if(launchT>0){
+      a.entity.group.rotation.y=Math.atan2(a.forward.x,a.forward.z);
+    }
+  }
+  if(launchT>0&&stageIntroSprayT<=0){
+    stageIntroSprayT=.1;
+    for(const a of stageIntroActors){
+      const sprayPos=a.entity.group.position.clone().addScaledVector(a.forward,.5).add(new THREE.Vector3(0,.42,0));
+      burst(sprayPos,a.team,isTouch?1:2,1.8);
+    }
+  }
+  if(phase>=.78&&!stageIntroBurstDone){
+    stageIntroBurstDone=true;
+    for(const a of stageIntroActors){
+      burst(a.origin.clone().add(new THREE.Vector3(0,.22,0)),a.team,isTouch?7:12,4.5);
+      burst(a.origin.clone().add(new THREE.Vector3(0,.42,0)),a.team,isTouch?3:6,2.4);
+    }
+  }
 }
 function beginStageIntro(startAt=Date.now()){
   const delay=Math.max(0,Math.min(1000,(Number(startAt)||Date.now())-Date.now()));
@@ -5079,6 +5195,7 @@ function beginStageIntro(startAt=Date.now()){
   stageIntroPrevFov=camera.fov;
   camera.fov=63;
   camera.updateProjectionMatrix();
+  setupStageIntroActors();
   updateStageIntroCopy(0);
   introCameraPose(0);
 }
@@ -5089,22 +5206,32 @@ function finishStageIntro(){
   document.body.classList.remove('stage-intro-active');
   stageIntroEl.classList.remove('show');
   stageIntroEl.setAttribute('aria-hidden','true');
+  stageIntroCountdownEl.textContent='';
+  stageIntroCountdownEl.classList.remove('show');
+  for(const a of stageIntroActors){
+    a.entity.group.visible=!a.entity.dead;
+    a.entity.group.scale.setScalar(1);
+    a.entity.group.position.copy(a.entity.pos);
+  }
+  clearStageIntroFx();
   camera.fov=stageIntroPrevFov;
   camera.updateProjectionMatrix();
   updateCamera(.2);
   updateSpecialUI();
   tryPointerLock();
 }
-function updateStageIntro(){
+function updateStageIntro(dt){
   if(!stageIntroActive)return;
   stageIntroElapsed=Math.max(0,(performance.now()-stageIntroStartPerf)/1000);
   updateStageIntroCopy(stageIntroElapsed);
   introCameraPose(stageIntroElapsed);
+  updateStageIntroActors(stageIntroElapsed,dt);
+  updateParticles(dt);
   if(stageIntroElapsed>=STAGE_INTRO_DURATION)finishStageIntro();
 }
 function skipStageIntro(){
   if(!stageIntroActive)return;
-  stageIntroStartPerf=performance.now()-5.72*1000;
+  stageIntroStartPerf=performance.now()-(STAGE_INTRO_DURATION-.18)*1000;
 }
 stageIntroEl.addEventListener('pointerdown',e=>{ e.preventDefault(); skipStageIntro(); });
 
@@ -7578,7 +7705,7 @@ function animate(){
   floorInkUniforms.uInkTime.value = visualTime;
   oceanUniforms.uTime.value = visualTime;
   for(const update of activeStage?.animators||[])update(dt,visualTime);
-  if (stageIntroActive) updateStageIntro();
+  if (stageIntroActive) updateStageIntro(dt);
   if (running){
     // 時間はホストが管理して定期的に同期
     if (mode !== 'online' || isHost){
