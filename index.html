@@ -676,7 +676,7 @@
 
   #mapPanel, #settingsPanel { display:none; z-index:60; background:rgba(7,9,22,.93); }
   #mapCard, #settingsCard {
-    width:min(86vw,760px); max-height:90vh; padding:18px; border-radius:26px;
+    width:min(86vw,760px); max-height:90vh; overflow:auto; padding:18px; border-radius:26px;
     background:rgba(255,255,255,.1); box-shadow:inset 0 0 0 2px rgba(255,255,255,.16),0 18px 55px rgba(0,0,0,.5);
   }
   #mapCard { display:grid; grid-template-columns:minmax(260px,1fr) minmax(180px,.7fr); gap:20px; align-items:center; }
@@ -686,7 +686,11 @@
   .panelBtn { margin-top:16px; padding:11px 24px; border:none; border-radius:24px; font-weight:900; color:#211330; background:#ffe16d; }
   .settingRow { display:grid; grid-template-columns:150px 1fr 56px; gap:12px; align-items:center; margin-top:18px; text-align:left; font-size:13px; font-weight:800; }
   .settingRow input[type="range"] { width:100%; accent-color:#ff9a3d; }
+  .audioSettings { margin-top:18px; padding-top:14px; border-top:1px solid rgba(255,255,255,.14); }
+  .audioSettings .settingRow { margin-top:12px; }
+  .audioSettings .panelText { margin-top:6px; }
   #gyroBtn.on { background:#82f2a3; color:#11331b; }
+  #audioMuteBtn.on { background:#82f2a3; color:#11331b; }
 
   /* ---------- 横画面レイアウト ---------- */
   @media (orientation: landscape) and (max-height: 560px) {
@@ -1860,6 +1864,21 @@
       <output id="gyroSensOut">1.00</output>
     </div>
     <button class="panelBtn" id="gyroBtn">ジャイロ：OFF</button>
+    <div class="audioSettings">
+      <div class="panelTitle" style="font-size:18px">サウンド</div>
+      <div class="settingRow">
+        <label for="bgmVolume">BGM</label>
+        <input id="bgmVolume" type="range" min="0" max="1" step="0.01" value="0.22">
+        <output id="bgmVolumeOut">22%</output>
+      </div>
+      <div class="settingRow">
+        <label for="sfxVolume">効果音</label>
+        <input id="sfxVolume" type="range" min="0" max="1" step="0.01" value="0.72">
+        <output id="sfxVolumeOut">72%</output>
+      </div>
+      <button class="panelBtn" id="audioMuteBtn" type="button">ミュート：OFF</button>
+      <div class="panelText">端末の最初のタップ後に音声が有効になります。</div>
+    </div>
     <button class="panelBtn" id="btnSettingsClose" style="margin-left:8px">閉じる</button>
     <div class="panelText">PC：Space ジャンプ／Q クイックターン／E ボム／R スペシャル／M マップ</div>
   </div>
@@ -2395,6 +2414,7 @@ function inkAt(x, z){
 // 自分の塗りを適用しつつ相手にも同じ塗りを送る（両者のスコアを一致させる）
 function paint(x, z, r, team){
   splat(x, z, r, team);
+  if(running && team===player.team) gameAudio.sfx('paint');
   netSend({ t:'sp', x:+x.toFixed(2), z:+z.toFixed(2), r:+r.toFixed(2), m:team });
 }
 
@@ -4456,6 +4476,7 @@ function shoot(origin, dir, team, opts = {}){
   const damage=(opts.damage != null ? opts.damage : (opts.fromPlayer ? 34 : 20))*damageBoost;
   const hitRadius=opts.hitRadius!=null?opts.hitRadius:.79;
   const visualScale=opts.visualScale!=null?opts.visualScale:1;
+  if(opts.fromPlayer) gameAudio.sfx('shoot',{weapon:opts.weapon||''});
   if(opts.fromPlayer)player.weaponKick=1;
   const m = new THREE.Mesh(projGeoA, projMat[team]);
   m.position.copy(origin);
@@ -4512,6 +4533,7 @@ function throwSubWeapon(){
   const kind=loadout.sub;
   const cost=kind==='sprinkler'?.34:kind==='curling'?.25:.28;
   if (!running || player.dead || player.ink<cost) return;
+  gameAudio.sfx('sub');
   player.ink-=cost;
   const dir=new THREE.Vector3(-Math.sin(camYaw),.38,-Math.cos(camYaw)).normalize();
   const origin=player.pos.clone().add(new THREE.Vector3(0,1.25,0));
@@ -4538,6 +4560,7 @@ function throwSubWeapon(){
 }
 function explodeBomb(b){
   const pos=b.mesh.position.clone();
+  gameAudio.sfx('explode');
   const curling=b.kind==='curling';
   const radius=curling?4.25:5.2;
   burst(pos.clone().add(new THREE.Vector3(0,.35,0)),b.team,curling?22:28,curling?7:9);
@@ -4696,6 +4719,7 @@ function damageBot(b, dmg, hitPos, byPlayer, killerTeam, byRemote, weapon='イ�
 
 function addKill(victimName='相手',weapon='インクシューター'){
   kills++;
+  gameAudio.sfx('kill');
   document.querySelector('#kills span:last-child').textContent = 'たおした×' + kills;
   showKillNotice(victimName,weapon);
   // 撃破ボーナス：HPとインクが回復する
@@ -4716,6 +4740,7 @@ function damagePlayer(dmg, hitPos, attackerName='対戦相手', weapon='イン�
     burst(player.pos.clone().add(new THREE.Vector3(0,1,0)),player.team,4,2);
   }
   player.hp -= dmg;
+  gameAudio.sfx(player.hp<=0?'death':'hit');
   dmgFlash = 0.9;
   addShake(0.34);
   burst(hitPos, foe, 5, 3);
@@ -4742,6 +4767,7 @@ function damagePlayer(dmg, hitPos, attackerName='対戦相手', weapon='イン�
 
 function fallPlayer(){
   if(player.dead)return;
+  gameAudio.sfx('death');
   closeMap();closeSettings();
   player.dead=true;
   player.overdriveT=0;
@@ -4766,6 +4792,7 @@ function fallPlayer(){
 }
 
 function revivePlayer(){
+  gameAudio.sfx('respawn');
   player.dead = false;
   updateSpecialUI();
   player.hp = 100;
@@ -5040,6 +5067,8 @@ let stageIntroActors = [];
 let stageIntroFx = null;
 let stageIntroBurstDone = false;
 let stageIntroSprayT = 0;
+let stageIntroLastCountdown = '';
+let stageIntroLaunchSounded = false;
 
 function easeIntro(t){
   const x=Math.max(0,Math.min(1,t));
@@ -5059,6 +5088,13 @@ function updateStageIntroCopy(elapsed){
   else if(elapsed>=8.55&&elapsed<9.05)countdown='1';
   stageIntroCountdownEl.textContent=countdown;
   stageIntroCountdownEl.classList.toggle('show',!!countdown);
+  if(countdown && countdown!==stageIntroLastCountdown){
+    gameAudio.sfx('countdown',{count:countdown});
+    stageIntroLastCountdown=countdown;
+  }else if(!countdown && elapsed>=9.05 && stageIntroLastCountdown!=='go'){
+    gameAudio.sfx('go');
+    stageIntroLastCountdown='go';
+  }
 }
 function introCameraPose(elapsed){
   const stageId=resolveStageId(activeStage?.id||activeMatchSettings.stage);
@@ -5169,6 +5205,7 @@ function updateStageIntroActors(elapsed,dt){
     }
   }
   if(launchT>0&&stageIntroSprayT<=0){
+    if(!stageIntroLaunchSounded){ gameAudio.sfx('launch'); stageIntroLaunchSounded=true; }
     stageIntroSprayT=.1;
     for(const a of stageIntroActors){
       const sprayPos=a.entity.group.position.clone().addScaledVector(a.forward,.5).add(new THREE.Vector3(0,.42,0));
@@ -5187,6 +5224,8 @@ function beginStageIntro(startAt=Date.now()){
   const delay=Math.max(0,Math.min(1000,(Number(startAt)||Date.now())-Date.now()));
   stageIntroStartPerf=performance.now()+delay;
   stageIntroElapsed=0;
+  stageIntroLastCountdown='';
+  stageIntroLaunchSounded=false;
   stageIntroActive=true;
   running=false;
   document.body.classList.add('stage-intro-active');
@@ -5214,6 +5253,8 @@ function finishStageIntro(){
     a.entity.group.position.copy(a.entity.pos);
   }
   clearStageIntroFx();
+  stageIntroLastCountdown='';
+  stageIntroLaunchSounded=false;
   camera.fov=stageIntroPrevFov;
   camera.updateProjectionMatrix();
   updateCamera(.2);
@@ -5379,6 +5420,7 @@ const tmpV = new THREE.Vector3();
 
 function performQuickTurn(direction=0){
   if (!running || player.dead) return;
+  gameAudio.sfx('turn');
   camYaw += direction ? -Math.sign(direction)*Math.PI*0.58 : Math.PI;
   addShake(0.12);
 }
@@ -5557,27 +5599,148 @@ function updateSpecialVisual(fx,dt){
   }
   fx.visual.userData.light.intensity=1.7+Math.sin(t*9)*.75+(fx.visual.userData.flash||0)*4;
 }
-let specialAudioCtx=null;
-function playSpecialSound(){
-  try{
-    const AC=window.AudioContext||window.webkitAudioContext;
-    if(!AC)return;
-    specialAudioCtx=specialAudioCtx||new AC();
-    const now=specialAudioCtx.currentTime;
-    const gain=specialAudioCtx.createGain();
-    gain.gain.setValueAtTime(.0001,now);
-    gain.gain.exponentialRampToValueAtTime(.24,now+.025);
-    gain.gain.exponentialRampToValueAtTime(.0001,now+.65);
-    gain.connect(specialAudioCtx.destination);
-    [196,294,440].forEach((freq,i)=>{
-      const osc=specialAudioCtx.createOscillator();
-      osc.type=i===2?'square':'sawtooth';
-      osc.frequency.setValueAtTime(freq,now+i*.06);
-      osc.frequency.exponentialRampToValueAtTime(freq*1.7,now+.5);
-      osc.connect(gain); osc.start(now+i*.06); osc.stop(now+.68);
-    });
-  }catch(e){}
-}
+// ---------- オリジナル音声（Web Audio API） ----------
+// 外部ファイルに依存せず、軽量なシンセ音でBGM/効果音を生成する。
+const gameAudio = (() => {
+  const api = {
+    ctx:null, master:null, bgmBus:null, sfxBus:null, compressor:null,
+    bgmTimer:null, bgmStep:0, unlocked:false, muted:false,
+    bgmVolume:.22, sfxVolume:.72, lastEvent:new Map()
+  };
+  const clamp=(v,a=0,b=1)=>Math.max(a,Math.min(b,Number(v)||0));
+  const AC=()=>window.AudioContext||window.webkitAudioContext;
+  api.ensure=()=>{
+    if(api.ctx)return true;
+    const C=AC(); if(!C)return false;
+    try{
+      api.ctx=new C();
+      api.master=api.ctx.createGain();
+      api.bgmBus=api.ctx.createGain();
+      api.sfxBus=api.ctx.createGain();
+      api.compressor=api.ctx.createDynamicsCompressor();
+      api.compressor.threshold.value=-18;
+      api.compressor.knee.value=18;
+      api.compressor.ratio.value=5;
+      api.compressor.attack.value=.004;
+      api.compressor.release.value=.18;
+      api.bgmBus.connect(api.master); api.sfxBus.connect(api.master);
+      api.master.connect(api.compressor); api.compressor.connect(api.ctx.destination);
+      api.applyVolumes();
+      return true;
+    }catch(e){ api.ctx=null; return false; }
+  };
+  api.applyVolumes=()=>{
+    if(!api.ctx||!api.master)return;
+    const t=api.ctx.currentTime;
+    api.master.gain.setTargetAtTime(api.muted?0:1,t,.025);
+    api.bgmBus.gain.setTargetAtTime(clamp(api.bgmVolume),t,.025);
+    api.sfxBus.gain.setTargetAtTime(clamp(api.sfxVolume),t,.025);
+  };
+  api.unlock=()=>{
+    if(!api.ensure())return false;
+    api.unlocked=true;
+    try{ if(api.ctx.state==='suspended')void api.ctx.resume(); }catch(e){}
+    api.startBgm();
+    return true;
+  };
+  api.setBgmVolume=v=>{ api.bgmVolume=clamp(v); api.applyVolumes(); };
+  api.setSfxVolume=v=>{ api.sfxVolume=clamp(v); api.applyVolumes(); };
+  api.setMuted=v=>{ api.muted=!!v; api.applyVolumes(); };
+  api._tone=(freq,duration,type,volume,when,bus='sfx',slide=1)=>{
+    if(!api.ctx||!api[bus+'Bus'])return;
+    const osc=api.ctx.createOscillator(), gain=api.ctx.createGain();
+    const t=Math.max(when,api.ctx.currentTime+.002), end=t+Math.max(.025,duration);
+    osc.type=type; osc.frequency.setValueAtTime(Math.max(20,freq),t);
+    if(slide!==1)osc.frequency.exponentialRampToValueAtTime(Math.max(20,freq*slide),end);
+    gain.gain.setValueAtTime(.0001,t);
+    gain.gain.exponentialRampToValueAtTime(Math.max(.0001,volume),t+.012);
+    gain.gain.exponentialRampToValueAtTime(.0001,end);
+    osc.connect(gain); gain.connect(api[bus+'Bus']);
+    osc.start(t); osc.stop(end+.025);
+  };
+  api._noise=(duration,volume,when,band=1800,bus='sfx')=>{
+    if(!api.ctx||!api[bus+'Bus'])return;
+    const t=Math.max(when,api.ctx.currentTime+.002), len=Math.max(1,Math.floor(api.ctx.sampleRate*duration));
+    const buffer=api.ctx.createBuffer(1,len,api.ctx.sampleRate), data=buffer.getChannelData(0);
+    for(let i=0;i<len;i++)data[i]=(Math.random()*2-1)*(1-i/len*.78);
+    const source=api.ctx.createBufferSource(), filter=api.ctx.createBiquadFilter(), gain=api.ctx.createGain();
+    filter.type='bandpass'; filter.frequency.value=band; filter.Q.value=.65;
+    gain.gain.setValueAtTime(Math.max(.0001,volume),t); gain.gain.exponentialRampToValueAtTime(.0001,t+duration);
+    source.buffer=buffer; source.connect(filter); filter.connect(gain); gain.connect(api[bus+'Bus']);
+    source.start(t); source.stop(t+duration+.02);
+  };
+  api._stepBgm=()=>{
+    if(!api.unlocked||!api.ctx)return;
+    const t=api.ctx.currentTime+.018, step=api.bgmStep++%16;
+    const roots=[110,130.81,146.83,123.47], root=roots[Math.floor(step/4)%roots.length];
+    if(step%4===0)api._tone(root,.24,'triangle',.12,t,'bgm',.94);
+    if(step%2===0){
+      const scale=[1,1.189,1.335,1.498,1.682,1.498,1.335,1.189];
+      api._tone(root*2*scale[step/2%scale.length],.1,'square',.035,t,'bgm',1.02);
+    }
+    if(step%2===1)api._noise(.028,.018,t,4200,'bgm');
+    if(step===7||step===15)api._noise(.065,.035,t,850,'bgm');
+  };
+  api.startBgm=()=>{
+    if(!api.unlocked||api.bgmTimer)return;
+    api.bgmStep=0; api._stepBgm();
+    api.bgmTimer=setInterval(()=>api._stepBgm(),125);
+  };
+  api.stopBgm=()=>{
+    if(api.bgmTimer){clearInterval(api.bgmTimer);api.bgmTimer=null;}
+  };
+  api.sfx=(name,opts={})=>{
+    if(!api.unlocked||!api.ensure())return;
+    const now=performance.now(), last=api.lastEvent.get(name)||0;
+    const minInterval={shoot:55,paint:80,hit:45,sub:90,explode:100,kill:80,death:120,respawn:180,special:160,matchEnd:500,swimIn:120,swimOut:120}[name]||0;
+    if(now-last<minInterval)return;
+    api.lastEvent.set(name,now);
+    const t=api.ctx.currentTime+.008;
+    switch(name){
+      case 'shoot':
+        api._tone(String(opts.weapon||'').includes('チャージャー')?310:190,.09,'sawtooth',.075,t,'sfx',.42);
+        api._noise(.032,.028,t,2500,'sfx'); break;
+      case 'paint':
+        api._tone(180+Math.random()*70,.055,'triangle',.025,t,'sfx',1.35); break;
+      case 'sub':
+        api._tone(250,.18,'square',.09,t,'sfx',1.8); api._noise(.09,.05,t,1200,'sfx'); break;
+      case 'explode':
+        api._tone(92,.38,'sine',.19,t,'sfx',.38); api._noise(.22,.14,t,420,'sfx'); break;
+      case 'jump':
+        api._tone(300,.16,'triangle',.09,t,'sfx',1.9); break;
+      case 'swimIn':
+        api._tone(210,.16,'sine',.06,t,'sfx',1.55); api._noise(.055,.025,t,1800,'sfx'); break;
+      case 'swimOut':
+        api._tone(360,.12,'triangle',.05,t,'sfx',.62); break;
+      case 'turn':
+        api._tone(520,.12,'square',.07,t,'sfx',.48); api._noise(.045,.035,t,2800,'sfx'); break;
+      case 'hit':
+        api._noise(.045,.07,t,1600,'sfx'); api._tone(150,.07,'square',.04,t,'sfx',.7); break;
+      case 'kill':
+        [392,523.25,659.25].forEach((f,i)=>api._tone(f,.16,'square',.095,t+i*.07,'sfx',1.02)); break;
+      case 'death':
+        api._tone(260,.36,'sawtooth',.11,t,'sfx',.36); api._noise(.14,.08,t,620,'sfx'); break;
+      case 'respawn':
+        [220,330,440].forEach((f,i)=>api._tone(f,.14,'triangle',.07,t+i*.075,'sfx',1.05)); break;
+      case 'special':
+        [196,294,440,587].forEach((f,i)=>api._tone(f,.46,i===3?'square':'sawtooth',.09,t+i*.055,'sfx',1.72));
+        api._noise(.16,.09,t,700,'sfx'); break;
+      case 'countdown':
+        api._tone(opts.count==='1'?660:opts.count==='2'?550:440,.16,'square',.095,t,'sfx',1.01); break;
+      case 'go':
+        [392,523.25,783.99].forEach((f,i)=>api._tone(f,.24,'square',.11,t+i*.05,'sfx',1.08)); break;
+      case 'launch':
+        api._noise(.24,.1,t,900,'sfx'); api._tone(150,.25,'sawtooth',.07,t,'sfx',2.2); break;
+      case 'matchEnd':
+        [392,523.25,659.25,783.99].forEach((f,i)=>api._tone(f,.3,'triangle',.085,t+i*.11,'sfx',1.01)); break;
+    }
+  };
+  return api;
+})();
+['pointerdown','touchstart','keydown'].forEach(type=>{
+  window.addEventListener(type,()=>gameAudio.unlock(),{passive:true});
+});
+function playSpecialSound(){ gameAudio.sfx('special'); }
 function showSpecialAnnouncement(name,team,owner='YOU'){
   const el=document.getElementById('specialAnnouncement');
   el.textContent=`${owner}　★ ${name} 発動！`;
@@ -5857,15 +6020,34 @@ const gyroSensInput=document.getElementById('gyroSens');
 const lookSensOut=document.getElementById('lookSensOut');
 const gyroSensOut=document.getElementById('gyroSensOut');
 const gyroBtn=document.getElementById('gyroBtn');
+const bgmVolumeInput=document.getElementById('bgmVolume');
+const sfxVolumeInput=document.getElementById('sfxVolume');
+const bgmVolumeOut=document.getElementById('bgmVolumeOut');
+const sfxVolumeOut=document.getElementById('sfxVolumeOut');
+const audioMuteBtn=document.getElementById('audioMuteBtn');
 let gyroEnabled=false, lastGyro=null;
 try{
   lookSensitivity=Number(localStorage.getItem('ink-look-sens'))||1;
   gyroSensitivity=Number(localStorage.getItem('ink-gyro-sens'))||1;
 }catch(e){}
+try{
+  const storedBgm=localStorage.getItem('ink-bgm-volume');
+  const storedSfx=localStorage.getItem('ink-sfx-volume');
+  const storedMute=localStorage.getItem('ink-audio-muted');
+  if(storedBgm!==null) gameAudio.bgmVolume=Math.max(0,Math.min(1,Number(storedBgm)));
+  if(storedSfx!==null) gameAudio.sfxVolume=Math.max(0,Math.min(1,Number(storedSfx)));
+  gameAudio.muted=storedMute==='1';
+}catch(e){}
 lookSensInput.value=lookSensitivity;
 gyroSensInput.value=gyroSensitivity;
 lookSensOut.textContent=lookSensitivity.toFixed(2);
 gyroSensOut.textContent=gyroSensitivity.toFixed(2);
+bgmVolumeInput.value=gameAudio.bgmVolume;
+sfxVolumeInput.value=gameAudio.sfxVolume;
+bgmVolumeOut.textContent=Math.round(gameAudio.bgmVolume*100)+'%';
+sfxVolumeOut.textContent=Math.round(gameAudio.sfxVolume*100)+'%';
+audioMuteBtn.textContent='ミュート：'+(gameAudio.muted?'ON':'OFF');
+audioMuteBtn.classList.toggle('on',gameAudio.muted);
 function openSettings(){
   settingsPanel.style.display='flex'; settingsPanel.setAttribute('aria-hidden','false');
   firing=false; wantSwim=false; closeMap();
@@ -5897,6 +6079,23 @@ gyroSensInput.addEventListener('input',()=>{
   gyroSensitivity=Number(gyroSensInput.value);
   gyroSensOut.textContent=gyroSensitivity.toFixed(2);
   try{ localStorage.setItem('ink-gyro-sens',gyroSensitivity); }catch(e){}
+});
+bgmVolumeInput.addEventListener('input',()=>{
+  gameAudio.setBgmVolume(bgmVolumeInput.value);
+  bgmVolumeOut.textContent=Math.round(gameAudio.bgmVolume*100)+'%';
+  try{ localStorage.setItem('ink-bgm-volume',gameAudio.bgmVolume); }catch(e){}
+});
+sfxVolumeInput.addEventListener('input',()=>{
+  gameAudio.setSfxVolume(sfxVolumeInput.value);
+  sfxVolumeOut.textContent=Math.round(gameAudio.sfxVolume*100)+'%';
+  try{ localStorage.setItem('ink-sfx-volume',gameAudio.sfxVolume); }catch(e){}
+});
+audioMuteBtn.addEventListener('click',()=>{
+  gameAudio.unlock();
+  gameAudio.setMuted(!gameAudio.muted);
+  audioMuteBtn.textContent='ミュート：'+(gameAudio.muted?'ON':'OFF');
+  audioMuteBtn.classList.toggle('on',gameAudio.muted);
+  try{ localStorage.setItem('ink-audio-muted',gameAudio.muted?'1':'0'); }catch(e){}
 });
 async function toggleGyro(){
   if (!gyroEnabled && typeof DeviceOrientationEvent!=='undefined' && typeof DeviceOrientationEvent.requestPermission==='function'){
@@ -6176,6 +6375,7 @@ function updatePlayer(dt){
   player.emergeWindow = Math.max(0, player.emergeWindow-dt);
   if (wasSwimming && !wantSwim) player.emergeWindow = Math.max(player.emergeWindow, 0.38);
   player.swimming = wantSwim && player.surfaceAttackT <= 0;
+  if(player.swimming!==wasSwimming) gameAudio.sfx(player.swimming?'swimIn':'swimOut');
 
   let speed = 7.5;
   if (enemyInk) speed = 3.25;
@@ -6211,6 +6411,7 @@ function updatePlayer(dt){
       if (player.pos.y <= jumpGround+0.12){
         player.vy = 8.4;
         player.pos.y = jumpGround+0.06;
+        gameAudio.sfx('jump');
       }
     }
     jumpQueued = false;
@@ -6674,6 +6875,7 @@ document.getElementById('lbSave').addEventListener('click', submitScore);
 
 function finishGame(){
   if (!running) return;
+  gameAudio.sfx('matchEnd');
   running = false;
   if(mode==='online'&&isHost&&roomSession&&roomSession.code){
     fbPatch(`rooms/${roomSession.code}`,{status:'ended',updatedAt:Date.now()}).catch(()=>{});
@@ -6751,6 +6953,7 @@ function prepareStageForMatch(){
 }
 
 function startMatch(startAt=Date.now()){
+  gameAudio.startBgm();
   resultEl.style.display = 'none';
   resultEl.setAttribute('aria-hidden','true');
   document.getElementById('title').style.display = 'none';
@@ -6924,6 +7127,7 @@ function handleNet(m){
       break;
     case 'sx': {                                 // 相手のスペシャル
       const pos=new THREE.Vector3(m.x,m.y,m.z);
+      gameAudio.sfx('special');
       showSpecialAnnouncement(m.n||'スペシャル',m.m,remotePlayerName());
       burst(pos.clone().add(new THREE.Vector3(0,1,0)),m.m,38,11);
       if(m.k==='inkRain'){
