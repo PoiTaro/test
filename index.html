@@ -5604,7 +5604,7 @@ function updateSpecialVisual(fx,dt){
 const gameAudio = (() => {
   const api = {
     ctx:null, master:null, bgmBus:null, sfxBus:null, compressor:null,
-    bgmTimer:null, bgmStep:0, unlocked:false, muted:false,
+    bgmTimer:null, bgmStep:0, bgmNextTime:0, bgmStepDuration:60/128/4, unlocked:false, muted:false,
     bgmVolume:.22, sfxVolume:.72, lastEvent:new Map()
   };
   const clamp=(v,a=0,b=1)=>Math.max(a,Math.min(b,Number(v)||0));
@@ -5669,22 +5669,103 @@ const gameAudio = (() => {
     source.buffer=buffer; source.connect(filter); filter.connect(gain); gain.connect(api[bus+'Bus']);
     source.start(t); source.stop(t+duration+.02);
   };
+  // BGM専用の音色。フィルター・ステレオ・ADSRを使い、単音の電子音だけにならないようにする。
+  api._musicTone=(freq,duration,type,volume,when,opts={})=>{
+    if(!api.ctx||!api.bgmBus)return;
+    const t=Math.max(when,api.ctx.currentTime+.002), end=t+Math.max(.04,duration);
+    const osc=api.ctx.createOscillator(), filter=api.ctx.createBiquadFilter();
+    const gain=api.ctx.createGain(), pan=api.ctx.createStereoPanner();
+    osc.type=type; osc.frequency.setValueAtTime(Math.max(20,freq),t);
+    if(opts.detune)osc.detune.value=opts.detune;
+    if(opts.slide)osc.frequency.exponentialRampToValueAtTime(Math.max(20,freq*opts.slide),end);
+    filter.type=opts.filterType||'lowpass';
+    filter.frequency.setValueAtTime(opts.filter||2600,t);
+    filter.Q.value=opts.q||.7;
+    pan.pan.value=opts.pan||0;
+    const attack=opts.attack==null?.012:opts.attack;
+    const release=opts.release==null?Math.min(.28,duration*.35):opts.release;
+    const peak=Math.max(.0001,volume);
+    gain.gain.setValueAtTime(.0001,t);
+    gain.gain.exponentialRampToValueAtTime(peak,t+attack);
+    if(opts.sustain!=null)gain.gain.setTargetAtTime(Math.max(.0001,peak*opts.sustain),t+attack,.045);
+    gain.gain.setTargetAtTime(.0001,Math.max(t+attack+.02,end-release),Math.max(.025,release));
+    osc.connect(filter); filter.connect(gain); gain.connect(pan); pan.connect(api.bgmBus);
+    osc.start(t); osc.stop(end+.06);
+  };
+  api._kick=(when,accent=1)=>{
+    if(!api.ctx||!api.bgmBus)return;
+    const t=Math.max(when,api.ctx.currentTime+.002), osc=api.ctx.createOscillator(), gain=api.ctx.createGain();
+    osc.type='sine'; osc.frequency.setValueAtTime(150,t); osc.frequency.exponentialRampToValueAtTime(48,t+.18);
+    gain.gain.setValueAtTime(.0001,t); gain.gain.exponentialRampToValueAtTime(.22*accent,t+.004); gain.gain.exponentialRampToValueAtTime(.0001,t+.24);
+    osc.connect(gain); gain.connect(api.bgmBus); osc.start(t); osc.stop(t+.28);
+  };
+  api._snare=(when,accent=1)=>{
+    if(!api.ctx||!api.bgmBus)return;
+    const t=Math.max(when,api.ctx.currentTime+.002);
+    api._noise(.13,.105*accent,t,1850,'bgm');
+    api._musicTone(185,.09,'triangle',.045*accent,t,{filter:900,slide:.55,attack:.002,release:.08});
+  };
+  api._hat=(when,open=false)=>{
+    api._noise(open?.12:.045,open?.047:.028,when,open?4800:7100,'bgm');
+  };
+  api._chord=(notes,when)=>{
+    notes.forEach((freq,i)=>{
+      api._musicTone(freq,1.78,'sawtooth',.026,when,{filter:1250,attack:.2,release:.5,detune:i%2?-7:7,pan:(i-1.5)*.18,sustain:.72});
+      api._musicTone(freq*2,1.62,'triangle',.012,when,{filter:2300,attack:.25,release:.45,pan:(1.5-i)*.15,sustain:.62});
+    });
+  };
   api._stepBgm=()=>{
     if(!api.unlocked||!api.ctx)return;
-    const t=api.ctx.currentTime+.018, step=api.bgmStep++%16;
-    const roots=[110,130.81,146.83,123.47], root=roots[Math.floor(step/4)%roots.length];
-    if(step%4===0)api._tone(root,.24,'triangle',.12,t,'bgm',.94);
-    if(step%2===0){
-      const scale=[1,1.189,1.335,1.498,1.682,1.498,1.335,1.189];
-      api._tone(root*2*scale[step/2%scale.length],.1,'square',.035,t,'bgm',1.02);
+    const t=api.bgmNextTime, step=api.bgmStep++%128, beat=step%16, bar=Math.floor(step/16);
+    const chords=[
+      [146.83,174.61,220.00,261.63], // Dm7
+      [116.54,146.83,174.61,220.00], // Bbmaj7
+      [174.61,220.00,261.63,329.63], // Fadd9
+      [130.81,164.81,196.00,246.94], // Cadd9
+      [146.83,174.61,220.00,293.66], // Dm9
+      [116.54,146.83,220.00,261.63], // Bb6
+      [174.61,220.00,261.63,392.00], // Fmaj7
+      [130.81,164.81,196.00,261.63]  // Cadd9 high
+    ];
+    const roots=[73.42,58.27,87.31,65.41,73.42,58.27,87.31,65.41];
+    if(beat===0)api._chord(chords[bar],t);
+    // 現代的なサブベース。キックと少しずらしてグルーヴを作る。
+    if(beat%4===0)api._musicTone(roots[bar],.27,'sine',.125,t,{filter:420,slide:.92,attack:.006,release:.16});
+    if(beat===6||beat===14)api._musicTone(roots[bar]*2,.18,'triangle',.068,t,{filter:780,slide:.84,attack:.004,release:.11});
+    // 4つ打ちを崩したキック＋バックビートのスネア。
+    if(beat===0||beat===4||beat===8||beat===11||beat===12)api._kick(t,beat===0||beat===8?1.12:.82);
+    if(beat===4||beat===12)api._snare(t,1);
+    if(beat%2===0)api._hat(t,beat===14);
+    if(beat===3||beat===7||beat===10||beat===15)api._hat(t,false);
+    // 8小節感を出す短いリード。コードトーン中心で耳に残るが邪魔をしない。
+    const lead=[
+      [293.66,349.23,392.00,440.00,392.00,349.23,293.66,261.63],
+      [261.63,293.66,349.23,392.00,349.23,293.66,261.63,233.08],
+      [329.63,392.00,440.00,523.25,440.00,392.00,349.23,329.63],
+      [293.66,329.63,392.00,440.00,392.00,349.23,329.63,293.66],
+      [293.66,349.23,392.00,523.25,440.00,392.00,349.23,293.66],
+      [261.63,293.66,349.23,466.16,392.00,349.23,293.66,261.63],
+      [329.63,392.00,440.00,587.33,523.25,440.00,392.00,329.63],
+      [293.66,329.63,392.00,523.25,440.00,392.00,329.63,293.66]
+    ][bar];
+    if(beat%2===1){
+      const n=lead[(Math.floor(beat/2)+(bar%2))%lead.length];
+      api._musicTone(n,.17,'sawtooth',.046,t,{filter:3000,attack:.004,release:.09,slide:1.012,pan:(beat%4===1?-.18:.18)});
+      api._musicTone(n*2,.11,'triangle',.014,t,{filter:4200,attack:.003,release:.06,pan:(beat%4===1?.2:-.2)});
     }
-    if(step%2===1)api._noise(.028,.018,t,4200,'bgm');
-    if(step===7||step===15)api._noise(.065,.035,t,850,'bgm');
+    api.bgmNextTime+=api.bgmStepDuration;
   };
   api.startBgm=()=>{
     if(!api.unlocked||api.bgmTimer)return;
-    api.bgmStep=0; api._stepBgm();
-    api.bgmTimer=setInterval(()=>api._stepBgm(),125);
+    api.bgmStep=0; api.bgmNextTime=api.ctx.currentTime+.06;
+    const pump=()=>{
+      if(!api.ctx)return;
+      const now=api.ctx.currentTime;
+      if(api.bgmNextTime<now-1)api.bgmNextTime=now+.05;
+      while(api.bgmNextTime<now+.22)api._stepBgm();
+    };
+    pump();
+    api.bgmTimer=setInterval(pump,28);
   };
   api.stopBgm=()=>{
     if(api.bgmTimer){clearInterval(api.bgmTimer);api.bgmTimer=null;}
