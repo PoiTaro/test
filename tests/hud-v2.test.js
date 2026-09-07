@@ -55,12 +55,29 @@ for(const value of [0,.45,1]){
 run('InkHud.updateSpecial(0,false)');
 assert(!resources.classList.contains('special-ready'),'SP resets after use');
 for(const name of ['bomb','curling','sprinkler'])assert(run(`InkHud.icon('${name}')`).includes('<svg'));
+for(const [remaining,total,seconds,progress] of [
+  [2.6,2.6,3,1],[1.01,2.6,2,1.01/2.6],[.01,2.6,1,.01/2.6],[0,2.6,0,0],[-1,2.6,0,0]
+]){
+  const state=run(`InkHud.respawnState(${remaining},${total})`);
+  assert.equal(state.seconds,seconds);
+  assert.equal(state.progress,progress);
+}
 assert(html.indexOf('src="assets/hud-v2.js"')<html.indexOf('const WEAPON_LOADOUTS'),'Adapter loads before game initialization');
 assert.match(html,/InkHud\.updateInk\(player\.ink,player\.team\)/);
 assert.match(html,/InkHud\.updateSpecial\(value,value >= 1 && running && !player\.dead\)/);
 assert.match(html,/stickEl\.offsetWidth\/2/);
+assert.match(html,/killNoticeTimer=setTimeout\(\(\)=>killNoticeEl\.classList\.remove\('show'\),1550\)/);
+assert.match(html,/document\.body\.classList\.add\('death-ui'\)/);
+assert.match(html,/document\.body\.classList\.remove\('death-ui'\)/);
 assert.match(css,/#weaponHud\s*\{\s*display:none!important/);
+assert.match(css,/#killNotice\.show\s*\{\s*animation:killToastIn/);
+assert.match(css,/conic-gradient\(var\(--death-accent\) calc\(var\(--respawn-progress\)/);
 assert.match(css,/prefers-reduced-motion/);
+assert.match(css,/bottom:var\(--kill-notice-bottom\)/,'Toast stays above the resource HUD, including safe-area insets');
+assert.match(css,/--kill-notice-bottom:max\(19vh,/,'Toast is anchored in the lower part of the screen');
+assert.match(css,/grid-template-areas:'image label' 'image weapon'/,'Weapon metadata stacks beside its icon');
+assert.match(html,/class="deathEyebrow" aria-hidden="true">KNOCKED OUT/);
+assert.match(css,/#killNotice\.show \{ animation:none;opacity:1;/,'Reduced motion keeps the kill confirmation visible until its timer clears it');
 for(const file of ['assets/hud-v2.js','assets/hud-v2.css','assets/hud-splash.svg'])assert(fs.existsSync(file));
 // Compile every inline script, without executing the game or accessing services.
 for(const match of html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g))new vm.Script(match[1]);

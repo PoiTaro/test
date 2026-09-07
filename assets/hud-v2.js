@@ -88,6 +88,14 @@ const InkHud = (() => {
       lastReady=ready;
     }
   }
+  function respawnState(value,total) {
+    const remaining=Math.max(0,Number(value)||0);
+    const duration=Math.max(.1,Number(total)||.1);
+    return {
+      seconds:Math.max(0,Math.ceil(remaining)),
+      progress:Math.max(0,Math.min(1,remaining/duration))
+    };
+  }
   updateInk(1,'A');updateSpecial(0,false);
-  return {icon,updateInk,updateSpecial};
+  return {icon,updateInk,updateSpecial,respawnState};
 })();

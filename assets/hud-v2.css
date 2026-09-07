@@ -5,6 +5,7 @@
   --hud-bottom:max(12px,calc(46 * var(--hu)));
   --hud-surface:rgba(13,25,43,.76);
   --hud-white:#f6f8fc;
+  --kill-notice-bottom:max(19vh,calc(max(calc(44 * var(--hu)),env(safe-area-inset-bottom)) + 131 * var(--hu)));
 }
 .hudIcon { display:block;width:100%;height:100%;fill:currentColor;pointer-events:none; }
 .hudVisuallyHidden,#inklabel,#inkbar,#inkPct,#specialFill {
@@ -176,8 +177,7 @@
 .special-ready #specialCharge { box-shadow:0 0 0 3px #fff277,0 0 22px #ffe25b88; }
 .special-ready .specialOrb { animation:hudReady 1s ease-in-out infinite alternate; }
 @keyframes hudReady { to { filter:brightness(1.24); } }
-#inkStatus { bottom:max(calc(169 * var(--hu)),calc(env(safe-area-inset-bottom) + 90px)); }
-#killNotice { bottom:max(calc(186 * var(--hu)),calc(env(safe-area-inset-bottom) + 108px)); }
+#inkStatus { bottom:calc(var(--kill-notice-bottom) + 108 * var(--hu)); }
 #btnMap:focus-visible,#btnSettings:focus-visible,.tbtn:focus-visible { outline:3px solid #fff;outline-offset:5px; }
 @media (max-width:700px) {
   #kills { gap:4px;padding:5px 8px;font-size:10px; }
@@ -198,4 +198,163 @@
 @media (prefers-reduced-motion:reduce) {
   .special-ready .specialOrb { animation:none; }
   #hudSpecialProgress,.playerChip { transition:none; }
+}
+
+/* Approved combat layout: lower-center toast, compact split respawn card. */
+#killNotice {
+  --notice-accent:#ff8a1e;
+  left:50%;bottom:var(--kill-notice-bottom);
+  width:min(510px,39vw);height:auto;min-height:calc(86 * var(--hu));
+  display:grid;grid-template-columns:calc(54 * var(--hu)) minmax(0,1fr);gap:calc(12 * var(--hu));
+  align-items:center;padding:calc(8 * var(--hu)) calc(18 * var(--hu)) calc(8 * var(--hu)) calc(9 * var(--hu));
+  border:2px solid #c5cadd42;
+  border-radius:calc(22 * var(--hu));
+  background:linear-gradient(112deg,color-mix(in srgb,var(--notice-accent) 24%,#112034e8),#0c1828e8 52%,#091523d9);
+  box-shadow:inset 0 1px 0 #ffffff24,0 calc(7 * var(--hu)) calc(18 * var(--hu)) #04101d66;
+  filter:none;opacity:0;transform:translate(-50%,calc(18 * var(--hu))) scale(.94);
+  overflow:hidden;
+}
+#killNotice::before {
+  content:'';position:absolute;left:0;top:0;bottom:0;width:calc(7 * var(--hu));
+  background:var(--notice-accent);box-shadow:0 0 calc(16 * var(--hu)) var(--notice-accent);
+}
+#killNotice::after {
+  content:'✓';position:absolute;right:calc(12 * var(--hu));top:50%;transform:translateY(-50%);
+  width:calc(25 * var(--hu));height:calc(25 * var(--hu));display:grid;place-items:center;
+  border:1px solid #ffffff69;border-radius:50%;background:var(--notice-accent);
+  color:#fff;font:900 calc(15 * var(--hu))/1 var(--font-formal);
+}
+#killNotice .noticeSplat { display:none; }
+#killNotice.show { animation:killToastIn 1.48s cubic-bezier(.2,.85,.2,1) both; }
+.killWeaponBadge {
+  width:calc(52 * var(--hu));aspect-ratio:1;border:2px solid #ffffff2f;border-radius:50%;
+  background:#071421b8;box-shadow:inset 0 0 0 2px #ffffff10,0 3px 8px #0005;
+}
+#killWeaponImage { width:82%;height:82%;filter:drop-shadow(0 2px 2px #0009); }
+.killCopy { padding:0 calc(32 * var(--hu)) 0 0;transform:none;text-shadow:none; }
+.killHeadline {
+  display:flex;gap:calc(5 * var(--hu));font-family:var(--font-game);font-size:max(12px,calc(23 * var(--hu)));
+  font-weight:900;line-height:1.15;letter-spacing:0;text-shadow:0 2px 3px #0007;
+}
+#killVictim { color:var(--notice-accent);font-size:1em; }
+.killHeadline > span { flex-shrink:0; }
+#killWeaponName {
+  margin-top:calc(5 * var(--hu));color:#c6d0dc;font-family:var(--font-formal);
+  font-size:max(10px,calc(13 * var(--hu)));font-weight:700;letter-spacing:.03em;text-shadow:none;
+}
+@keyframes killToastIn {
+  0% { opacity:0;transform:translate(-50%,calc(18 * var(--hu))) scale(.94); }
+  12%,76% { opacity:1;transform:translate(-50%,0) scale(1); }
+  100% { opacity:0;transform:translate(-50%,calc(-8 * var(--hu))) scale(.98); }
+}
+
+#deathFx {
+  background:radial-gradient(circle at 50% 44%,transparent 0 16%,rgba(5,13,24,.32) 52%,rgba(4,9,18,.7) 100%);
+  backdrop-filter:brightness(.72) saturate(.72) blur(.7px);
+}
+#deathFx.show { animation:deathVeilIn .22s ease-out both; }
+#deadmsg {
+  --death-accent:#963dff;--respawn-progress:1;
+  top:50%;width:min(720px,56vw);height:auto;min-height:0;
+  filter:none;transform:translate(-50%,-50%);
+}
+#deadmsg.show { display:block;animation:deathCardIn .3s cubic-bezier(.2,.9,.25,1) both; }
+#deadmsg .noticeSplat { display:none; }
+.deathPanel {
+  position:relative;inset:auto;display:grid;
+  grid-template-columns:minmax(0,1fr) auto;grid-template-areas:'eyebrow respawn' 'title respawn' 'attacker respawn' 'weapon respawn';
+  column-gap:calc(30 * var(--hu));row-gap:calc(9 * var(--hu));align-items:center;
+  padding:calc(27 * var(--hu)) calc(28 * var(--hu));
+  border:2px solid #d9e4ed42;border-radius:calc(30 * var(--hu));
+  background:linear-gradient(120deg,color-mix(in srgb,var(--death-accent) 19%,#101d30ed),#081422ed 62%);
+  box-shadow:inset 0 1px 0 #ffffff20,0 calc(16 * var(--hu)) calc(38 * var(--hu)) #0007;
+  overflow:hidden;text-align:left;
+}
+.deathPanel::before {
+  content:'';position:absolute;left:0;top:0;bottom:0;width:calc(10 * var(--hu));
+  background:var(--death-accent);box-shadow:0 0 calc(28 * var(--hu)) color-mix(in srgb,var(--death-accent) 76%,transparent);
+}
+.deathEyebrow {
+  grid-area:eyebrow;color:color-mix(in srgb,var(--death-accent) 40%,#bac4ed);
+  font:900 max(10px,calc(14 * var(--hu)))/1.2 var(--font-formal);letter-spacing:.08em;
+}
+#deathTitle {
+  grid-area:title;font-family:var(--font-game);font-size:max(28px,calc(48 * var(--hu)));line-height:1.25;
+  font-style:italic;font-weight:900;letter-spacing:-.03em;color:#fff;
+  -webkit-text-stroke:0;text-shadow:0 calc(3 * var(--hu)) 0 color-mix(in srgb,var(--death-accent) 55%,#07111f);
+  transform:none;padding-bottom:calc(8 * var(--hu));
+  border-bottom:calc(4 * var(--hu)) solid var(--death-accent);justify-self:start;
+}
+#deathText {
+  grid-area:attacker;width:auto;margin:0;font-family:var(--font-formal);
+  font-size:max(13px,calc(19 * var(--hu)));font-weight:800;text-shadow:none;color:#d9e1ea;
+}
+#deathText .attacker { color:color-mix(in srgb,var(--death-accent) 68%,white);font-weight:900; }
+.deathWeaponPill {
+  grid-area:weapon;width:min(410px,100%);min-height:calc(53 * var(--hu));margin:calc(4 * var(--hu)) 0 0;
+  padding:calc(5 * var(--hu)) calc(15 * var(--hu)) calc(5 * var(--hu)) calc(6 * var(--hu));
+  grid-template-columns:calc(48 * var(--hu)) minmax(0,1fr);
+  grid-template-areas:'image label' 'image weapon';column-gap:calc(10 * var(--hu));row-gap:calc(2 * var(--hu));
+  border:1px solid #ffffff2e;border-radius:999px;background:#050e19a8;box-shadow:none;
+}
+#deathWeaponImage { grid-area:image;width:calc(48 * var(--hu));height:calc(48 * var(--hu));background:#152136;border:1px solid #ffffff24; }
+.deathWeaponLabel { grid-area:label;align-self:end;color:#9baabd;font-family:var(--font-formal);font-size:max(10px,calc(12 * var(--hu)));font-weight:700; }
+#deathWeapon { grid-area:weapon;align-self:start;min-width:0;font-family:var(--font-game);font-size:max(12px,calc(17 * var(--hu)));font-weight:900; }
+.deathDivider { display:none; }
+.respawnBox {
+  grid-area:respawn;min-width:0;padding:0;border:0;border-radius:0;background:none;box-shadow:none;
+  display:grid;justify-items:center;gap:calc(7 * var(--hu));font-family:var(--font-formal);font-size:calc(12 * var(--hu));
+  padding-left:calc(22 * var(--hu));border-left:1px solid #aaa0ed40;align-self:stretch;align-content:center;
+}
+.respawnLabel { color:#b9c5d2;font-size:max(10px,calc(12 * var(--hu)));font-weight:800; }
+.respawnDial {
+  --dial-size:calc(132 * var(--hu));position:relative;width:var(--dial-size);height:var(--dial-size);
+  display:grid;place-items:center;border-radius:50%;
+  background:
+    radial-gradient(circle at center,#0b1826 0 58%,transparent 59%),
+    conic-gradient(var(--death-accent) calc(var(--respawn-progress) * 1turn),#4f5d6c66 0);
+  box-shadow:inset 0 0 0 2px #ffffff22,0 5px 15px #0005;
+}
+#deathCountdown {
+  min-width:0;margin:0;color:#fff;font-family:var(--font-game);font-size:calc(50 * var(--hu));
+  line-height:1;font-variant-numeric:tabular-nums;text-shadow:0 3px 0 #0008;
+}
+.respawnDial small { position:absolute;bottom:16%;color:#b9c5d2;font-size:calc(10 * var(--hu));font-weight:800; }
+#deadmsg.environmental .deathWeaponPill { display:none; }
+#deadmsg.environmental .deathPanel { grid-template-areas:'eyebrow respawn' 'title respawn' 'attacker respawn'; }
+body.death-ui #stick,body.death-ui #btnFire,body.death-ui #btnSwim,body.death-ui #btnJump,
+body.death-ui #btnSub,body.death-ui #resourceHud,body.death-ui #btnMap,body.death-ui #btnSettings {
+  opacity:.12!important;pointer-events:none!important;transition:opacity .18s;
+}
+@keyframes deathCardIn {
+  from { opacity:0;transform:translate(-50%,-46%) scale(.94); }
+  to { opacity:1;transform:translate(-50%,-50%) scale(1); }
+}
+@keyframes deathVeilIn { from { opacity:0; } to { opacity:1; } }
+@media (orientation:landscape) and (max-height:560px) {
+  #killNotice { width:min(365px,39vw); }
+  #deadmsg { width:min(580px,61vw);height:auto;min-height:0; }
+  .deathPanel { inset:auto;padding:calc(18 * var(--hu)) calc(22 * var(--hu));column-gap:calc(22 * var(--hu)); }
+  .deathWeaponPill { margin-top:0; }
+  .respawnBox { padding-left:calc(20 * var(--hu)); }
+}
+@media (max-width:700px) {
+  #killNotice { width:min(330px,54vw);grid-template-columns:36px minmax(0,1fr);padding:6px 12px 6px 6px; }
+  .killWeaponBadge { width:36px; }
+  #killNotice::after { display:none; }
+  .killCopy { padding-right:0; }
+  #deadmsg { width:min(520px,72vw); }
+}
+@media (orientation:portrait) {
+  :root { --kill-notice-bottom:max(22vh,calc(151 * var(--hu))); }
+  #killNotice { width:82vw; }
+  #deadmsg { width:86vw; }
+  .deathPanel { grid-template-columns:1fr;grid-template-areas:'eyebrow' 'title' 'attacker' 'weapon' 'respawn';text-align:center;justify-items:center; }
+  #deathTitle { justify-self:center; }
+  .respawnBox { border-left:0;padding-left:0; }
+  #deadmsg.environmental .deathPanel { grid-template-areas:'eyebrow' 'title' 'attacker' 'respawn'; }
+}
+@media (prefers-reduced-motion:reduce) {
+  #killNotice.show { animation:none;opacity:1;transform:translate(-50%,0); }
+  #deadmsg.show,#deathFx.show { animation-duration:.01ms; }
 }
