@@ -1,0 +1,201 @@
+/* HUD v2 — reference-image layout. Dimensions scale with landscape height. */
+:root {
+  --hu:clamp(.44px,.1172vh,1px);
+  --hud-edge:max(16px,calc(40 * var(--hu)));
+  --hud-bottom:max(12px,calc(46 * var(--hu)));
+  --hud-surface:rgba(13,25,43,.76);
+  --hud-white:#f6f8fc;
+}
+.hudIcon { display:block;width:100%;height:100%;fill:currentColor;pointer-events:none; }
+.hudVisuallyHidden,#inklabel,#inkbar,#inkPct,#specialFill {
+  position:absolute!important;width:1px!important;height:1px!important;padding:0!important;
+  margin:-1px!important;overflow:hidden!important;clip-path:inset(50%)!important;
+  white-space:nowrap!important;border:0!important;
+}
+#weaponHud { display:none!important; }
+#topBattleHud {
+  top:max(10px,env(safe-area-inset-top));width:min(1000px,56vw);
+  filter:drop-shadow(0 3px 4px #07142155);
+}
+#battleTopRow { gap:calc(16 * var(--hu)); }
+.teamRoster { gap:calc(8 * var(--hu)); }
+.playerChip,#teamBStatus .playerChip {
+  --chip:#ffa13c;
+  width:calc(68 * var(--hu));height:calc(87 * var(--hu));
+  border:0;border-radius:0;background:none;box-shadow:none;overflow:visible;
+  filter:drop-shadow(0 0 5px #ff90134d);
+}
+#teamBStatus .playerChip { --chip:#b234ff;filter:drop-shadow(0 0 5px #b234ff55); }
+.playerChip::before {
+  inset:0 0 calc(12 * var(--hu));width:auto;height:auto;border:0;
+  border-radius:28% 25% 35% 32%;
+  clip-path:polygon(43% 0,58% 0,100% 70%,92% 91%,69% 96%,66% 100%,31% 95%,10% 92%,0 72%);
+  background:linear-gradient(130deg,#ffffff80,transparent 36%),var(--chip);
+  box-shadow:inset 0 -6px 12px #0003;
+}
+.playerChip::after {
+  width:calc(17 * var(--hu));height:calc(11 * var(--hu));
+  left:50%;right:auto;top:auto;bottom:0;transform:translateX(-50%);
+  border:0;border-radius:0;background:var(--chip);clip-path:polygon(0 0,100% 0,50% 100%);
+}
+.playerChip i { position:absolute;inset:18% 18% 25%;color:#152133; }
+.playerChip i::before,.playerChip i::after { display:none; }
+.playerChip:nth-child(2) i { transform:rotate(-12deg); }
+.playerChip:nth-child(3) i { transform:rotate(9deg); }
+.playerChip.down { opacity:.4;filter:grayscale(1);transform:scale(.92); }
+.playerChip.down::after {
+  content:'×';inset:0 0 12%;width:auto;height:auto;transform:none;clip-path:none;
+  display:grid;place-items:center;background:none;color:#fff;
+  font:900 calc(60 * var(--hu))/1 system-ui;text-shadow:0 2px 3px #000;
+}
+#timer {
+  flex:none;min-width:calc(174 * var(--hu));padding:calc(16 * var(--hu)) calc(15 * var(--hu));
+  font-size:calc(53 * var(--hu));letter-spacing:.015em;border:0;border-radius:19%;
+  background:rgba(7,19,36,.91);box-shadow:none;text-shadow:0 3px 0 #0008;
+  clip-path:polygon(8% 0,25% 5%,29% 0,68% 0,77% 7%,94% 3%,90% 20%,100% 31%,94% 46%,100% 73%,91% 80%,95% 96%,76% 94%,71% 100%,28% 96%,8% 100%,10% 84%,0 73%,5% 48%,0 31%,10% 20%);
+}
+#coverageRow {
+  grid-template-columns:calc(100 * var(--hu)) 1fr calc(100 * var(--hu));
+  gap:calc(12 * var(--hu));margin-top:calc(5 * var(--hu));
+  padding:calc(6 * var(--hu)) calc(7 * var(--hu));border-radius:30px;background:#102035bb;
+}
+#coverage {
+  height:calc(19 * var(--hu));border:2px solid #b2bdc488;
+  background:#485363a6;border-radius:20px;box-shadow:none;overflow:visible;
+}
+#coverage::after { display:none; }
+#covA { border-radius:12px 0 0 12px;background:linear-gradient(#ffb749,#ff8732); }
+#covB { border-radius:0 12px 12px 0;background:linear-gradient(#c052ff,#8f1cf0); }
+#midBadge {
+  width:calc(48 * var(--hu));height:calc(48 * var(--hu));border:3px solid #f3f6fa;
+  box-shadow:0 0 0 3px #172133;background:#172133;padding:calc(5 * var(--hu));
+}
+.covlabel,#covAt,#covBt {
+  position:static;left:auto;right:auto;top:auto;transform:none;
+  font-family:var(--font-formal);font-weight:900;font-style:normal;
+  font-size:max(12px,calc(24 * var(--hu)));line-height:1;text-shadow:none;-webkit-text-stroke:0;
+}
+#covAt { color:#ffac51; } #covBt { color:#c974ff; }
+#kills {
+  top:max(18px,env(safe-area-inset-top));left:max(var(--hud-edge),env(safe-area-inset-left));
+  gap:calc(14 * var(--hu));padding:calc(7 * var(--hu)) calc(22 * var(--hu)) calc(7 * var(--hu)) calc(9 * var(--hu));
+  border:2px solid #d8e5f04d;border-radius:50px;background:var(--hud-surface);
+  font-size:max(11px,calc(20 * var(--hu)));text-shadow:0 2px 2px #07121f66;
+  box-shadow:0 4px 10px #07142144;
+}
+#kills .killCountLabel { translate:none; }
+.splatMark { width:calc(45 * var(--hu));height:calc(45 * var(--hu));padding:4px;background:none; }
+#btnMap,#btnSettings {
+  top:max(18px,env(safe-area-inset-top));height:calc(70 * var(--hu));min-height:36px;
+  border:2px solid #d8e5f05c;border-radius:60px;background:var(--hud-surface);
+  box-shadow:inset 0 2px 0 #ffffff12,0 4px 8px #07142144;text-shadow:none;
+}
+#btnMap { right:max(var(--hud-edge),env(safe-area-inset-right));padding:0 calc(22 * var(--hu));display:flex;align-items:center;gap:calc(10 * var(--hu));font-size:max(12px,calc(22 * var(--hu))); }
+#btnMap .hudIcon { width:calc(28 * var(--hu));min-width:18px;height:60%; }
+#btnMap::before { display:none; }
+#btnSettings { right:calc(max(var(--hud-edge),env(safe-area-inset-right)) + 162 * var(--hu));width:calc(70 * var(--hu));min-width:36px;padding:calc(17 * var(--hu)); }
+#stick {
+  left:max(calc(86 * var(--hu)),env(safe-area-inset-left));
+  bottom:max(calc(88 * var(--hu)),env(safe-area-inset-bottom));
+  width:calc(205 * var(--hu));height:calc(205 * var(--hu));
+  border:2px solid #f5f5eaaa;background:radial-gradient(circle at 30% 20%,#fff3,#15213255);
+  box-shadow:inset 0 0 0 5px #ffffff10,0 5px 10px #0003;
+}
+#knob { width:42%;height:42%;border:3px solid #fff9;background:radial-gradient(circle at 35% 25%,#fff,#d9d5cd 65%,#a9a59e);box-shadow:0 5px 12px #0005; }
+.stickArrow { font-size:calc(18 * var(--hu));opacity:.8; }
+#btnFire,#btnSwim,#btnJump,#btnSub {
+  --action:#ff982f;
+  translate:none;border:2px solid color-mix(in srgb,var(--action) 55%,#ffffff80);
+  border-radius:50%;background:radial-gradient(circle at 30% 18%,#ffffff26,transparent 50%),rgba(15,29,49,.68);
+  background-size:auto;background-position:center;
+  box-shadow:inset 0 0 0 5px #ffffff13,0 5px 12px #06112066;
+  filter:none;-webkit-text-stroke:0;text-shadow:none;line-height:1;color:#fff;
+  padding:calc(15 * var(--hu));transition:transform .1s,box-shadow .15s;
+}
+#btnFire::before,#btnSwim::before,#btnJump::before,#btnSub::before,#stick::before {
+  content:'';display:block;position:absolute;inset:-19%;width:auto;height:auto;
+  border-radius:0;background:var(--action,#ffab35);transform:rotate(12deg);
+  mask:url('hud-splash.svg') center/contain no-repeat;
+  -webkit-mask:url('hud-splash.svg') center/contain no-repeat;
+  opacity:.82;pointer-events:none;z-index:-1;
+}
+#stick::before { inset:-14%;transform:rotate(-25deg);opacity:.6; }
+#btnFire::after,#btnSwim::after,#btnJump::after,#btnSub::after {
+  content:'';position:absolute;inset:-7%;z-index:-1;border-radius:48%;pointer-events:none;
+  border:calc(3 * var(--hu)) solid transparent;border-right-color:var(--action);border-bottom-color:var(--action);transform:rotate(-24deg);
+}
+#btnFire {
+  right:max(calc(55 * var(--hu)),env(safe-area-inset-right));bottom:max(var(--hud-bottom),env(safe-area-inset-bottom));
+  width:calc(197 * var(--hu));height:calc(197 * var(--hu));padding:calc(39 * var(--hu));
+  background:radial-gradient(circle at 32% 20%,#ffbc57,#ff8524 62%,#ea6519);
+  border:3px solid #fff6;box-shadow:inset 0 0 0 7px #13304b40,0 6px 14px #06112066;
+}
+#btnSwim {
+  --action:#40baff;right:calc(max(calc(55 * var(--hu)),env(safe-area-inset-right)) + 219 * var(--hu));
+  bottom:max(calc(66 * var(--hu)),env(safe-area-inset-bottom));width:calc(129 * var(--hu));height:calc(129 * var(--hu));color:#c4edff;
+}
+#btnJump {
+  --action:#d2e65c;right:calc(max(calc(55 * var(--hu)),env(safe-area-inset-right)) + 183 * var(--hu));
+  bottom:calc(max(var(--hud-bottom),env(safe-area-inset-bottom)) + 188 * var(--hu));width:calc(106 * var(--hu));height:calc(106 * var(--hu));
+}
+#btnSub {
+  --action:#b150ff;right:calc(max(calc(55 * var(--hu)),env(safe-area-inset-right)) + 39 * var(--hu));
+  bottom:calc(max(var(--hud-bottom),env(safe-area-inset-bottom)) + 230 * var(--hu));width:calc(109 * var(--hu));height:calc(109 * var(--hu));color:#eedaff;
+  background:radial-gradient(circle at 30% 20%,#9445c970,#25193acc);
+}
+#btnFire:active,#btnSwim:active,#btnJump:active,#btnSub:active { transform:scale(.93);filter:brightness(1.12); }
+#resourceHud {
+  left:57%;bottom:max(calc(44 * var(--hu)),env(safe-area-inset-bottom));
+  width:calc(435 * var(--hu));height:calc(111 * var(--hu));transform:translateX(-50%);
+  filter:drop-shadow(0 3px 5px #0005);text-shadow:none;
+}
+.resourceLine.inkLine { position:static;display:block;padding:0;border:0;border-radius:0;background:none;box-shadow:none; }
+#inkArc { position:absolute;left:0;bottom:0;width:76%;height:auto;overflow:visible; }
+.inkArcFrame { fill:none;stroke:#26313b;stroke-width:48;stroke-linecap:round; }
+.inkArcTrack { fill:none;stroke:#414853;stroke-width:29; }
+.inkArcFill { fill:none;stroke:url(#hudInkGradient);stroke-width:26; }
+#resourceHud[data-team="B"] .inkArcFill { stroke:#b365ff; }
+#resourceHud.low-ink .inkArcFill { stroke:#ff6660; }
+#specialCharge {
+  position:absolute;inset:0 0 auto auto;width:calc(108 * var(--hu));height:calc(108 * var(--hu));
+  border:0;border-radius:50%;overflow:visible;background:#182331;
+  box-shadow:inset 0 0 0 2px #ffffff4d;
+}
+#specialCharge span { inset:0;display:block;font-size:max(10px,calc(18 * var(--hu))); }
+.specialOrb { position:absolute;inset:20%;border-radius:50%;background:radial-gradient(ellipse at 34% 20%,#fff 0 6%,#fff8 7% 17%,transparent 33%),conic-gradient(from -45deg,#fff478,#ffbc42,#bc74fc,#917ff4,#fff478);box-shadow:inset 0 0 0 3px #fffa,0 2px 4px #0006; }
+#specialCharge b { position:absolute;bottom:3%;left:0;right:0;text-align:center;line-height:1; }
+.specialRing { position:absolute;inset:0;width:100%;height:100%;transform:rotate(125deg); }
+.specialRing circle { fill:none;stroke-width:6; }
+.specialRingTrack { stroke:#556070; }
+#hudSpecialProgress { stroke:#ffe565;stroke-dasharray:100;stroke-dashoffset:100;stroke-linecap:round;transition:stroke-dashoffset .15s; }
+#btnSpecial {
+  position:absolute;inset:0 0 auto auto;width:calc(108 * var(--hu));height:calc(108 * var(--hu));
+  margin:0;border:0;border-radius:50%;background:transparent;box-shadow:none;padding:0;animation:none;filter:none;
+}
+#btnSpecial::before { display:none; }
+.special-ready #specialCharge { box-shadow:0 0 0 3px #fff277,0 0 22px #ffe25b88; }
+.special-ready .specialOrb { animation:hudReady 1s ease-in-out infinite alternate; }
+@keyframes hudReady { to { filter:brightness(1.24); } }
+#inkStatus { bottom:max(calc(169 * var(--hu)),calc(env(safe-area-inset-bottom) + 90px)); }
+#killNotice { bottom:max(calc(186 * var(--hu)),calc(env(safe-area-inset-bottom) + 108px)); }
+#btnMap:focus-visible,#btnSettings:focus-visible,.tbtn:focus-visible { outline:3px solid #fff;outline-offset:5px; }
+@media (max-width:700px) {
+  #kills { gap:4px;padding:5px 8px;font-size:10px; }
+  #kills .splatMark { width:18px;height:18px;padding:0; }
+  #btnMap { padding:0 8px;gap:3px; }
+  #btnSettings { right:calc(max(var(--hud-edge),env(safe-area-inset-right)) + 70px);padding:8px; }
+  #topBattleHud { width:55vw; }
+  #battleTopRow { gap:3px; }
+  .teamRoster { gap:2px; }
+  .playerChip,#teamBStatus .playerChip { width:24px;height:32px; }
+  #timer { min-width:65px;padding:9px 5px;font-size:24px; }
+  #resourceHud { left:52%; }
+}
+@media (orientation:portrait) {
+  #topBattleHud { top:max(70px,calc(env(safe-area-inset-top) + 60px));width:92vw; }
+  #resourceHud { left:50%;bottom:20px;max-width:88vw; }
+}
+@media (prefers-reduced-motion:reduce) {
+  .special-ready .specialOrb { animation:none; }
+  #hudSpecialProgress,.playerChip { transition:none; }
+}

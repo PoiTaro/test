@@ -1508,6 +1508,7 @@
     .weaponSetPlus { font-size:14px; }
   }
 </style>
+<link rel="stylesheet" href="assets/hud-v2.css">
 </head>
 <body>
 <div id="rotatePrompt" role="status" aria-live="polite" aria-hidden="true">
@@ -2046,6 +2047,7 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="stages/yukemuri.js"></script>
+<script src="assets/hud-v2.js"></script>
 <script>
 /* =====================================================================
    INK CLASH — オリジナル3Dインクシューター
@@ -4275,10 +4277,10 @@ function updateWeaponUI(){
   document.getElementById('weaponHudName').textContent=w.name;
   document.getElementById('weaponHudLoadout').textContent=`SUB ${w.subName}　|　SP ${w.specialName}`;
   const subButton=document.getElementById('btnSub');
-  subButton.innerHTML=`<span class="btnAbilitySprite subSprite sub-${w.sub}" aria-hidden="true"></span><span class="btnText abilityButtonLabel">${w.sub==='inkBomb'?'BOMB':'SUB'}</span>`;
+  subButton.innerHTML=InkHud.icon(w.sub==='curling'?'curling':w.sub==='sprinkler'?'sprinkler':'bomb');
   subButton.setAttribute('aria-label',w.subName);
   const specialButton=document.getElementById('btnSpecial');
-  specialButton.innerHTML=`<span class="btnAbilitySprite specialSprite special-${w.special}"></span><span class="abilityButtonLabel">SP</span>`;
+  specialButton.innerHTML='<span class="hudVisuallyHidden">SP</span>';
   specialButton.setAttribute('aria-label',w.specialName);
   document.querySelectorAll('.weaponCard').forEach(card=>card.classList.toggle('selected',card.dataset.weapon===selectedWeaponKey));
   const selectedCard=document.querySelector(`.weaponCard[data-weapon="${selectedWeaponKey}"]`);
@@ -4947,9 +4949,9 @@ addEventListener('touchstart', e => {
     if (t.clientX < innerWidth/2 && !stick.active){
       stick.active = true; stick.id = t.identifier;
       stick.ox = t.clientX; stick.oy = t.clientY; stick.dx = stick.dy = 0;
-      stickEl.style.left = (t.clientX-60)+'px';
+      stickEl.style.left = (t.clientX-stickEl.offsetWidth/2)+'px';
       stickEl.style.bottom = 'auto';
-      stickEl.style.top = (t.clientY-60)+'px';
+      stickEl.style.top = (t.clientY-stickEl.offsetHeight/2)+'px';
     } else if (look.id === -1){
       look.id = t.identifier; look.lx = t.clientX; look.ly = t.clientY; look.lt = performance.now();
     }
@@ -4961,7 +4963,7 @@ addEventListener('touchmove', e => {
     if (t.identifier === stick.id){
       handled = true;
       const dx = t.clientX - stick.ox, dy = t.clientY - stick.oy;
-      const len = Math.hypot(dx, dy), max = 48;
+      const len = Math.hypot(dx, dy), max = Math.max(1,(stickEl.clientWidth-knobEl.offsetWidth)/2-5);
       const k = len > max ? max/len : 1;
       stick.dx = dx*k/max; stick.dy = dy*k/max;
       knobEl.style.transform = `translate(calc(-50% + ${dx*k}px), calc(-50% + ${dy*k}px))`;
@@ -5404,6 +5406,7 @@ function updateTeamRoster(){
       const member=members[i];
       chip.classList.toggle('down',!member||!!member.dead);
       chip.title=!member?'空き':(member===player?'YOU':member===remote?'PLAYER':'BOT');
+      chip.setAttribute('aria-label',`${team==='A'?'オレンジ':'パープル'} ${chip.title} ${member?(member.dead?'やられた':'生存中'):''}`);
     });
   }
 }
@@ -5415,6 +5418,7 @@ function updateHUD(dt){
   elTimer.style.color = timeLeft < 15 ? '#ff5a5a' : '#fff';
   elInk.style.width = (player.ink*100).toFixed(0)+'%';
   inkPctEl.textContent = (player.ink*100).toFixed(0)+'%';
+  InkHud.updateInk(player.ink,player.team);
   elInk.style.background = player.team === 'A'
     ? 'linear-gradient(90deg,#ff9a3d,#ff7a00)' : 'linear-gradient(90deg,#9d6bff,#6a1fff)';
   dmgFlash = Math.max(0, dmgFlash - dt * 1.6);
@@ -5865,6 +5869,7 @@ function updateSpecialUI(){
   const value = Math.max(0, Math.min(1, player.special || 0));
   specialFill.style.width = (value*100).toFixed(0)+'%';
   btnSpecial.style.display = value >= 1 && running && !player.dead ? 'block' : 'none';
+  InkHud.updateSpecial(value,value >= 1 && running && !player.dead);
 }
 function addSpecial(amount){
   if (player.dead) return;

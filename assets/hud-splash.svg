@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <defs><mask id="edge"><rect width="128" height="128" fill="white"/><circle cx="64" cy="64" r="44" fill="black"/></mask></defs>
+  <g fill="white" mask="url(#edge)">
+    <path d="M59 16C52 19 44 5 38 12S46 29 35 32 19 17 13 25s12 13 11 23S5 50 7 59s15 5 18 14S8 85 15 92s14-7 22-1 0 22 11 23 7-19 17-18 8 23 18 21 1-20 12-24 14 11 23 4-9-14-7-23 18-7 16-18-20-1-23-11 15-18 6-25-16 13-26 9S82 5 72 7 70 15 59 16Z"/>
+    <circle cx="13" cy="112" r="5"/><circle cx="116" cy="11" r="6"/><circle cx="3" cy="35" r="3"/>
+  </g>
+</svg>
