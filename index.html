@@ -384,6 +384,19 @@
       linear-gradient(#6fc8ee 0 34%,#176f9e 35% 100%);
   }
   .ruleBadges { display:flex; gap:7px; margin-top:12px; }
+  .stagePreview.yukemuri {
+    background:
+      radial-gradient(ellipse at 50% 78%,#d6e5e677,transparent 39%),
+      linear-gradient(160deg,transparent 48%,#d28154 49% 54%,transparent 55%),
+      linear-gradient(20deg,transparent 48%,#7664c8 49% 54%,transparent 55%),
+      linear-gradient(#254a68 0 42%,#8f9ea5 43% 100%);
+  }
+  .stagePreview.yukemuri::before {
+    left:calc(50% - 26px);bottom:22px;width:52px;height:30px;transform:none;
+    background:repeating-linear-gradient(90deg,#e8bb7a 0 8px,#483a37 9px 12px);
+    border-radius:8px 8px 0 0;box-shadow:0 -7px 0 5px #263e50,0 -18px 0 -1px #263e50;
+  }
+  .stagePreview.yukemuri::after { display:none; }
   .ruleBadges span { flex:1; padding:6px; border-radius:12px; text-align:center; background:rgba(255,255,255,.11); font-size:10px; font-weight:900; }
   .titleBottom {
     grid-column:1 / -1; grid-row:3; display:flex; align-items:end; justify-content:space-between; gap:20px;
@@ -1756,7 +1769,7 @@
           <div class="setupEyebrow">対戦設定 <small>あとで確認できます</small></div>
           <div class="setupFields">
             <div class="roomField"><label>ルール</label><select id="createRule"><option value="turf">ナワバリバトル</option></select></div>
-            <div class="roomField"><label>ステージ</label><select id="createStage"><option value="salt_spire_beacon" selected>ソルトスパイア・ビーコン</option><option value="ink_yard">インクヤード</option><option value="random">ランダム</option></select></div>
+            <div class="roomField"><label>ステージ</label><select id="createStage"><option value="yukemuri_junction" selected>湯けむりジャンクション</option><option value="salt_spire_beacon">ソルトスパイア・ビーコン</option><option value="ink_yard">インクヤード</option><option value="random">ランダム</option></select></div>
             <div class="roomField"><label>対戦人数</label><select id="createTeamSize"><option value="1">1対1</option><option value="2">2対2</option><option value="3">3対3</option><option value="4" selected>4対4</option></select></div>
             <div class="roomField"><label>BOT補充</label><select id="createBotFill"><option value="true" selected>ON</option><option value="false">OFF</option></select></div>
             <div class="roomField"><label>BOT難易度</label><select id="createBotDifficulty"><option value="easy">やさしい</option><option value="normal" selected>ふつう</option><option value="hard">つよい</option></select></div>
@@ -2032,6 +2045,7 @@
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="stages/yukemuri.js"></script>
 <script>
 /* =====================================================================
    INK CLASH — オリジナル3Dインクシューター
@@ -2054,14 +2068,19 @@ let ARENA_D = 80;                 // 現在のステージ奥行き（Z）
 const TEX = 1024;                 // 塗りテクスチャ解像度
 const GRID = 160;                 // 塗り判定グリッド
 const MATCH_TIME = 180;
-const STAGE_PROTOCOL_VERSION = 2;
+const STAGE_PROTOCOL_VERSION = 3;
 const STAGE_VERSION = 1;
+const STAGE_DEFINITIONS = Object.freeze({
+  yukemuri_junction:{name:'湯けむりジャンクション',preview:'yukemuri',build:buildYukemuri},
+  salt_spire_beacon:{name:'ソルトスパイア・ビーコン',preview:'saltSpire',build:buildSaltSpire},
+  ink_yard:{name:'インクヤード',preview:'',build:buildInkYard}
+});
 
 // ---------- モード ----------
 let mode = 'solo';      // 'solo' | 'online'
 let isHost = false;
 let net = null;         // P2P接続（後で初期化）
-let activeMatchSettings = { teamSize:4, botFill:true, botDifficulty:'normal', stage:'salt_spire_beacon' };
+let activeMatchSettings = { teamSize:4, botFill:true, botDifficulty:'normal', stage:'yukemuri_junction' };
 function netSend(msg){ if (net && net.ready) net.send(msg); }
 
 const WEAPON_LOADOUTS = {
@@ -2158,7 +2177,7 @@ const camera = new THREE.PerspectiveCamera(66, innerWidth/innerHeight, 0.1, 800)
         gl_FragColor = vec4(c, 1.0);
       }`
   });
-  scene.add(new THREE.Mesh(skyGeo, skyMat));
+  const sky=new THREE.Mesh(skyGeo, skyMat);sky.name='world-sky';scene.add(sky);
 }
 
 // 雲（ふわふわのビルボード的球群）
@@ -2176,12 +2195,14 @@ const camera = new THREE.PerspectiveCamera(66, innerWidth/innerHeight, 0.1, 800)
     }
     const a = Math.random()*Math.PI*2;
     g.position.set(Math.cos(a)*(150+Math.random()*80), 55+Math.random()*45, Math.sin(a)*(150+Math.random()*80));
+    g.name='world-cloud';
     scene.add(g);
   }
 }
 
 // ---------- ライティング ----------
-scene.add(new THREE.HemisphereLight(0xcfe6ff, 0xd6ae83, 0.82));
+const hemisphere=new THREE.HemisphereLight(0xcfe6ff, 0xd6ae83, 0.82);
+scene.add(hemisphere);
 const sun = new THREE.DirectionalLight(0xfff0d8, 1.48);
 sun.position.set(45, 70, 25);
 sun.castShadow = true;
@@ -2224,6 +2245,7 @@ saltFloorDetailImage.addEventListener('load', () => {
 saltFloorDetailImage.src = 'assets/salt-spire-floor-tile-v1.webp';
 
 function drawBaseFloor(stageId=''){
+  if(stageId==='yukemuri_junction'){drawYukemuriFloor();return;}
   const salt=stageId==='salt_spire_beacon';
   pctx.fillStyle = salt?'#65717b':'#c9ced6';
   pctx.fillRect(0,0,TEX,TEX);
@@ -2641,6 +2663,7 @@ function spawnPad(x, z, y, team){
   ring.rotation.x = Math.PI/2; ring.position.y = 0.58;
   base.castShadow = base.receiveShadow = true;
   g.add(base, ring);
+  if(activeStage)activeStage.disposableMaterials.push(base.material,ring.material);
   g.position.set(x, y, z);
   stageAdd(g);
   return g;
@@ -3754,12 +3777,15 @@ function rebuildPaintMask(){
   if(activeStage)activeStage.paintMask=paintMask;
 }
 function resolveStageId(id){
-  if(id==='random')return Math.random()<.5?'salt_spire_beacon':'ink_yard';
-  return id==='ink_yard'?'ink_yard':'salt_spire_beacon';
+  const ids=Object.keys(STAGE_DEFINITIONS);
+  if(id==='random')return ids[Math.floor(Math.random()*ids.length)];
+  return Object.hasOwn(STAGE_DEFINITIONS,id)?id:'salt_spire_beacon';
 }
 function disposeStage(runtime){
   if(!runtime||!runtime.root)return;
-  runtime.root.traverse(o=>{if(o.geometry)o.geometry.dispose();});
+  const geometries=new Set();
+  runtime.root.traverse(o=>{if(o.geometry&&!o.isSprite)geometries.add(o.geometry);});
+  geometries.forEach(g=>g.dispose());
   for(const m of runtime.disposableMaterials||[])m.dispose();
   for(const t of runtime.disposableTextures||[])t.dispose();
 }
@@ -3777,7 +3803,8 @@ function loadStage(id){
   obstacles.length=0;groundSurfaces.length=0;
   stageRailPostMatrices.length=0;
   grid=new Int8Array(GRID*GRID);countA=countB=0;
-  activeStage=resolved==='ink_yard'?buildInkYard():buildSaltSpire();
+  applyStageEnvironment(resolved);
+  activeStage=STAGE_DEFINITIONS[resolved].build();
   activeStage.root=activeStageRoot;
   drawBaseFloor(resolved);
   rebuildPaintMask();
@@ -4395,6 +4422,7 @@ function projectBotWaypoint(point,routeIndex=0){
 }
 function pickBotTarget(b){
   const routes=activeStage&&activeStage.botGraph&&activeStage.botGraph.routes;
+  if(routes?.length&&activeStage.botGraph.patrol){pickYukemuriBotTarget(b,routes);return;}
   if(routes&&routes.length){
     if(b.routeIndex<0)b.routeIndex=Math.floor(Math.random()*routes.length);
     const route=routes[b.routeIndex%routes.length];
@@ -5075,7 +5103,7 @@ function easeIntro(t){
   return x*x*(3-2*x);
 }
 function introStageName(stageId){
-  return resolveStageId(stageId)==='salt_spire_beacon'?'ソルトスパイア・ビーコン':'インクヤード';
+  return STAGE_DEFINITIONS[resolveStageId(stageId)].name;
 }
 function updateStageIntroCopy(elapsed){
   const stageId=resolveStageId(activeStage?.id||activeMatchSettings.stage);
@@ -5098,9 +5126,9 @@ function updateStageIntroCopy(elapsed){
 }
 function introCameraPose(elapsed){
   const stageId=resolveStageId(activeStage?.id||activeMatchSettings.stage);
-  const salt=stageId==='salt_spire_beacon';
+  const salt=stageId!=='ink_yard';
   const mirror=player.team==='B'?-1:1;
-  const center=salt?new THREE.Vector3(0,4,0):new THREE.Vector3(0,2,0);
+  const center=salt?new THREE.Vector3(0,stageId==='yukemuri_junction'?7:4,0):new THREE.Vector3(0,2,0);
   const far=salt?new THREE.Vector3(-58*mirror,34,58):new THREE.Vector3(-48*mirror,27,48);
   const mid=salt?new THREE.Vector3(0,21,31):new THREE.Vector3(0,16,26);
   const sweep=salt?new THREE.Vector3(32*mirror,14,13):new THREE.Vector3(27*mirror,10,9);
@@ -5303,10 +5331,10 @@ function resetGame(){
   dmgFlash = 0; healFlash = 0; shake = 0; stateT = 0; botSyncT = 0;
   document.querySelector('#kills span:last-child').textContent = 'たおした×0';
   // 自陣が背後になる向きにカメラを合わせる
-  camYaw = activeStage?.id==='salt_spire_beacon'
+  camYaw = activeStage?.config.spawnYawA!=null
     ? (player.team==='A'?0:Math.PI)
     : (player.team === 'A' ? Math.PI * 0.75 : Math.PI * -0.25);
-  if(activeStage?.id==='salt_spire_beacon'){
+  if(activeStage?.config.spawnYawA!=null){
     player.yaw=player.team==='A'?activeStage.config.spawnYawA:activeStage.config.spawnYawB;
   }
   camPitch = 0.38;
@@ -7166,8 +7194,12 @@ function handleNet(m){
   switch (m.t){
     case 'go':                                   // ホストからの開始合図
       if (!isHost){
-        if(m.pv&&m.pv!==STAGE_PROTOCOL_VERSION){
+        if(m.pv!==STAGE_PROTOCOL_VERSION){
           alert('ゲームの通信バージョンが一致しません。両方の端末でページを再読み込みしてください。');
+          break;
+        }
+        if(m.stageId&&!Object.hasOwn(STAGE_DEFINITIONS,m.stageId)){
+          alert('このステージに対応していません。ページを再読み込みしてください。');
           break;
         }
         if (roomSession && roomSession.room && roomSession.room.settings){
@@ -7734,7 +7766,7 @@ function renderWaitingLobby(){
   const s=room.settings||{};
   document.getElementById('lobbyRule').textContent=settingLabel(s.rule,{turf:'ナワバリ'});
   document.getElementById('lobbyStage').textContent=settingLabel(s.stage,{
-    salt_spire_beacon:'ソルトスパイア・ビーコン',ink_yard:'インクヤード',random:'ランダム'
+    yukemuri_junction:'湯けむりジャンクション',salt_spire_beacon:'ソルトスパイア・ビーコン',ink_yard:'インクヤード',random:'ランダム'
   });
   document.getElementById('lobbyTeamSize').textContent=`${s.teamSize||4}対${s.teamSize||4}`;
   document.getElementById('lobbyBotFill').textContent=s.botFill?'ON':'OFF';
@@ -7893,13 +7925,15 @@ function syncTitlePlayerName(){
 }
 function updateStageUI(stageId){
   const id=resolveStageId(stageId);
-  const isSalt=id==='salt_spire_beacon';
-  const name=isSalt?'ソルトスパイア・ビーコン':'インクヤード';
+  const definition=STAGE_DEFINITIONS[id];
+  const name=definition.name;
   const nameEl=document.getElementById('titleStageName');
   const preview=document.getElementById('titleStagePreview');
   if(nameEl)nameEl.textContent=name;
   if(preview){
-    preview.classList.toggle('saltSpire',isSalt);
+    for(const definition of Object.values(STAGE_DEFINITIONS)){
+      if(definition.preview)preview.classList.toggle(definition.preview,definition===STAGE_DEFINITIONS[id]);
+    }
     preview.setAttribute('aria-label',`${name}のプレビュー`);
   }
   const switchBtn=document.getElementById('titleStageSwitch');
@@ -7910,7 +7944,8 @@ updateStageUI(activeMatchSettings.stage);
 updateWeaponUI();
 document.getElementById('titleSettingsBtn').addEventListener('click',openSettings);
 document.getElementById('titleStageSwitch').addEventListener('click',()=>{
-  activeMatchSettings.stage=activeMatchSettings.stage==='salt_spire_beacon'?'ink_yard':'salt_spire_beacon';
+  const ids=Object.keys(STAGE_DEFINITIONS);
+  activeMatchSettings.stage=ids[(ids.indexOf(activeMatchSettings.stage)+1)%ids.length];
   updateStageUI(activeMatchSettings.stage);
 });
 document.getElementById('btnFriend').addEventListener('click',()=>{
