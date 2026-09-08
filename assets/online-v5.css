@@ -1,0 +1,161 @@
+/* Online v5: shared panels, existing room/session controls. */
+#roomOnline { --room-line:rgba(183,161,227,.24); --room-surface:rgba(12,16,31,.94); color:#f8f7ff; padding:max(10px,env(safe-area-inset-top)) max(18px,env(safe-area-inset-right)) max(10px,env(safe-area-inset-bottom)) max(18px,env(safe-area-inset-left)); }
+#roomOnline *,#roomOnline *::before,#roomOnline *::after { box-sizing:border-box; }
+#roomOnline button,#roomOnline input,#roomOnline select { font-family:var(--font-formal); }
+#roomOnline button { cursor:pointer; transition:filter .15s,transform .15s; }
+#roomOnline button:hover { filter:brightness(1.15); }
+#roomOnline button:active { transform:translateY(1px); }
+#roomOnline button:disabled { cursor:not-allowed; }
+#roomOnline :is(button,input,select,summary):focus-visible { outline:3px solid #d6bcff; outline-offset:3px; }
+#roomOnline .roomShell { max-width:1440px; margin:auto; padding:6px 10px; display:flex; flex-direction:column; gap:14px; overflow:hidden; }
+#roomOnline .roomHeader { flex:none; min-height:68px; grid-template-columns:110px minmax(0,1fr) 210px; gap:18px; border:0; }
+#roomOnline .roomTitleWrap { text-align:center; min-width:0; }
+#roomOnline .roomTitle { font-family:var(--font-game); font-size:clamp(30px,4.6vw,66px); line-height:1; letter-spacing:-.025em; transform:none; text-shadow:none; }
+#roomOnline .roomSubtitle { font-size:12px; margin-top:5px; }
+#roomOnline .roomBackBtn { min-height:44px; box-shadow:none; }
+#roomOnline .roomIdentityBar { min-width:0; width:100%; grid-template-columns:34px minmax(0,1fr); border:1px solid #7743a6; border-radius:28px; padding:7px 12px; box-shadow:none; }
+#roomOnline .profileAvatar { width:34px; height:34px; font-size:18px; border-width:2px; }
+#roomOnline .profileInfo { display:block; }
+#roomOnline .profileInfo label { display:block; font-size:8px; letter-spacing:.12em; color:#b7adc9; }
+#roomOnline .profileInfo input { width:100%; height:26px; font-size:14px; padding:0; border-radius:3px; }
+#roomOnline .roomPanel { flex:1; min-height:0; height:auto; margin:0; overflow:auto; overscroll-behavior:contain; scrollbar-width:thin; padding:4px; }
+#roomOnline .onlineIntroGrid { display:flex; flex-direction:column; justify-content:center; align-items:stretch; min-height:100%; gap:12px; max-width:1180px; margin:auto; }
+#roomOnline .roomChoiceColumn { display:grid; grid-template-columns:1fr 1fr; gap:22px; }
+#roomOnline .roomPortal { --accent:#ff9d20; min-width:0; min-height:220px; padding:28px; grid-template-columns:64px minmax(0,1fr) 26px; gap:18px; border:2px solid var(--accent); border-radius:26px; background:radial-gradient(ellipse at 0 0,rgba(255,137,12,.23),transparent 65%),var(--room-surface); box-shadow:0 14px 35px #0004; }
+#roomOnline .roomPortal.join { --accent:#ac48ff; background:radial-gradient(ellipse at 0 0,rgba(154,52,255,.26),transparent 65%),var(--room-surface); }
+#roomOnline .roomPortal:hover { transform:translateY(-3px); }
+#roomOnline .portalIcon { border:0; min-height:0; width:64px; height:64px; border-radius:20px; color:var(--accent); background:color-mix(in srgb,var(--accent) 18%,transparent); font-size:30px; }
+#roomOnline .roomPortal b { font-size:clamp(20px,2.8vw,38px); white-space:nowrap; }
+#roomOnline .roomPortal small { color:#d1cadc; font-size:12px; line-height:1.7; margin-top:10px; }
+#roomOnline .roomPortal i { color:var(--accent); font-size:28px; }
+#roomOnline .roomPortal b::after { content:'作成する →'; display:block; width:fit-content; padding:9px 26px; margin-top:18px; border-radius:22px; background:linear-gradient(120deg,#ffb927,#ff7912); color:#17121a; font-size:16px; float:none; }
+#roomOnline .roomPortal.join b::after { content:'コードを入力 →'; color:white; background:linear-gradient(120deg,#b747ff,#7522ed); }
+#roomOnline .publicMatchCard { grid-column:1/-1; width:90%; margin:0 auto; min-height:64px; border:1px solid var(--room-line); background:var(--room-surface); box-shadow:none; grid-template-columns:26px minmax(0,1fr) auto 44px; padding:10px 18px; }
+#roomOnline .publicMatchIcon { height:12px; width:12px; font-size:0; background:#49eb96; box-shadow:0 0 14px #49eb9655; }
+#roomOnline .publicMatchCopy b { font-size:14px; color:#f0fff6; }
+#roomOnline .publicMatchCopy small { font-size:11px; }
+#roomOnline .publicRefreshButton { width:44px; height:44px; }
+#roomOnline .publicJoinButton { min-height:44px; box-shadow:none; }
+#roomOnline .onlineQuickRow { grid-column:1/-1; display:flex; gap:14px; }
+#roomOnline .onlineQuickRow button { min-height:44px; font-size:12px; border:0; background:transparent; box-shadow:none; padding:7px 10px; }
+#roomOnline .onlineHelp { align-self:flex-end; max-width:620px; color:#d2c9e3; font-size:13px; }
+#roomOnline .onlineHelp summary { cursor:pointer; padding:10px 14px; min-height:44px; text-align:right; }
+#roomOnline .onlineHelpBody { background:var(--room-surface); border:1px solid var(--room-line); border-radius:18px; padding:18px; line-height:1.7; }
+#roomOnline .onlineHelpBody p { margin:8px 0 0; }
+#roomOnline .setupTitle { font-size:clamp(24px,3vw,38px); margin:0 0 14px; text-shadow:none; }
+#roomOnline .roomSetupLayout { max-width:1050px; margin:auto; display:flex; flex-direction:column; gap:10px; }
+#roomOnline .createSetupCard { padding:24px; border-radius:24px; border:1px solid #c47732; background:radial-gradient(ellipse at 0 0,#ff94121a,transparent 60%),var(--room-surface); box-shadow:none; }
+#roomOnline .setupEyebrow { text-align:left; margin:0 0 16px; font-size:15px; }
+#roomOnline .setupEyebrow small { font-size:11px; color:#aba5b8; }
+#roomOnline .setupFields { gap:14px 28px; grid-template-columns:1fr 1fr; }
+#roomOnline .setupFields .roomField { grid-template-columns:90px minmax(0,1fr); gap:10px; }
+#roomOnline .roomField label { font-size:12px; color:#c5bdcf; }
+#roomOnline .roomField select { min-height:44px; border:1px solid var(--room-line); border-radius:11px; background:#202133; color:#fff; font-size:13px; padding:8px 10px; }
+#roomOnline .roomPrimary { display:block; width:min(100%,540px); min-height:48px; margin:20px auto 0; border-radius:24px; font-size:17px; box-shadow:inset 0 1px 0 #ffffff50,0 5px 12px #0003; }
+#roomOnline .roomPrimary.create { color:#211522; background:linear-gradient(120deg,#ffbd29,#ff8214); }
+#roomOnline .roomPrimary.join { background:linear-gradient(120deg,#b642ff,#7720e8); }
+#roomOnline .setupInfoCard { display:flex; align-items:center; justify-content:space-between; gap:14px; padding:0 8px; border:0; background:none; box-shadow:none; backdrop-filter:none; border-radius:0; }
+#roomOnline .setupInfoCard p { margin:0; font-size:12px; color:#c5bdcf; text-align:left; }
+#roomOnline .roomSecondary,#roomOnline .roomTextLink { width:auto; min-height:44px; padding:8px 16px; margin:0; color:#cdc2de; border:0; border-radius:10px; background:transparent; box-shadow:none; font-size:12px; white-space:nowrap; }
+#roomOnline #roomJoinPanel { align-content:center; }
+#roomOnline .joinCodeCard { width:min(780px,100%); margin:auto; padding:26px 38px 16px; border:2px solid #913ce3; border-radius:26px; background:radial-gradient(ellipse at 0 0,#962cfb20,transparent 65%),var(--room-surface); box-shadow:0 18px 40px #0003; }
+#roomOnline .joinCodeCard label { display:block; font-size:14px; margin:0 0 12px; }
+#roomOnline #joinRoomCode { display:block; box-sizing:content-box; width:12ch; max-width:calc(100% - 24px); height:70px; margin:0 auto; padding:0; text-indent:.5ch; border:1px solid #716085; border-radius:12px; font:700 clamp(24px,4vw,42px)/1 ui-monospace,monospace; letter-spacing:1ch; color:#fff; background:repeating-linear-gradient(90deg,#242039 0,#242039 calc(16.6667% - 2px),#55406e calc(16.6667% - 2px),#55406e 16.6667%); text-align:left; box-shadow:none; }
+#roomOnline #joinRoomCode::placeholder { color:#77698b; }
+#roomOnline .joinCodeCard p { font-size:12px; color:#bbb0cd; margin:12px 0; }
+#roomOnline .joinCodeCard .roomPrimary { margin-top:16px; }
+#roomOnline .roomTextLink { display:block; margin:4px auto 0; text-decoration:underline; text-underline-offset:4px; }
+#roomOnline #roomJoinCancel { display:inline-block; color:#9e94b0; margin:0; }
+/* Two teams fit alongside one another. Short screens scroll only the content area. */
+#roomOnline .lobbyGrid { margin:0; display:grid; grid-template-columns:minmax(230px,.68fr) minmax(0,1.65fr); gap:18px; align-items:start; }
+#roomOnline .lobbyCard { min-width:0; padding:18px; border:1px solid var(--room-line); border-radius:22px; background:var(--room-surface); box-shadow:none; }
+#roomOnline .lobbyCard h3 { font-size:18px; margin:0 0 12px; }
+#roomOnline .settingSummary { gap:6px; }
+#roomOnline .settingSummary div { padding:8px; font-size:10px; color:#aaa1b8; background:#ffffff05; }
+#roomOnline .settingSummary b { font-size:12px; overflow-wrap:anywhere; }
+#roomOnline .roomCodeBox { border:1px solid #a981484d; background:#ffb3230b; padding:9px; font-size:12px; }
+#roomOnline .roomCodeBox strong { font-family:var(--font-game); font-size:34px; line-height:1.15; letter-spacing:.15em; }
+#roomOnline .lobbyTeams { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+#roomOnline .teamLobby { margin:0; min-width:0; }
+#roomOnline .teamLobbyTitle { padding:10px; border-radius:10px; font-family:var(--font-game); font-size:22px; line-height:1; }
+#roomOnline #lobbyTeamA .teamLobbyTitle { background:#ff941b; color:#241609; }
+#roomOnline #lobbyTeamB .teamLobbyTitle { background:#8d32e5; }
+#roomOnline .lobbySlot { min-height:52px; grid-template-columns:26px minmax(0,1fr) auto; gap:6px; padding:8px; font-size:12px; background:#ffffff06; border:1px solid #ffffff08; }
+#roomOnline .lobbySlot>span:nth-child(2) { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+#roomOnline .slotType { grid-column:2; grid-row:2; justify-self:start; padding:0; font-size:8px; color:#a49ab5; background:transparent; }
+#roomOnline .slotState { grid-column:3; grid-row:1/3; padding:4px; font-size:8px; }
+#roomOnline .slotIcon { grid-row:1/3; }
+#roomOnline #roomStatus { margin-top:14px; min-height:20px; font-size:12px; }
+#roomOnline .lobbyButtons { gap:8px; margin-top:10px; }
+#roomOnline .lobbyButtons .roomBtn { min-height:44px; font-size:12px; padding:8px 14px; border:1px solid var(--room-line); border-radius:14px; box-shadow:none; }
+#roomOnline #copyInviteUrl { width:100%; color:#d9c8f1; background:#282136; overflow-wrap:anywhere; }
+#roomOnline :is(#lobbyStart,#lobbyReady) { flex:1; background:linear-gradient(110deg,#ffbd27,#ff861b); color:#241821; }
+#roomOnline #lobbyLeave { background:transparent; color:#efa1b3; }
+@media (max-height:560px) and (min-width:641px) {
+ #roomOnline { padding-top:max(5px,env(safe-area-inset-top)); padding-bottom:max(5px,env(safe-area-inset-bottom)); }
+ #roomOnline .roomShell { padding:0; gap:7px; }
+ #roomOnline .roomHeader { min-height:46px; grid-template-columns:86px minmax(0,1fr) 162px; gap:12px; }
+ #roomOnline .roomTitle { font-size:34px; }
+ #roomOnline .roomSubtitle { font-size:9px; margin-top:1px; }
+ #roomOnline .roomIdentityBar { padding:3px 9px; }
+ #roomOnline .roomChoiceColumn { gap:10px; }
+ #roomOnline .roomPortal { min-height:136px; padding:14px; grid-template-columns:42px minmax(0,1fr) 16px; gap:10px; border-radius:18px; }
+ #roomOnline .portalIcon { width:42px; height:42px; font-size:22px; }
+ #roomOnline .roomPortal b { font-size:22px; }
+ #roomOnline .roomPortal b::after { font-size:12px; margin-top:9px; padding:6px 18px; }
+ #roomOnline .roomPortal small { font-size:10px; margin-top:6px; }
+ #roomOnline .publicMatchCard { min-height:50px; padding:3px 12px; }
+ #roomOnline .onlineIntroGrid { gap:0; }
+ #roomOnline .onlineHelp summary { padding:4px 12px; }
+ #roomOnline .setupTitle { font-size:24px; margin-bottom:8px; }
+ #roomOnline .createSetupCard { padding:12px 18px; }
+ #roomOnline .setupEyebrow { margin-bottom:8px; font-size:12px; }
+ #roomOnline .setupFields { gap:6px 18px; }
+ #roomOnline .roomField select { min-height:36px; font-size:12px; padding:5px 9px; }
+ #roomOnline .roomPrimary { margin-top:10px; min-height:44px; padding:6px 20px; font-size:15px; }
+ #roomOnline .setupInfoCard p { font-size:10px; }
+ #roomOnline .roomSetupLayout { gap:3px; }
+ #roomOnline .joinCodeCard { width:min(650px,95%); padding:14px 30px 8px; }
+ #roomOnline #joinRoomCode { height:53px; font-size:30px; }
+ #roomOnline .joinCodeCard label { margin-bottom:8px; font-size:12px; }
+ #roomOnline .joinCodeCard p { margin:8px 0; font-size:11px; }
+ #roomOnline .joinCodeCard .roomPrimary { margin-top:8px; }
+ #roomOnline .roomTextLink { min-height:34px; padding:5px 12px; }
+ #roomOnline .lobbyGrid { grid-template-columns:minmax(205px,.65fr) minmax(0,1.65fr); gap:10px; }
+ #roomOnline .lobbyCard { padding:10px; border-radius:16px; }
+ #roomOnline .lobbyCard h3 { font-size:14px; margin-bottom:6px; }
+ #roomOnline .settingSummary { gap:3px; }
+ #roomOnline .settingSummary div { padding:4px 6px; font-size:9px; }
+ #roomOnline .settingSummary b { font-size:11px; margin-top:1px; }
+ #roomOnline .roomCodeBox { margin-top:6px; padding:5px; font-size:10px; }
+ #roomOnline .roomCodeBox strong { font-size:26px; }
+ #roomOnline .lobbyTeams { gap:8px; }
+ #roomOnline .teamLobbyTitle { font-size:17px; padding:7px; }
+ #roomOnline .lobbySlot { min-height:38px; margin-top:3px; padding:4px; gap:2px 4px; font-size:11px; grid-template-columns:22px minmax(0,1fr) auto; }
+ #roomOnline .slotIcon { width:20px; height:20px; }
+ #roomOnline .slotState { font-size:7px; padding:3px; }
+ #roomOnline #roomStatus { font-size:10px; margin-top:6px; min-height:16px; }
+ #roomOnline .lobbyButtons { margin-top:6px; gap:5px; }
+ #roomOnline .lobbyButtons .roomBtn { padding:5px 8px; min-height:40px; font-size:10px; }
+}
+@media (max-width:640px) {
+ #roomOnline { padding-left:12px; padding-right:12px; }
+ #roomOnline .roomHeader { grid-template-columns:80px 1fr; gap:8px; }
+ #roomOnline .roomTitle { font-size:32px; }
+ #roomOnline .roomIdentityBar { grid-column:2; max-width:190px; }
+ #roomOnline .roomChoiceColumn,#roomOnline .setupFields,#roomOnline .lobbyGrid { grid-template-columns:1fr; }
+ #roomOnline .roomPortal { min-height:165px; padding:18px; }
+ #roomOnline .roomPortal b { font-size:24px; }
+ #roomOnline .publicMatchCard { width:100%; padding:8px; grid-template-columns:12px minmax(0,1fr) auto 44px; gap:5px; }
+ #roomOnline .publicJoinButton { min-width:64px; padding:5px 8px; }
+ #roomOnline .publicMatchCopy b { font-size:12px; }
+ #roomOnline .publicMatchCopy small { font-size:9px; }
+ #roomOnline .setupInfoCard { flex-direction:column; }
+ #roomOnline .createSetupCard { padding:16px; }
+ #roomOnline .joinCodeCard { padding:22px 12px 12px; }
+ #roomOnline #joinRoomCode { font-size:26px; height:60px; }
+ #roomOnline .lobbyTeams { gap:8px; }
+ #roomOnline .teamLobbyTitle { font-size:18px; }
+ #roomOnline .lobbySlot { font-size:11px; gap:3px; padding:5px; grid-template-columns:22px minmax(0,1fr) auto; }
+}
+@media (prefers-reduced-motion:reduce) { #roomOnline button { transition:none; } }

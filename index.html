@@ -1511,6 +1511,7 @@
 <link rel="stylesheet" href="assets/hud-v2.css">
 <link rel="stylesheet" href="assets/result-v3.css">
 <link rel="stylesheet" href="assets/home-v4.css">
+<link rel="stylesheet" href="assets/online-v5.css">
 </head>
 <body>
 <div id="rotatePrompt" role="status" aria-live="polite" aria-hidden="true">
@@ -1691,16 +1692,16 @@
       <button class="roomBackBtn" id="roomTopBack">‹ 戻る</button>
       <div class="roomTitleWrap">
         <div class="roomTitle">ONLINE BATTLE</div>
-        <div class="roomSubtitle">フレンドと一緒にインクバトル！</div>
+        <div class="roomSubtitle">オンラインバトル</div>
       </div>
       <div class="roomIdentityBar">
         <span class="profileAvatar">◉</span>
         <div class="profileInfo">
           <label for="roomPlayerName">PLAYER</label>
-          <input id="roomPlayerName" maxlength="12" value="Player">
-          <div class="profileProgress"><b>Lv.12</b><i><span></span></i><small>2560 / 4200</small></div>
+          <input id="roomPlayerName" aria-label="プレイヤー名" maxlength="12" value="Player">
+
         </div>
-        <span class="profileTeamMark">◆</span>
+
       </div>
     </div>
 
@@ -1710,12 +1711,12 @@
           <button class="roomPortal create" id="roomCreateOpen">
             <span class="portalIcon">◎</span>
             <span><b>ルームを作る</b><small>対戦設定を選んでフレンドを招待！</small></span>
-            <i>›</i>
+            <i aria-hidden="true">→</i>
           </button>
           <button class="roomPortal join" id="roomJoinOpen">
             <span class="portalIcon">●●</span>
             <span><b>ルームに参加</b><small>6桁のルームコードを入力して参加！</small></span>
-            <i>›</i>
+            <i aria-hidden="true">→</i>
           </button>
           <div class="publicMatchCard" id="publicMatchCard">
             <span class="publicMatchIcon">◉</span>
@@ -1732,32 +1733,10 @@
           </div>
         </div>
 
-        <div class="onlineCenterColumn">
-          <div class="roomHowCard">
-            <div class="roomCardLabel">遊び方</div>
-            <div class="howSteps">
-              <div><em>01</em><span class="paintStep">🔫</span><b>インクを塗る</b><small>床や壁を塗って<br>自分の色にしよう！</small></div>
-              <i>››</i>
-              <div><em>02</em><span class="swimStep">◆</span><b>インクに潜る</b><small>自分のインクに潜って<br>移動や回復をしよう！</small></div>
-              <i>››</i>
-              <div><em>03</em><span class="winStep">⚑</span><b>たくさん塗って勝利！</b><small>より多くの面積を塗った<br>チームの勝ち！</small></div>
-            </div>
-            <div class="onlineTip"><b>💡 ヒント</b><span>敵のインクは危険！ 潜って近道を作り、チームで広く塗ろう！</span></div>
-          </div>
-          <div class="onlineBotBanner">
-            <div class="botBannerCopy"><b>BOT補充ONで気軽に対戦！</b><span>足りない枠はBOTが自動で補充します</span></div>
-            <div class="botToggleLabel">BOT補充 <strong>ON</strong></div>
-          </div>
-        </div>
-
-        <div class="onlineSideCard">
-          <div class="sideAvatar"><span>◆</span></div>
-          <b>ONLINE READY</b>
-          <span>人間2人から開始できます</span>
-          <span>不足枠はBOTが自動補充</span>
-          <div class="serverPill"><i>▮▮▮</i><small>接続先</small><strong>GAS MATCHING</strong></div>
-          <button class="onlineReadyButton" id="onlineReadyCreate">準備OK！</button>
-        </div>
+        <details class="onlineHelp">
+          <summary>？ 遊び方</summary>
+          <div class="onlineHelpBody"><b>塗って、潜って、仲間と勝利！</b><p>床を塗って自分の色を広げよう。自分のインクに潜ると移動と回復ができます。3分間でより広く塗ったチームの勝ち！</p><p>対戦は人間2人から。BOT補充をONにすると、空いた枠をBOTが埋めます。</p></div>
+        </details>
       </div>
     </section>
 
@@ -1765,52 +1744,34 @@
       <div class="setupTitle orange"><span>◆</span> ルームを作る</div>
       <div class="roomSetupLayout">
         <div class="createSetupCard">
-          <div class="setupEyebrow">対戦設定 <small>あとで確認できます</small></div>
+          <div class="setupEyebrow">対戦設定 <small>フレンドと遊ぶ準備をしよう</small></div>
           <div class="setupFields">
-            <div class="roomField"><label>ルール</label><select id="createRule"><option value="turf">ナワバリバトル</option></select></div>
-            <div class="roomField"><label>ステージ</label><select id="createStage"><option value="yukemuri_junction" selected>湯けむりジャンクション</option><option value="salt_spire_beacon">ソルトスパイア・ビーコン</option><option value="ink_yard">インクヤード</option><option value="random">ランダム</option></select></div>
-            <div class="roomField"><label>対戦人数</label><select id="createTeamSize"><option value="1">1対1</option><option value="2">2対2</option><option value="3">3対3</option><option value="4" selected>4対4</option></select></div>
-            <div class="roomField"><label>BOT補充</label><select id="createBotFill"><option value="true" selected>ON</option><option value="false">OFF</option></select></div>
-            <div class="roomField"><label>BOT難易度</label><select id="createBotDifficulty"><option value="easy">やさしい</option><option value="normal" selected>ふつう</option><option value="hard">つよい</option></select></div>
-            <div class="roomField"><label>公開範囲</label><select id="createVisibility"><option value="public" selected>誰でも参加OK</option><option value="friends">フレンドのみ</option></select></div>
-            <div class="roomField"><label>開始方法</label><select id="createStartMode"><option value="host" selected>ホストが開始</option><option value="auto" disabled>人数が揃ったら自動開始（v2）</option><option value="timed" disabled>30秒後にbot補充（v2）</option></select></div>
+            <div class="roomField"><label for="createRule">ルール</label><select id="createRule"><option value="turf">ナワバリバトル</option></select></div>
+            <div class="roomField"><label for="createStage">ステージ</label><select id="createStage"><option value="yukemuri_junction" selected>湯けむりジャンクション</option><option value="salt_spire_beacon">ソルトスパイア・ビーコン</option><option value="ink_yard">インクヤード</option><option value="random">ランダム</option></select></div>
+            <div class="roomField"><label for="createTeamSize">対戦人数</label><select id="createTeamSize"><option value="1">1対1</option><option value="2">2対2</option><option value="3">3対3</option><option value="4" selected>4対4</option></select></div>
+            <div class="roomField"><label for="createBotFill">BOT補充</label><select id="createBotFill"><option value="true" selected>ON</option><option value="false">OFF</option></select></div>
+            <div class="roomField"><label for="createBotDifficulty">BOT難易度</label><select id="createBotDifficulty"><option value="easy">やさしい</option><option value="normal" selected>ふつう</option><option value="hard">つよい</option></select></div>
+            <div class="roomField"><label for="createVisibility">公開範囲</label><select id="createVisibility"><option value="public" selected>誰でも参加OK</option><option value="friends">フレンドのみ</option></select></div>
+            <div class="roomField"><label for="createStartMode">開始方法</label><select id="createStartMode"><option value="host" selected>ホストが開始</option><option value="auto" disabled>人数が揃ったら自動開始（v2）</option><option value="timed" disabled>30秒後にbot補充（v2）</option></select></div>
           </div>
           <button class="roomPrimary create" id="roomCreateConfirm">ルームを作成</button>
         </div>
         <aside class="setupInfoCard">
-          <h3>オンライン情報</h3>
-          <p>👥 人間2人からバトル開始！</p>
-          <p>🤖 足りない枠はBOTが補充します</p>
-          <h3>おすすめ設定</h3>
-          <p>✓ 誰でも参加OK</p><p>✓ 4対4</p><p>✓ BOT補充：ON</p><p>✓ ホストが開始</p>
-          <button class="roomSecondary" id="roomCreateCancel">選び直す</button>
+          <p>人間2人から対戦できます。空いた枠は、BOT補充がONの場合に補充されます。</p>
+          <button class="roomSecondary" id="roomCreateCancel">入口に戻る</button>
         </aside>
       </div>
     </section>
 
     <section class="roomPanel" id="roomJoinPanel" style="display:none">
-      <div class="setupTitle purple"><span>◆</span> ルームに参加</div>
-      <div class="joinSetupLayout">
-        <div class="joinCodeCard">
-          <label for="joinRoomCode">6桁のルームコードを入力</label>
-          <input id="joinRoomCode" inputmode="numeric" maxlength="6" placeholder="482193" autocomplete="one-time-code">
-          <p>フレンドから教えてもらったコードを入力してください</p>
-          <button class="roomPrimary join" id="roomJoinConfirm">参加する</button>
-          <button class="roomSecondary" id="roomJoinCancel">選び直す</button>
-        </div>
-        <div class="joinOr">または</div>
-        <div class="joinCreateCard">
-          <span class="joinCreateIcon">◎</span>
-          <h3>自分でルームを作る</h3>
-          <p>ルールと人数を決めて、フレンドを招待できます。</p>
-          <button class="roomPrimary create" id="roomJoinToCreate">ルーム作成へ</button>
-        </div>
-        <aside class="joinInfo">
-          <h3>ONLINE</h3>
-          <p>● 招待URLならコードを自動入力</p>
-          <p>● 最低2人からスタート</p>
-          <p>● 対戦中はWebRTCで直接通信</p>
-        </aside>
+      <div class="joinCodeCard">
+        <h2 class="setupTitle purple">ルームに参加</h2>
+        <label for="joinRoomCode">6桁のルームコード</label>
+        <input id="joinRoomCode" type="text" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" placeholder="------" autocomplete="one-time-code" spellcheck="false" aria-describedby="joinCodeHint">
+        <p id="joinCodeHint">フレンドから教えてもらったコードを入力</p>
+        <button class="roomPrimary join" id="roomJoinConfirm">参加する →</button>
+        <button class="roomTextLink" id="roomJoinToCreate">自分でルームを作る →</button>
+        <button class="roomTextLink" id="roomJoinCancel">入口に戻る</button>
       </div>
     </section>
 
@@ -1822,8 +1783,8 @@
             <div>ルール<b id="lobbyRule">ナワバリ</b></div>
             <div>ステージ<b id="lobbyStage">ソルトスパイア・ビーコン</b></div>
             <div>対戦人数<b id="lobbyTeamSize">4対4</b></div>
-            <div>bot補充<b id="lobbyBotFill">ON</b></div>
-            <div>bot難易度<b id="lobbyBotDifficulty">ふつう</b></div>
+            <div>BOT補充<b id="lobbyBotFill">ON</b></div>
+            <div>BOT難易度<b id="lobbyBotDifficulty">ふつう</b></div>
             <div>開始方法<b id="lobbyStartMode">ホストが開始</b></div>
           </div>
           <div class="roomCodeBox">ルームコード<strong id="lobbyRoomCode">------</strong></div>
@@ -1831,11 +1792,13 @@
             <button class="roomBtn alt" id="copyInviteUrl">招待リンクをコピー</button>
           </div>
         </div>
-        <div class="lobbyCard">
+        <div class="lobbyCard lobbyRosterCard">
           <h3>参加者</h3>
+          <div class="lobbyTeams">
           <div class="teamLobby" id="lobbyTeamA"><div class="teamLobbyTitle">TEAM ORANGE</div><div class="teamSlots"></div></div>
           <div class="teamLobby" id="lobbyTeamB"><div class="teamLobbyTitle">TEAM PURPLE</div><div class="teamSlots"></div></div>
-          <div id="roomStatus">対戦相手を待っています</div>
+          </div>
+          <div id="roomStatus" role="status" aria-live="polite">対戦相手を待っています</div>
           <div class="lobbyButtons">
             <button class="roomBtn" id="lobbyStart" disabled>botで埋めて開始</button>
             <button class="roomBtn alt" id="lobbyReady" style="display:none">準備OK</button>
@@ -7937,10 +7900,13 @@ document.getElementById('btnFriend').addEventListener('click',()=>{
 document.getElementById('btnOnline').addEventListener('click',e=>{
   e.preventDefault(); e.stopImmediatePropagation(); openRoomOnline();
 },true);
-document.getElementById('roomTopBack').addEventListener('click',()=>leaveRoom(true));
+document.getElementById('roomTopBack').addEventListener('click',()=>{
+  const editing=['roomCreatePanel','roomJoinPanel'].some(id=>document.getElementById(id).style.display!=='none');
+  if(editing){ setRoomPanel('roomHome'); refreshPublicRooms(); }
+  else leaveRoom(true);
+});
 document.getElementById('roomCreateOpen').addEventListener('click',()=>setRoomPanel('roomCreatePanel'));
 document.getElementById('roomJoinOpen').addEventListener('click',()=>setRoomPanel('roomJoinPanel'));
-document.getElementById('onlineReadyCreate').addEventListener('click',()=>setRoomPanel('roomCreatePanel'));
 document.getElementById('roomFriendQuick').addEventListener('click',()=>setRoomPanel('roomJoinPanel'));
 document.getElementById('roomPrivacyQuick').addEventListener('click',()=>{
   document.getElementById('createVisibility').value='friends';
