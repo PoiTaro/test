@@ -1,0 +1,69 @@
+/* Rounded Japanese UI and condensed sports numerals across the game. */
+body { font-family:var(--font-formal);font-weight:700; }
+button,input,select,option { font-family:var(--font-formal);font-weight:700; }
+h1,h2,h3,.modeTitle,#timer,#resultTitle,.resultScoreCard { font-family:var(--font-game);font-weight:900; }
+#result #resultTitle,#result .resultScoreCard,#result .resultMvpCell strong,#result .resultDetail strong { font-weight:900; }
+#title {
+  --home-unit:clamp(.42px,min(.12svh,.07vw),1px);
+  grid-template-columns:minmax(0,35fr) minmax(0,32fr) minmax(0,33fr);
+  grid-template-rows:auto minmax(0,1fr);gap:calc(22 * var(--home-unit));
+  padding:max(16px,env(safe-area-inset-top)) max(20px,env(safe-area-inset-right)) max(18px,env(safe-area-inset-bottom)) max(20px,env(safe-area-inset-left));
+  background:linear-gradient(90deg,#101526d9,#10203b25 42%,#0d152252),linear-gradient(0deg,#111326c9,transparent 60%);
+  overflow:auto;touch-action:pan-y;
+}
+#title::before { inset:0;background:linear-gradient(0deg,#10132255,transparent 40%);filter:none; }
+#title .titleBrand { grid-column:1/3;grid-row:1;padding:0;align-self:start;pointer-events:none; }
+#title .titleBrand h1 { font-family:var(--font-game);font-weight:900;font-size:calc(76 * var(--home-unit));line-height:1;letter-spacing:-.025em;gap:.14em;-webkit-text-stroke:0;filter:drop-shadow(0 4px 0 #0a0b16); }
+#title .titleTopBar { grid-column:3;grid-row:1;align-self:start;gap:10px; }
+#title .titleTopBtn { display:flex;align-items:center;justify-content:center;gap:8px;min-height:40px;padding:8px 14px;border:1px solid #a795ec66;border-radius:14px;background:#131b34e8;font-size:max(12px,calc(18 * var(--home-unit)));cursor:pointer; }
+#title .titleTopBtn i,#homeWeaponBtn i { display:inline-block;width:1.4em;height:1.4em; }
+#title svg { display:block;width:100%;height:100%; }
+#title .titleMenu { grid-column:1;grid-row:2;align-self:center;width:100%;gap:calc(22 * var(--home-unit));padding:0 0 12px 4px; }
+#title .modeCard {
+  min-height:calc(140 * var(--home-unit));padding:calc(22 * var(--home-unit)) calc(42 * var(--home-unit)) calc(22 * var(--home-unit)) calc(90 * var(--home-unit));
+  border:2px solid #9c70f675;border-radius:calc(24 * var(--home-unit));
+  background:linear-gradient(120deg,#222241ee,#11192fef);box-shadow:inset 4px 0 0 #8d40fa,0 6px 14px #080b1b55;
+  transform:skew(-5deg);overflow:visible;
+}
+#title .modeCard.online { background:linear-gradient(115deg,#ffa820,#ff7918);border-color:#ffd782;box-shadow:inset 4px 0 0 #ffe07f,0 6px 14px #080b1b55; }
+#title .modeCard::before { display:none; }
+#title .modeCard::after { content:'›';position:absolute;right:calc(14 * var(--home-unit));top:50%;translate:0 -50%;font:900 calc(40 * var(--home-unit))/1 var(--font-formal); }
+#title .modeCard:hover { transform:skew(-5deg) translateX(3px); }
+#title .modeCard:active { transform:skew(-5deg) translateY(2px); }
+#title .modeTitle { font-family:var(--font-formal);font-size:max(15px,calc(29 * var(--home-unit)));font-weight:900;line-height:1.25;letter-spacing:-.04em;transform:skew(5deg);text-shadow:0 2px 2px #0003;white-space:nowrap; }
+#title .modeSub { font-size:max(10px,calc(17 * var(--home-unit)));font-weight:700;line-height:1.5;transform:skew(5deg);margin-top:6px;color:#f5f2ff; }
+#title .modeIcon { left:calc(20 * var(--home-unit));right:auto;width:calc(50 * var(--home-unit));height:calc(50 * var(--home-unit));border:0;border-radius:0;background:none;box-shadow:none;transform:translateY(-50%) skew(5deg); }
+#title .homeAvatar { grid-column:2;grid-row:2;align-self:stretch;position:relative;min-height:0;display:flex;flex-direction:column;justify-content:flex-end; }
+#homeAvatarView { position:absolute;inset:-8% -10% 50px;min-height:120px;pointer-events:none; }
+#homeAvatarView canvas { width:100%;height:100%; }
+#homeAvatarFallback { width:100%;height:100%;object-fit:contain; }
+#title .homeIdentity { position:relative;display:grid;justify-items:center;gap:6px;padding-bottom:6px; }
+#titlePlayerName { color:#fff;font-size:max(11px,calc(16 * var(--home-unit)));text-shadow:0 2px 6px #000; }
+#homeWeaponBtn { display:flex;align-items:center;gap:8px;max-width:100%;padding:9px 14px;min-height:40px;color:#fff;background:#111b31ed;border:1px solid #afa1dd77;border-left:4px solid #ffab35;border-radius:99px;font-size:max(10px,calc(16 * var(--home-unit)));cursor:pointer; }
+#homeWeaponName { overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }
+#title .titleRuleCard { grid-column:3;grid-row:2;align-self:end;display:grid;grid-template-columns:1fr auto;gap:calc(10 * var(--home-unit));margin:0;padding:calc(20 * var(--home-unit));border:2px solid #9460e3a8;border-radius:calc(26 * var(--home-unit));background:linear-gradient(120deg,#151a32ef,#131429f5); }
+#title .titleRuleCard h2 { grid-column:1/-1;font-family:var(--font-formal);font-weight:900;font-size:max(17px,calc(29 * var(--home-unit)));margin:0;line-height:1.3;white-space:nowrap; }
+#title .titleRuleCard p { grid-column:1/-1;margin:0;font-size:max(10px,calc(14 * var(--home-unit)));line-height:1.5;opacity:1;color:#d7d9e9; }
+#title .stagePreview { grid-column:1/-1;margin:2px 0 0;height:auto;aspect-ratio:16/9;border-radius:calc(17 * var(--home-unit)); }
+#homeStageCanvas { display:none;width:100%;height:100%;object-fit:cover; }
+#title .stagePreview.hasLivePreview { background:none;box-shadow:none; }
+#title .stagePreview.hasLivePreview::before,#title .stagePreview.hasLivePreview::after { display:none; }
+#title .stagePreview.hasLivePreview canvas { display:block; }
+#title .stageName { grid-column:1/-1;text-align:left;font-size:max(13px,calc(21 * var(--home-unit)));font-weight:900;line-height:1.35;margin:0; }
+#title .titleStageSwitch { grid-column:2;grid-row:5;align-self:center;margin:0;width:auto;min-height:38px;padding:7px 12px;border:1px solid #b795ff;border-radius:99px;background:#2b2446;color:#fff;font-size:max(10px,calc(14 * var(--home-unit))); }
+#title .ruleBadges { grid-column:1;grid-row:5;display:flex;flex-wrap:wrap;align-items:center;gap:4px;margin:0; }
+#title .ruleBadges span { flex:none;padding:4px 7px;border:1px solid #8c7dc65c;background:#202540;border-radius:99px;font-size:max(8px,calc(11 * var(--home-unit)));white-space:nowrap; }
+#title button:focus-visible { outline:3px solid #fff;outline-offset:4px; }
+@media (orientation:portrait) {
+  #title { --home-unit:.62px;grid-template-columns:1fr 1fr;grid-template-rows:auto 280px auto auto;gap:18px; }
+  #title .titleBrand { grid-column:1; }
+  #title .titleBrand h1 { font-size:38px; }
+  #title .titleTopBar { grid-column:2; }
+  #title .titleTopBtn { padding:6px 8px;font-size:11px; }
+  #title .homeAvatar { grid-column:1/-1;grid-row:2; }
+  #homeAvatarView { inset:0 20% 45px; }
+  #title .titleMenu { grid-column:1/-1;grid-row:3; }
+  #title .modeCard { min-height:80px; }
+  #title .titleRuleCard { grid-column:1/-1;grid-row:4; }
+}
+@media (prefers-reduced-motion:reduce) { #title .modeCard { transition:none; } }

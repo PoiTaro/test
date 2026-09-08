@@ -9,11 +9,11 @@
 <title>INK CLASH — 3D インクバトル</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=Noto+Sans+JP:wght@700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@800;900&family=M+PLUS+Rounded+1c:wght@700;900&display=swap" rel="stylesheet">
 <style>
   :root {
-    --font-game:'Dela Gothic One','Noto Sans JP',system-ui,sans-serif;
-    --font-formal:'Noto Sans JP','Hiragino Kaku Gothic ProN',system-ui,sans-serif;
+    --font-game:'Barlow Condensed','M PLUS Rounded 1c',sans-serif;
+    --font-formal:'M PLUS Rounded 1c','Hiragino Maru Gothic ProN',sans-serif;
   }
   * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
   html,body {
@@ -1510,6 +1510,7 @@
 </style>
 <link rel="stylesheet" href="assets/hud-v2.css">
 <link rel="stylesheet" href="assets/result-v3.css">
+<link rel="stylesheet" href="assets/home-v4.css">
 </head>
 <body>
 <div id="rotatePrompt" role="status" aria-live="polite" aria-hidden="true">
@@ -1606,54 +1607,46 @@
 
 <div class="overlay" id="title">
   <div class="titleTopBar">
-    <button class="titleTopBtn" id="titleWeaponBtn">🔫 ブキ</button>
-    <button class="titleTopBtn" id="titleSettingsBtn">⚙ 設定</button>
+    <button class="titleTopBtn" id="titleWeaponBtn"><i data-home-icon="weapon" aria-hidden="true"></i>ブキ</button>
+    <button class="titleTopBtn" id="titleSettingsBtn"><i data-home-icon="gear" aria-hidden="true"></i>設定</button>
   </div>
 
   <header class="titleBrand">
     <h1><span class="titleInk">INK</span><span class="titleClash">CLASH</span></h1>
-    <p class="titleTagline">塗って、潜って、仲間と勝利をつかめ！</p>
   </header>
 
   <main class="titleMenu" aria-label="ゲームモード">
     <button class="modeCard online" id="btnOnline">
       <span class="modeTitle">オンラインで遊ぶ</span>
-      <span class="modeSub">ルームを作成・参加して対戦！</span>
-      <span class="modeIcon" aria-hidden="true"></span>
+      <span class="modeSub">ルームを作成・参加して対戦</span>
+      <span class="modeIcon" data-home-icon="globe" aria-hidden="true"></span>
     </button>
     <button class="modeCard friend" id="btnFriend">
       <span class="modeTitle">フレンドと遊ぶ</span>
-      <span class="modeSub">6桁のルームコードを入力して参加</span>
-      <span class="modeIcon" aria-hidden="true"></span>
+      <span class="modeSub">ルームコードで参加</span>
+      <span class="modeIcon" data-home-icon="friends" aria-hidden="true"></span>
     </button>
     <button class="modeCard solo" id="startBtn">
       <span class="modeTitle">ひとりで遊ぶ</span>
-      <span class="modeSub">CPUと自由にインクバトル</span>
-      <span class="modeIcon" aria-hidden="true"></span>
+      <span class="modeSub">CPUと練習バトル</span>
+      <span class="modeIcon" data-home-icon="bot" aria-hidden="true"></span>
     </button>
   </main>
 
+  <section class="homeAvatar" aria-label="プレイヤーと装備ブキ">
+    <div id="homeAvatarView" role="img" aria-label="装備中のブキを持ったプレイヤー"><img id="homeAvatarFallback" alt="装備中のブキ" hidden></div>
+    <div class="homeIdentity"><span id="titlePlayerName">Player</span><button id="homeWeaponBtn"><i data-home-icon="weapon" aria-hidden="true"></i><span id="homeWeaponName">インクシューター</span></button></div>
+  </section>
+
   <aside class="titleRuleCard">
-    <div class="ruleEyebrow">RULE</div>
     <h2>ナワバリバトル</h2>
-    <p>3分間でより多くの面積を塗ったチームの勝ち！</p>
-    <div class="stagePreview saltSpire" id="titleStagePreview" aria-label="ソルトスパイア・ビーコンのプレビュー"></div>
+    <p>3分間で、より広く塗ったチームの勝ち</p>
+    <div class="stagePreview saltSpire" id="titleStagePreview" role="img" aria-label="ソルトスパイア・ビーコンのプレビュー"><canvas id="homeStageCanvas" width="480" height="270" aria-hidden="true"></canvas></div>
     <div class="stageName" id="titleStageName">ソルトスパイア・ビーコン</div>
     <button class="titleStageSwitch" id="titleStageSwitch">ステージ変更</button>
     <div class="ruleBadges"><span>最大 4対4</span><span>BOT補充</span></div>
   </aside>
 
-  <footer class="titleBottom">
-    <div class="playerProfileCard">
-      <div class="profileBlob">●</div>
-      <div>
-        <div class="profileName" id="titlePlayerName">Player</div>
-        <div class="profileMeta">INK FIGHTER　LEVEL 12</div>
-        <div class="profileProgress"><i></i></div>
-      </div>
-    </div>
-    <div class="matchHint"><strong>オンライン対戦</strong>最低2人から開始・足りない枠はBOTが補充します</div>
-  </footer>
 </div>
 
 <div class="overlay" id="online" style="display:none">
@@ -2032,6 +2025,7 @@
 <script src="stages/yukemuri.js"></script>
 <script src="assets/hud-v2.js"></script>
 <script src="assets/result-v3.js"></script>
+<script src="assets/home-v4.js"></script>
 <script>
 /* =====================================================================
    INK CLASH — オリジナル3Dインクシューター
@@ -4277,6 +4271,8 @@ function updateWeaponUI(){
   }
   document.getElementById('weaponHud').style.setProperty('--hud-accent',TEAM[player.team].css);
   document.getElementById('weaponSetName').textContent=w.name;
+  document.getElementById('homeWeaponName').textContent=w.name;
+  document.getElementById('homeAvatarView').setAttribute('aria-label',`${w.name}を装備したプレイヤー`);
   document.getElementById('weaponSetSub').textContent=w.subName;
   document.getElementById('weaponSetSpecial').textContent=w.specialName;
   document.getElementById('weaponSetSubIcon').className=`setIcon subSprite sub-${w.sub}`;
@@ -7899,6 +7895,10 @@ async function startLobbyMatch(){
 }
 
 // 新しいルームUIを優先し、旧QR UIのクリック処理は発火させない。
+const homeView=InkHome.create({THREE,renderer,scene,createKid,simplifyKidForMobile,applyWeaponVisual,
+  loadStage,getStage:()=>activeMatchSettings.stage,getWeapon:()=>selectedWeaponKey,
+  weaponImage:()=>weaponImageForName(selectedLoadout().name)});
+document.getElementById('homeWeaponBtn').addEventListener('click',openWeaponPanel);
 function syncTitlePlayerName(){
   let name='Player';
   try{ name=localStorage.getItem('ink-player-name')||'Player'; }catch(e){}
@@ -8037,7 +8037,8 @@ function animate(){
       if (mapDrawT<=0){ mapDrawT=0.15; drawMap(); }
     }
   }
-  renderer.render(scene, camera);
+  if(!running&&homeView.visible()) homeView.render(dt,visualTime);
+  else renderer.render(scene, camera);
 }
 
 // ---------- 起動 ----------
