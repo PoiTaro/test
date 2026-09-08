@@ -37,6 +37,7 @@ function yukemuriBlueprint(){
 
 function applyStageEnvironment(id){
   const dusk=id==='yukemuri_junction';
+  scene.environment=InkGraphics.environment(THREE,renderer,dusk);
   const sky=scene.getObjectByName('world-sky');
   if(sky){
     sky.material.uniforms.top.value.setHex(dusk?0x07172e:0x2f7fd8);
@@ -45,10 +46,10 @@ function applyStageEnvironment(id){
   }
   hemisphere.color.setHex(dusk?0xb9d8ff:0xcfe6ff);
   hemisphere.groundColor.setHex(dusk?0x937565:0xd6ae83);
-  hemisphere.intensity=dusk?.55:.82;
-  sun.color.setHex(dusk?0xd3e6ff:0xfff0d8);sun.intensity=dusk?1:1.48;
+  hemisphere.intensity=dusk?.42:.56;
+  sun.color.setHex(dusk?0xd3e6ff:0xfff0d8);sun.intensity=dusk?1.25:1.65;
   rim.intensity=dusk?.3:.42;warmFill.intensity=dusk?.24:.18;
-  renderer.toneMappingExposure=dusk?.86:1.08;
+  renderer.toneMappingExposure=dusk?.96:1.02;
   for(const cloud of scene.children.filter(o=>o.name==='world-cloud')){
     for(const mesh of cloud.children)mesh.material.color.setHex(dusk?0x5c7893:0xffffff);
   }
@@ -111,6 +112,11 @@ function buildYukemuri(){
     water:mat(0x70b6c0,.23,{metalness:.38,transparent:true,opacity:.84}),
     tree:mat(0x244e51),mountain:mat(0x45647a)
   };
+  for(const [name,kind,scale] of [['stone','stone',.13],['plaster','plaster',.055],['wood','wood',.07],['roof','roof',.11]]){
+    const detail=InkGraphics.surface(THREE,renderer,kind);
+    m[name].map=detail.map;m[name].bumpMap=detail.bump;m[name].bumpScale=scale;
+    m[name].envMapIntensity=.55;
+  }
   // Repeated trim, windows, roofs, lanterns and distant houses are instanced.
   const batches=new Map();
   const roofShape=new THREE.Shape();
@@ -311,7 +317,7 @@ function buildYukemuri(){
   for(const batch of batches.values()){
     const mesh=new THREE.InstancedMesh(batch.geometry,batch.material,batch.matrices.length);
     batch.matrices.forEach((matrix,i)=>mesh.setMatrixAt(i,matrix));
-    mesh.instanceMatrix.needsUpdate=true;mesh.castShadow=!isTouch&&batch.material!==m.glow;
+    mesh.instanceMatrix.needsUpdate=true;mesh.castShadow=![m.glow,m.water,m.tree,m.mountain].includes(batch.material);
     mesh.receiveShadow=true;stageAdd(mesh);
   }
   addYukemuriSteam(rt,plan.vents);

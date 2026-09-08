@@ -1985,6 +1985,7 @@
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="assets/graphics-v6.js"></script>
 <script src="stages/yukemuri.js"></script>
 <script src="assets/hud-v2.js"></script>
 <script src="assets/result-v3.js"></script>
@@ -2082,7 +2083,7 @@ const renderer = new THREE.WebGLRenderer({ antialias:true, powerPreference:'high
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, isTouch ? 1.5 : 2));
 renderer.setSize(innerWidth, innerHeight);
 renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = isTouch ? THREE.PCFShadowMap : THREE.PCFSoftShadowMap;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.outputEncoding = THREE.sRGBEncoding;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.08;
@@ -2149,7 +2150,7 @@ scene.add(hemisphere);
 const sun = new THREE.DirectionalLight(0xfff0d8, 1.48);
 sun.position.set(45, 70, 25);
 sun.castShadow = true;
-const shadowMapSize = isTouch ? 1024 : 2048;
+const shadowMapSize = isTouch ? 1536 : 2048;
 sun.shadow.mapSize.set(shadowMapSize, shadowMapSize);
 sun.shadow.camera.near = 1;
 sun.shadow.camera.left = -72; sun.shadow.camera.right = 72;
@@ -2173,6 +2174,7 @@ const stageMaskCv=document.createElement('canvas');
 stageMaskCv.width=stageMaskCv.height=GRID;
 const stageMaskCtx=stageMaskCv.getContext('2d');
 const paintTex = new THREE.CanvasTexture(paintCv);
+paintTex.anisotropy = Math.min(8,renderer.capabilities.getMaxAnisotropy());
 paintTex.encoding = THREE.sRGBEncoding;
 paintTex.anisotropy = renderer.capabilities.getMaxAnisotropy();
 const saltFloorDetailImage = new Image();
@@ -2422,12 +2424,18 @@ floorMat.onBeforeCompile = shader => {
     roughnessFactor = mix(roughnessFactor, 0.13, wetInkMask);`
   );
   shader.fragmentShader = shader.fragmentShader.replace(
+    '#include <normal_fragment_maps>',
+    `vec3 dryBaseNormal = normal;
+    #include <normal_fragment_maps>
+    normal = normalize(mix(normal, dryBaseNormal, wetInkMask * .9));`
+  );
+  shader.fragmentShader = shader.fragmentShader.replace(
     '#include <metalnessmap_fragment>',
     `#include <metalnessmap_fragment>
     metalnessFactor = mix(metalnessFactor, 0.11, wetInkMask);`
   );
 };
-floorMat.customProgramCacheKey = () => 'ink-clash-wet-floor-v2';
+floorMat.customProgramCacheKey = () => 'ink-clash-wet-floor-v3';
 const obstacles = [];
 const groundSurfaces = [];
 const projectileColliders = obstacles;
@@ -3759,8 +3767,8 @@ loadStage(activeMatchSettings.stage);
 
 // ---------- キャラクター ----------
 function makeToonMat(color, emissive=0x000000, ei=0){
-  return new THREE.MeshStandardMaterial({
-    color,roughness:.38,metalness:.025,emissive,emissiveIntensity:ei,envMapIntensity:1.08
+  return new THREE.MeshPhysicalMaterial({
+    color,roughness:.32,metalness:.025,clearcoat:.48,clearcoatRoughness:.22,emissive,emissiveIntensity:ei*.4,envMapIntensity:.72
   });
 }
 
@@ -3770,7 +3778,7 @@ function createKid(team, role = 'bot'){
 
   // 足元リング：チーム色をひと目で判別できるように
   const ring = new THREE.Mesh(new THREE.TorusGeometry(0.72, 0.09, 8, 28),
-    new THREE.MeshStandardMaterial({ color: c.light, emissive: c.main, emissiveIntensity: 0.9, roughness: 0.35 }));
+    new THREE.MeshStandardMaterial({ color: c.light, emissive: c.main, emissiveIntensity: 0.25, roughness: 0.35 }));
   ring.rotation.x = Math.PI/2;
   ring.position.y = 0.06;
   g.add(ring);
@@ -3794,7 +3802,7 @@ function createKid(team, role = 'bot'){
   // 自分だけ白いバイザー状のラインを足して見分けやすく
   if (role === 'self'){
     const band = new THREE.Mesh(new THREE.TorusGeometry(0.6, 0.075, 8, 28),
-      new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xffffff, emissiveIntensity: 0.35, roughness: 0.3 }));
+      new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xffffff, emissiveIntensity: 0.08, roughness: 0.3 }));
     band.position.y = 1.28;
     band.rotation.x = Math.PI/2 - 0.22;
     g.add(band);
@@ -3864,7 +3872,7 @@ function createKid(team, role = 'bot'){
   gun.castShadow = true;
   g.add(gun);
 
-  g.traverse(o => { if (o.isMesh) o.castShadow = true; });
+  g.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
 
   // イカ形態
   const squid = new THREE.Group();
@@ -3896,38 +3904,8 @@ function createKid(team, role = 'bot'){
 }
 
 function simplifyKidForMobile(entity,team){
-  if(!isTouch||!entity||entity._mobileSimple)return entity;
-  entity._mobileSimple=true;
-  const originalParts=entity.humanParts.slice();
-  originalParts.forEach(part=>{part.visible=false;});
-  const c=TEAM[team],simple=new THREE.Group();
-  const bodyMat=makeToonMat(c.main,c.main,.18);
-  const darkMat=makeToonMat(c.dark);
-  const body=new THREE.Mesh(new THREE.SphereGeometry(.47,10,8),bodyMat);
-  body.scale.y=1.18;body.position.y=.72;
-  const eyeMat=new THREE.MeshBasicMaterial({color:0xffffff});
-  for(const sx of [-1,1]){
-    const eye=new THREE.Mesh(new THREE.SphereGeometry(.09,7,5),eyeMat);
-    eye.position.set(sx*.16,.86,.4);simple.add(eye);
-  }
-  const footGeo=new THREE.SphereGeometry(.16,7,5);
-  for(const sx of [-1,1]){
-    const foot=new THREE.Mesh(footGeo,darkMat);
-    foot.scale.set(1.25,.55,1.6);foot.position.set(sx*.24,.13,.02);simple.add(foot);
-  }
-  const gun=new THREE.Group();
-  const barrel=new THREE.Mesh(new THREE.CylinderGeometry(.1,.14,.62,8),makeToonMat(0xe7eef5));
-  barrel.rotation.x=Math.PI/2;
-  const grip=new THREE.Mesh(new THREE.BoxGeometry(.13,.22,.25),bodyMat);
-  grip.position.y=-.16;gun.add(barrel,grip);gun.position.set(.46,.8,.34);
-  simple.add(body,gun);entity.group.add(simple);
-  entity.gun=gun;
-  entity.humanParts=[simple];
-  entity.teamMaterials.push(
-    {material:bodyMat,color:'main',emissive:'main'},
-    {material:darkMat,color:'dark'},
-    {material:grip.material,color:'main',emissive:'main'}
-  );
+  // Retain eyes, tank, tentacles and equipped weapon on every device.
+  // Shared surface lighting adds detail without a second character mesh.
   return entity;
 }
 

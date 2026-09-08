@@ -10,8 +10,8 @@ assert(
 );
 assert(
   /renderer\.shadowMap\.enabled = true/.test(html) &&
-  /isTouch \? THREE\.PCFShadowMap : THREE\.PCFSoftShadowMap/.test(html) &&
-  /const shadowMapSize = isTouch \? 1024 : 2048/.test(html),
+  /renderer\.shadowMap\.type = THREE\.PCFSoftShadowMap/.test(html) &&
+  /const shadowMapSize = isTouch \? 1536 : 2048/.test(html),
   'mobile and desktop must both render tiered realtime shadows'
 );
 assert(
