@@ -1986,6 +1986,7 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="assets/graphics-v6.js"></script>
+<script src="assets/character-v8.js"></script>
 <script src="stages/yukemuri.js"></script>
 <script src="assets/hud-v2.js"></script>
 <script src="assets/result-v3.js"></script>
@@ -3773,134 +3774,7 @@ function makeToonMat(color, emissive=0x000000, ei=0){
 }
 
 function createKid(team, role = 'bot'){
-  const c = TEAM[team];
-  const g = new THREE.Group();
-
-  // 足元リング：チーム色をひと目で判別できるように
-  const ring = new THREE.Mesh(new THREE.TorusGeometry(0.72, 0.09, 8, 28),
-    new THREE.MeshStandardMaterial({ color: c.light, emissive: c.main, emissiveIntensity: 0.25, roughness: 0.35 }));
-  ring.rotation.x = Math.PI/2;
-  ring.position.y = 0.06;
-  g.add(ring);
-
-  // 頭上マーカー：自分＝白／味方＝チーム色／敵＝敵色
-  const markCol = role === 'self' ? 0xffffff : c.light;
-  const marker = new THREE.Mesh(new THREE.ConeGeometry(0.26, 0.44, 4),
-    new THREE.MeshStandardMaterial({ color: markCol, emissive: markCol, emissiveIntensity: 0.85, roughness: 0.3 }));
-  marker.rotation.x = Math.PI;      // 下向きの矢印
-  marker.rotation.y = Math.PI/4;
-  marker.position.y = 2.35;
-  g.add(marker);
-
-  const bodyMat = makeToonMat(c.main, c.main, 0.12);
-  const body = new THREE.Mesh(new THREE.SphereGeometry(0.62, 28, 22), bodyMat);
-  body.position.y = 0.95;
-  body.scale.set(1, 1.18, 0.95);
-  body.castShadow = true;
-  g.add(body);
-
-  // 自分だけ白いバイザー状のラインを足して見分けやすく
-  if (role === 'self'){
-    const band = new THREE.Mesh(new THREE.TorusGeometry(0.6, 0.075, 8, 28),
-      new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xffffff, emissiveIntensity: 0.08, roughness: 0.3 }));
-    band.position.y = 1.28;
-    band.rotation.x = Math.PI/2 - 0.22;
-    g.add(band);
-  }
-
-  // 触角（うしろに2本）
-  for (const s of [-1, 1]){
-    const tent = new THREE.Mesh(new THREE.ConeGeometry(0.18, 1.0, 14), bodyMat);
-    tent.position.set(0.24*s, 1.55, -0.42);
-    tent.rotation.x = -2.4;
-    tent.rotation.z = 0.25*s;
-    tent.castShadow = true;
-    g.add(tent);
-  }
-
-  // 目
-  for (const s of [-1, 1]){
-    const white = new THREE.Mesh(new THREE.SphereGeometry(0.185, 16, 12),
-      new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.25 }));
-    white.position.set(0.24*s, 1.12, 0.5);
-    white.scale.set(1, 1.35, 0.6);
-    const pupil = new THREE.Mesh(new THREE.SphereGeometry(0.085, 12, 10),
-      new THREE.MeshStandardMaterial({ color: 0x1c1030, roughness: 0.2 }));
-    pupil.position.set(0.24*s, 1.13, 0.62);
-    g.add(white, pupil);
-  }
-
-  // 脚
-  const legMat = makeToonMat(0x243044);
-  for (const s of [-1, 1]){
-    const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.14, 0.5, 10), legMat);
-    leg.position.set(0.22*s, 0.25, 0);
-    leg.castShadow = true;
-    g.add(leg);
-    const shoe = new THREE.Mesh(new THREE.SphereGeometry(0.17, 12, 10), makeToonMat(0xffffff));
-    shoe.position.set(0.22*s, 0.08, 0.07);
-    shoe.scale.set(1, 0.6, 1.4);
-    shoe.castShadow = true;
-    g.add(shoe);
-  }
-
-  // インクタンク（背中）
-  const tank = new THREE.Group();
-  const glass = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.24, 0.62, 18),
-    new THREE.MeshPhysicalMaterial({
-      color:0xdff2ff,roughness:.055,metalness:0,clearcoat:1,clearcoatRoughness:.07,
-      transparent:true,opacity:.48,depthWrite:false
-    }));
-  const inkFill = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.5, 16), makeToonMat(c.main, c.main, 0.5));
-  const cap = new THREE.Mesh(new THREE.SphereGeometry(0.24, 14, 10), makeToonMat(0x2a3348));
-  cap.position.y = 0.34; cap.scale.y = 0.5;
-  tank.add(glass, inkFill, cap);
-  tank.position.set(0, 1.05, -0.62);
-  tank.rotation.x = 0.25;
-  g.add(tank);
-
-  // ブラスター
-  const gun = new THREE.Group();
-  const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.16, 0.7, 14), makeToonMat(0xf2f5fa));
-  barrel.rotation.x = Math.PI/2;
-  const nozzle = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.11, 0.2, 12), makeToonMat(c.dark));
-  nozzle.rotation.x = Math.PI/2; nozzle.position.z = 0.44;
-  const gripBody = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.22, 0.3), makeToonMat(c.main, c.main, 0.2));
-  gripBody.position.y = -0.16;
-  gun.add(barrel, nozzle, gripBody);
-  gun.position.set(0.5, 0.95, 0.35);
-  gun.castShadow = true;
-  g.add(gun);
-
-  g.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
-
-  // イカ形態
-  const squid = new THREE.Group();
-  const sBody = new THREE.Mesh(new THREE.ConeGeometry(0.42, 1.1, 18), makeToonMat(c.main, c.main, 0.35));
-  sBody.rotation.x = Math.PI/2;
-  const sFinL = new THREE.Mesh(new THREE.ConeGeometry(0.16, 0.55, 10), makeToonMat(c.main));
-  sFinL.rotation.z = Math.PI/2; sFinL.position.set(-0.35, 0, -0.3);
-  const sFinR = sFinL.clone(); sFinR.rotation.z = -Math.PI/2; sFinR.position.x = 0.35;
-  squid.add(sBody, sFinL, sFinR);
-  squid.position.y = 0.3;
-  squid.visible = false;
-  squid.traverse(o => { if (o.isMesh) o.castShadow = true; });
-  g.add(squid);
-
-  return {
-    group: g, kid: [body], gun, squid, ring, marker,
-    teamMaterials: [
-      { material:ring.material, color:'light', emissive:'main' },
-      { material:bodyMat, color:'main', emissive:'main' },
-      { material:inkFill.material, color:'main', emissive:'main' },
-      { material:nozzle.material, color:'dark' },
-      { material:gripBody.material, color:'main', emissive:'main' },
-      { material:sBody.material, color:'main', emissive:'main' },
-      { material:sFinL.material, color:'main' },
-      ...(role === 'self' ? [] : [{ material:marker.material, color:'light', emissive:'light' }]),
-    ],
-    humanParts: g.children.filter(ch => ch !== squid && ch !== ring && ch !== marker),
-  };
+  return InkCharacter.create(THREE, TEAM[team], role);
 }
 
 function simplifyKidForMobile(entity,team){
@@ -3978,6 +3852,7 @@ function disposeWeaponGroups(groups,preserveRoot=null){
 }
 
 function buildWeaponModel(key,team,side=1,mobile=isTouch){
+  if(key==='shooter'&&InkCharacter.createShooter)return InkCharacter.createShooter(THREE,TEAM[team]||TEAM.A);
   const c=TEAM[team]||TEAM.A;
   const segments=mobile?8:14;
   const g=new THREE.Group();
@@ -4115,11 +3990,11 @@ function buildWeaponModel(key,team,side=1,mobile=isTouch){
 
 function setWeaponPlacement(weapon,key,side=1){
   const placements={
-    shooter:{p:[.49,.98,.28],r:[0,0,0],s:[.88,.88,.88]},
-    roller:{p:[.48,.83,.12],r:[-.16,0,-.05*side],s:[.86,.86,.86]},
-    charger:{p:[.47,1.02,.1],r:[-.03,0,0],s:[.72,.72,.72]},
-    slosher:{p:[.47,.99,.13],r:[-.12,0,-.12*side],s:[.82,.82,.82]},
-    dualies:{p:[.46*side,.94,.28],r:[0,0,-.07*side],s:[.72,.72,.72]}
+    shooter:{p:[.15,1.13,.10],r:[0,0,0],s:[.88,.88,.88]},
+    roller:{p:[.18,1.07,-.11],r:[-.16,0,-.05*side],s:[.86,.86,.86]},
+    charger:{p:[.08,1.07,-.16],r:[-.03,0,0],s:[.72,.72,.72]},
+    slosher:{p:[.07,1.03,.02],r:[-.12,0,-.12*side],s:[.82,.82,.82]},
+    dualies:{p:[.25*side,1.07,.04],r:[0,0,-.07*side],s:[.72,.72,.72]}
   };
   const cfg=placements[key]||placements.shooter;
   weapon.position.set(...cfg.p);
@@ -4190,6 +4065,7 @@ function animateWeaponModel(entity,dt,moveAmount=0){
   };
   animateOne(entity.gun,0);
   if(entity.gunExtra)animateOne(entity.gunExtra,1);
+  InkCharacter.update(entity,dt,moveAmount,performance.now()/1000);
 }
 function updateWeaponUI(){
   const w=selectedLoadout();
@@ -4233,6 +4109,7 @@ function applyKidTeamColor(entity, team){
   if (!entity || !palette || !entity.teamMaterials) return;
   for (const entry of entity.teamMaterials){
     entry.material.color.setHex(palette[entry.color]);
+    if(entry.linearColor)entry.material.color.convertSRGBToLinear();
     if (entry.material.emissive){
       entry.material.emissive.setHex(entry.emissive ? palette[entry.emissive] : 0x000000);
     }

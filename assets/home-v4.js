@@ -75,6 +75,7 @@ const InkHome=(()=>{
       }
       avatar.group.rotation.y=reducedMotion.matches?-.2:-.2+Math.sin(time*.6)*.1;
       avatar.group.position.y=reducedMotion.matches?0:Math.sin(time*1.8)*.025;
+      if(typeof InkCharacter!=='undefined')InkCharacter.update(avatar,dt,0,time);
       avatarRenderer.render(avatarScene,avatarCamera);
     }
     return {visible,render};
